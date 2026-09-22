@@ -23,18 +23,21 @@ export default function ProfilePage({
 
   useEffect(() => {
     if (!currentUser) return;
-    setForm({
-      name: currentUser.name,
-      phone: currentUser.phone,
-      location: currentUser.location,
-      company: currentUser.company ?? "",
-    });
+    const timer = window.setTimeout(() => {
+      setForm({
+        name: currentUser.name,
+        phone: currentUser.phone,
+        location: currentUser.location,
+        company: currentUser.company ?? "",
+      });
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [currentUser]);
 
-  function onSubmit(e: FormEvent) {
+  async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    updateProfile(form);
-    setSaved(true);
+    const error = await updateProfile(form);
+    setSaved(!error);
   }
 
   return (
@@ -53,12 +56,12 @@ export default function ProfilePage({
                   const file = e.target.files?.[0];
                   if (!file) return;
                   const photo = await readImageFile(file);
-                  updateProfile({ photo });
-                  setSaved(true);
+                  const error = await updateProfile({ photo });
+                  setSaved(!error);
                 }}
               />
               <p className="mt-1 text-xs text-muted">
-                Stored in this browser for the demo. Backend upload comes later.
+                Images are resized before they are saved to your profile.
               </p>
             </Field>
           </div>

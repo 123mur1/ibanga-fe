@@ -4,12 +4,13 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BrandLink } from "@/components/brand";
+import { RequireAuth } from "@/components/require-auth";
 import { PayNotice, TruckBadge } from "@/components/status-badge";
 import { Avatar, TruckGallery } from "@/components/photos";
 import { useIbanga } from "@/lib/store";
 import type { Truck } from "@/lib/types";
 
-export default function TruckDetailsPage() {
+function TruckDetailsContent() {
   const { id } = useParams<{ id: string }>();
   const { currentUser, fetchTruck } = useIbanga();
   const [truck, setTruck] = useState<Truck | null>(null);
@@ -17,7 +18,6 @@ export default function TruckDetailsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     fetchTruck(id)
       .then((t) => {
         if (!cancelled) setTruck(t);
@@ -102,7 +102,7 @@ export default function TruckDetailsPage() {
                 price, then the owner accepts or rejects.
               </p>
               <div className="mt-4 flex items-center gap-3">
-                <Avatar name={owner.name} />
+                <Avatar src={owner.photo ?? undefined} name={owner.name} />
                 <p className="font-medium text-navy">{owner.name}</p>
               </div>
               <p className="mt-2 text-navy">{owner.phone}</p>
@@ -136,5 +136,13 @@ export default function TruckDetailsPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function TruckDetailsPage() {
+  return (
+    <RequireAuth>
+      <TruckDetailsContent />
+    </RequireAuth>
   );
 }

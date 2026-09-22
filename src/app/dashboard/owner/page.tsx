@@ -9,7 +9,7 @@ import { StatCard } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
 
 export default function OwnerDashboard() {
-  const { currentUser, trucks, bookings, refreshTrucks } = useIbanga();
+  const { currentUser, trucks, trucksLoading, bookings, refreshTrucks } = useIbanga();
   const mine = trucks;
 
   useEffect(() => {
@@ -42,6 +42,7 @@ export default function OwnerDashboard() {
           <StatCard label="Pending requests" value={requests.length} />
           <StatCard label="Active trips" value={active.length} />
         </div>
+        {trucksLoading ? <p className="mt-4 text-sm text-muted">Loading your trucks…</p> : null}
         <div className="mt-8 flex gap-3">
           <Link
             href="/dashboard/owner/trucks/new"

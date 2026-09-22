@@ -39,7 +39,8 @@ export default function AdminUsersPage() {
   }, []);
 
   useEffect(() => {
-    void loadUsers();
+    const timer = window.setTimeout(() => void loadUsers(), 0);
+    return () => window.clearTimeout(timer);
   }, [loadUsers]);
 
   async function deleteUser(user: User) {
@@ -63,7 +64,7 @@ export default function AdminUsersPage() {
         <h1 className="font-display text-3xl text-navy">Users</h1>
         {error ? <p className="mt-3 text-sm text-red-700">{error}</p> : null}
         <div className="mt-6 overflow-x-auto rounded-2xl border border-line bg-card">
-          <table className="w-full min-w-[640px] text-left text-sm">
+          <table className="w-full min-w-160 text-left text-sm">
             <thead className="border-b border-line text-muted">
               <tr>
                 <th className="px-4 py-3 font-medium">Name</th>

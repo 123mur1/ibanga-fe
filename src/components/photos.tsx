@@ -247,9 +247,37 @@ export function PhotoUploader({
 
 export function readImageFile(file: File) {
   return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+    const image = new Image();
+    const source = URL.createObjectURL(file);
+
+    image.onload = () => {
+      const maxDimension = 1000;
+      const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(image.width * scale));
+      canvas.height = Math.max(1, Math.round(image.height * scale));
+      canvas.getContext("2d")?.drawImage(image, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(source);
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error("Could not process this image."));
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        },
+        "image/jpeg",
+        0.72,
+      );
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(source);
+      reject(new Error("Could not read this image."));
+    };
+    image.src = source;
   });
 }

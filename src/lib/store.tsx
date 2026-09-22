@@ -10,7 +10,6 @@ import {
 } from "react";
 import { api, getToken, setToken } from "./api";
 import {
-  ACTIVE_BOOKING_STATUSES,
   type Booking,
   type BookingStatus,
   type Dispute,
@@ -68,6 +67,8 @@ type AuthPayload = {
     phone: string | null;
     role: Role;
     location: string | null;
+    company: string | null;
+    photo: string | null;
   };
 };
 
@@ -79,6 +80,8 @@ function toUser(u: AuthPayload["user"]): User {
     phone: u.phone ?? "",
     role: u.role,
     location: u.location ?? "",
+    company: u.company ?? "",
+    photo: u.photo ?? undefined,
     active: true,
   };
 }
@@ -97,7 +100,7 @@ type Store = State & {
     role: Exclude<Role, "ADMIN">;
   }) => Promise<string | null>;
   logout: () => void;
-  updateProfile: (patch: Partial<Pick<User, "name" | "phone" | "location" | "company" | "photo">>) => void;
+  updateProfile: (patch: Partial<Pick<User, "name" | "phone" | "location" | "company" | "photo">>) => Promise<string | null>;
   trucks: Truck[];
   trucksLoading: boolean;
   refreshTrucks: (params?: TruckSearchParams) => Promise<string | null>;
@@ -146,10 +149,43 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
 
+  const refreshBookings = useCallback(async (): Promise<string | null> => {
+    if (!getToken()) return null;
+    try {
+      const [bookingData, disputeData] = await Promise.all([
+        api<ApiBooking[]>("/bookings"),
+        api<Dispute[]>("/disputes"),
+      ]);
+      const bookings = bookingData.map(toBooking);
+      const relatedUsers: User[] = bookingData.flatMap((booking) => [
+        ...(booking.importer ? [toUser(booking.importer)] : []),
+        ...(booking.truck?.owner
+          ? [{
+              ...booking.truck.owner,
+              role: "TRUCK_OWNER" as const,
+              active: true,
+              phone: booking.truck.owner.phone ?? "",
+              location: booking.truck.owner.location ?? "",
+              photo: booking.truck.owner.photo ?? undefined,
+            }]
+          : []),
+      ]);
+      setState((current) => ({
+        ...current,
+        bookings,
+        disputes: disputeData,
+        users: Array.from(new Map(relatedUsers.map((user) => [user.id, user])).values()),
+      }));
+      return null;
+    } catch (err) {
+      return err instanceof Error ? err.message : "Could not load bookings.";
+    }
+  }, []);
+
   useEffect(() => {
     const token = getToken();
     if (!token) {
-      setReady(true);
+      queueMicrotask(() => setReady(true));
       return;
     }
 
@@ -160,7 +196,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
       })
       .catch(() => setToken(null))
       .finally(() => setReady(true));
-  }, []);
+  }, [refreshBookings]);
 
   const currentUser = authUser;
 
@@ -177,7 +213,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       return err instanceof Error ? err.message : "Login failed.";
     }
-  }, []);
+  }, [refreshBookings]);
 
   const register = useCallback<Store["register"]>(async (input) => {
     try {
@@ -199,22 +235,25 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       return err instanceof Error ? err.message : "Registration failed.";
     }
-  }, []);
+  }, [refreshBookings]);
 
   const logout = useCallback(() => {
     setToken(null);
     setAuthUser(null);
   }, []);
 
-  const updateProfile = useCallback<Store["updateProfile"]>((patch) => {
-    setAuthUser((u) => (u ? { ...u, ...patch } : u));
-    setState((s) => ({
-      ...s,
-      users: s.users.map((user) =>
-        user.id === (authUser?.id ?? s.currentUserId) ? { ...user, ...patch } : user,
-      ),
-    }));
-  }, [authUser?.id]);
+  const updateProfile = useCallback<Store["updateProfile"]>(async (patch) => {
+    try {
+      const user = await api<AuthPayload["user"]>("/auth/me", {
+        method: "PATCH",
+        body: JSON.stringify(patch),
+      });
+      setAuthUser(toUser(user));
+      return null;
+    } catch (err) {
+      return err instanceof Error ? err.message : "Could not update profile.";
+    }
+  }, []);
 
   const refreshTrucks = useCallback<Store["refreshTrucks"]>(async (params) => {
     setTrucksLoading(true);
@@ -280,40 +319,6 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
       return null;
     } catch (err) {
       return err instanceof Error ? err.message : "Could not update availability.";
-    }
-  }, []);
-
-  const refreshBookings = useCallback(async (): Promise<string | null> => {
-    if (!getToken()) return null;
-    try {
-      const [bookingData, disputeData] = await Promise.all([
-        api<ApiBooking[]>("/bookings"),
-        api<Dispute[]>("/disputes"),
-      ]);
-      const bookings = bookingData.map(toBooking);
-      const relatedUsers: User[] = bookingData.flatMap((booking) => [
-        ...(booking.importer ? [toUser(booking.importer)] : []),
-        ...(booking.truck?.owner
-          ? [
-              {
-                ...booking.truck.owner,
-                role: "TRUCK_OWNER" as const,
-                active: true,
-                phone: booking.truck.owner.phone ?? "",
-                location: booking.truck.owner.location ?? "",
-              },
-            ]
-          : []),
-      ]);
-      setState((current) => ({
-        ...current,
-        bookings,
-        disputes: disputeData,
-        users: Array.from(new Map(relatedUsers.map((user) => [user.id, user])).values()),
-      }));
-      return null;
-    } catch (err) {
-      return err instanceof Error ? err.message : "Could not load bookings.";
     }
   }, []);
 

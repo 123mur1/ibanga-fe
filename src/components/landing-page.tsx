@@ -131,7 +131,7 @@ export function LandingPage() {
           </p>
         </div>
 
-        <div className="rounded-[2rem] border border-line bg-card p-3 shadow-[0_24px_60px_rgba(15,23,42,0.1)] sm:p-4">
+        <div className="rounded-4xl border border-line bg-card p-3 shadow-[0_24px_60px_rgba(15,23,42,0.1)] sm:p-4">
           <p className="px-2 pt-2 text-sm font-medium text-muted">
             sample listing for truck owner
           </p>
@@ -258,7 +258,7 @@ export function LandingPage() {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 pb-16">
-        <div className="rounded-[2rem] bg-navy px-6 py-10 text-white sm:px-10">
+        <div className="rounded-4xl bg-navy px-6 py-10 text-white sm:px-10">
           <h2 className="font-display text-3xl">Ready to move cargo?</h2>
           <p className="mt-3 max-w-xl text-white/70">
              discovery, direct contact, booking, lock,

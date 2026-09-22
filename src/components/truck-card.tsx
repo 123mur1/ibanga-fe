@@ -35,7 +35,7 @@ export function TruckCard({ truck }: { truck: Truck }) {
           <div className="flex items-center justify-between gap-3">
             <dt className="text-muted">Owner</dt>
             <dd className="flex items-center gap-2 font-medium text-navy">
-              <Avatar name={owner.name} size="sm" />
+              <Avatar src={owner.photo ?? undefined} name={owner.name} size="sm" />
               {owner.name}
             </dd>
           </div>

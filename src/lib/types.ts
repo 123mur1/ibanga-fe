@@ -28,6 +28,7 @@ export type TruckOwnerContact = {
   email: string;
   phone: string | null;
   location: string | null;
+  photo?: string | null;
 };
 
 export type Truck = {

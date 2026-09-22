@@ -18,7 +18,8 @@ export function PriceAgree({
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    setPrice(currentPrice);
+    const timer = window.setTimeout(() => setPrice(currentPrice), 0);
+    return () => window.clearTimeout(timer);
   }, [currentPrice]);
 
   return (

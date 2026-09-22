@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BrandLink } from "@/components/brand";
+import { RequireAuth } from "@/components/require-auth";
 import { TruckCard } from "@/components/truck-card";
 import { Field, inputClass } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
 import { LOCATIONS, TRUCK_TYPES } from "@/lib/types";
 
-export default function TrucksPage() {
+function TrucksPageContent() {
   const { trucks, trucksLoading, currentUser, refreshTrucks } = useIbanga();
   const [location, setLocation] = useState("");
   const [type, setType] = useState("");
@@ -103,5 +104,13 @@ export default function TrucksPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function TrucksPage() {
+  return (
+    <RequireAuth>
+      <TrucksPageContent />
+    </RequireAuth>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
@@ -53,7 +54,14 @@ export default function NewTruckPage() {
   return (
     <RequireAuth role="TRUCK_OWNER">
       <DashboardShell role="TRUCK_OWNER">
-        <h1 className="font-display text-3xl text-navy">Add a truck</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <Link href="/dashboard/owner/trucks" className="text-sm font-semibold text-brand">
+              Back to my trucks
+            </Link>
+            <h1 className="mt-2 font-display text-3xl text-navy">Add a truck</h1>
+          </div>
+        </div>
         <form onSubmit={onSubmit} className="mt-6 max-w-xl space-y-4">
           <Field label="Plate number">
             <input
