@@ -18,7 +18,14 @@ export default function OwnerHistoryPage() {
   return (
     <RequireAuth role="TRUCK_OWNER">
       <DashboardShell role="TRUCK_OWNER">
-        <h1 className="font-display text-3xl text-navy">Trip history</h1>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="font-display text-3xl tracking-tight text-navy">Trip history</h1>
+            <p className="mt-1.5 text-sm text-muted">
+              Finished and rejected bookings collect here.
+            </p>
+          </div>
+        </div>
         <div className="mt-6 space-y-3">
           {history.length ? (
             history.map((booking) => (

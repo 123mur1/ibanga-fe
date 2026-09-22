@@ -13,11 +13,15 @@ export default function AdminDisputesPage() {
   return (
     <RequireAuth role="ADMIN">
       <DashboardShell role="ADMIN">
-        <h1 className="font-display text-3xl text-navy">Disputes</h1>
-        <p className="mt-1 text-muted">
-          Resolving a dispute completes the booking and makes the truck
-          available again.
-        </p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="font-display text-3xl tracking-tight text-navy">Disputes</h1>
+            <p className="mt-1.5 text-sm text-muted">
+              Resolving a dispute completes the booking and makes the truck
+              available again.
+            </p>
+          </div>
+        </div>
         <div className="mt-6 space-y-4">
           {disputes.length ? (
             disputes.map((dispute) => {
@@ -26,62 +30,69 @@ export default function AdminDisputesPage() {
               const truck = booking
                 ? trucks.find((t) => t.id === booking.truckId)
                 : undefined;
+              const open = dispute.status === "OPEN";
               return (
                 <article
                   key={dispute.id}
-                  className="rounded-2xl border border-line bg-card p-5"
+                  className={`overflow-hidden rounded-2xl border bg-card shadow-soft ${
+                    open ? "border-bad/25" : "border-line"
+                  }`}
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h2 className="font-display text-xl text-navy">
-                      {booking
-                        ? `${booking.pickupLocation} → ${booking.destination}`
-                        : dispute.bookingId}
-                    </h2>
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        dispute.status === "OPEN"
-                          ? "bg-bad-soft text-bad"
-                          : "bg-good-soft text-good"
-                      }`}
-                    >
-                      {dispute.status}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-sm text-muted">
-                    Raised by {importer?.name} · truck {truck?.plateNumber}
-                  </p>
-                  <p className="mt-3">{dispute.reason}</p>
-                  {dispute.status === "OPEN" ? (
-                    <div className="mt-4 space-y-3">
-                      <Field label="Resolution notes">
-                        <textarea
-                          className={`${inputClass} min-h-20`}
-                          value={notes[dispute.id] ?? ""}
-                          onChange={(e) =>
-                            setNotes((n) => ({
-                              ...n,
-                              [dispute.id]: e.target.value,
-                            }))
-                          }
-                        />
-                      </Field>
-                      <PrimaryButton
-                        type="button"
-                        onClick={async () =>
-                          await resolveDispute(
-                            dispute.id,
-                            notes[dispute.id] || "Resolved by admin",
-                          )
-                        }
+                  <div className={`border-b border-line px-5 py-4 ${open ? "bg-bad-soft/40" : ""}`}>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h2 className="font-display text-xl tracking-tight text-navy">
+                        {booking
+                          ? `${booking.pickupLocation} → ${booking.destination}`
+                          : dispute.bookingId}
+                      </h2>
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${
+                          open
+                            ? "bg-white text-bad ring-bad/20"
+                            : "bg-good-soft text-good ring-good/10"
+                        }`}
                       >
-                        Resolve and free truck
-                      </PrimaryButton>
+                        {dispute.status}
+                      </span>
                     </div>
-                  ) : (
-                    <p className="mt-3 text-sm text-muted">
-                      Notes: {dispute.resolutionNotes}
+                    <p className="mt-1.5 text-sm text-muted">
+                      Raised by {importer?.name} · truck {truck?.plateNumber}
                     </p>
-                  )}
+                  </div>
+                  <div className="px-5 py-4">
+                    <p>{dispute.reason}</p>
+                    {open ? (
+                      <div className="mt-4 space-y-3 border-t border-line pt-4">
+                        <Field label="Resolution notes">
+                          <textarea
+                            className={`${inputClass} min-h-20`}
+                            value={notes[dispute.id] ?? ""}
+                            onChange={(e) =>
+                              setNotes((n) => ({
+                                ...n,
+                                [dispute.id]: e.target.value,
+                              }))
+                            }
+                          />
+                        </Field>
+                        <PrimaryButton
+                          type="button"
+                          onClick={async () =>
+                            await resolveDispute(
+                              dispute.id,
+                              notes[dispute.id] || "Resolved by admin",
+                            )
+                          }
+                        >
+                          Resolve and free truck
+                        </PrimaryButton>
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm text-muted">
+                        Notes: {dispute.resolutionNotes}
+                      </p>
+                    )}
+                  </div>
                 </article>
               );
             })

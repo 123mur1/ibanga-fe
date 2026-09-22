@@ -26,11 +26,16 @@ export default function OwnerTripsPage() {
   return (
     <RequireAuth role="TRUCK_OWNER">
       <DashboardShell role="TRUCK_OWNER">
-        <h1 className="font-display text-3xl text-navy">Active trips</h1>
-        <p className="mt-1 text-muted">
-          Update status as you start and deliver. The truck stays unavailable
-          until the importer confirms — or admin closes a dispute.
-        </p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="font-display text-3xl tracking-tight text-navy">Active trips</h1>
+            <p className="mt-1.5 text-sm text-muted">
+              Update status as you start and deliver. The truck stays
+              unavailable until the importer confirms — or admin closes a
+              dispute.
+            </p>
+          </div>
+        </div>
         <div className="mt-6 space-y-3">
           {trips.length ? (
             trips.map((booking) => (

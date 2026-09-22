@@ -42,7 +42,7 @@ export function Avatar({
 function EmptyPhoto({ className = "aspect-4/3" }: { className?: string }) {
   return (
     <div
-      className={`${className} flex flex-col items-center justify-center gap-1.5 rounded-2xl bg-navy/8 text-muted`}
+      className={`${className} flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-line bg-background text-muted/70`}
     >
       <svg
         width="28"

@@ -12,7 +12,14 @@ export default function AdminBookingsPage() {
   return (
     <RequireAuth role="ADMIN">
       <DashboardShell role="ADMIN">
-        <h1 className="font-display text-3xl text-navy">Bookings</h1>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="font-display text-3xl tracking-tight text-navy">Bookings</h1>
+            <p className="mt-1.5 text-sm text-muted">
+              Every freight request across the marketplace.
+            </p>
+          </div>
+        </div>
         <div className="mt-6 space-y-3">
           {bookings.map((booking) => {
             const truck = trucks.find((t) => t.id === booking.truckId);
@@ -20,7 +27,7 @@ export default function AdminBookingsPage() {
             return (
               <div
                 key={booking.id}
-                className="flex flex-col gap-2 rounded-2xl border border-line bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-2 rounded-2xl border border-line bg-card p-4 shadow-soft sm:flex-row sm:items-center sm:justify-between"
               >
                 <div>
                   <p className="font-semibold text-navy">

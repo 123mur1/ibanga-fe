@@ -13,10 +13,14 @@ export default function ImporterBookingsPage() {
   return (
     <RequireAuth role="IMPORTER">
       <DashboardShell role="IMPORTER">
-        <h1 className="font-display text-3xl text-navy">My bookings</h1>
-        <p className="mt-1 text-muted">
-          Follow each request from pending to completed or disputed.
-        </p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="font-display text-3xl tracking-tight text-navy">My bookings</h1>
+            <p className="mt-1.5 text-sm text-muted">
+              Follow each request from pending to completed or disputed.
+            </p>
+          </div>
+        </div>
         <div className="mt-6 space-y-3">
           {mine.length ? (
             mine.map((booking) => (

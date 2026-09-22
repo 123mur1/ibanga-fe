@@ -19,13 +19,31 @@ export default function ImporterHome() {
   return (
     <RequireAuth role="IMPORTER">
       <DashboardShell role="IMPORTER">
-        <h1 className="font-display text-3xl text-navy">
-          Hello, {currentUser?.name.split(" ")[0]}
-        </h1>
-        <p className="mt-1 text-muted">
-          Book a truck to hold it, agree the price, then wait for the owner to
-          accept or reject.
-        </p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="font-display text-3xl tracking-tight text-navy">
+              Hello, {currentUser?.name.split(" ")[0]}
+            </h1>
+            <p className="mt-1.5 text-sm text-muted">
+              Book a truck to hold it, agree the price, then wait for the owner
+              to accept or reject.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/trucks"
+              className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-brand-dark hover:shadow-card"
+            >
+              Find a truck
+            </Link>
+            <Link
+              href="/dashboard/importer/bookings"
+              className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-semibold text-navy shadow-soft transition hover:-translate-y-0.5 hover:border-navy/20"
+            >
+              All bookings
+            </Link>
+          </div>
+        </div>
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           <StatCard label="Open requests" value={pending} />
           <StatCard label="Active trips" value={active} />
@@ -35,21 +53,9 @@ export default function ImporterHome() {
             hint="Confirm delivery"
           />
         </div>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link
-            href="/trucks"
-            className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white"
-          >
-            Find a truck
-          </Link>
-          <Link
-            href="/dashboard/importer/bookings"
-            className="rounded-xl border border-line bg-card px-4 py-2.5 text-sm font-semibold"
-          >
-            All bookings
-          </Link>
-        </div>
-        <h2 className="mt-10 font-display text-xl text-navy">Needs attention</h2>
+        <h2 className="mt-10 font-display text-xl tracking-tight text-navy">
+          Needs attention
+        </h2>
         <div className="mt-3 space-y-3">
           {(toConfirm.length ? toConfirm : mine.slice(0, 3)).map((booking) => (
             <BookingRow

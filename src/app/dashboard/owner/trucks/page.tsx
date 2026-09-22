@@ -36,19 +36,23 @@ export default function OwnerTrucksPage() {
       <DashboardShell role="TRUCK_OWNER">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="font-display text-3xl text-navy">My trucks</h1>
-            <p className="mt-1 text-muted">
+            <h1 className="font-display text-3xl tracking-tight text-navy">My trucks</h1>
+            <p className="mt-1.5 text-sm text-muted">
               Unavailable trucks do not show in importer search.
             </p>
           </div>
           <Link
             href="/dashboard/owner/trucks/new"
-            className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white"
+            className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-brand-dark hover:shadow-card"
           >
             Add truck
           </Link>
         </div>
-        {error ? <p className="mt-4 text-sm text-bad">{error}</p> : null}
+        {error ? (
+          <p className="mt-4 inline-flex rounded-xl bg-bad-soft px-3 py-2 text-sm font-medium text-bad">
+            {error}
+          </p>
+        ) : null}
         <div className="mt-6 space-y-3">
           {trucksLoading ? (
             <p className="text-muted">Loading…</p>
@@ -56,7 +60,7 @@ export default function OwnerTrucksPage() {
             trucks.map((truck) => (
               <div
                 key={truck.id}
-                className="flex flex-col gap-4 rounded-2xl border border-line bg-card p-5 sm:flex-row"
+                className="flex flex-col gap-4 rounded-2xl border border-line bg-card p-5 shadow-soft sm:flex-row"
               >
                 <TruckThumb
                   photos={truck.photos}
@@ -66,20 +70,20 @@ export default function OwnerTrucksPage() {
                 <div className="flex flex-1 flex-col">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="font-display text-xl text-navy">
+                      <p className="font-display text-xl tracking-tight text-navy">
                         {truck.plateNumber}
                       </p>
                       <p className="text-sm text-muted">
                         {truck.truckType} · {truck.capacity} tons · {truck.currentLocation}
                       </p>
-                      <p className="mt-1 text-sm">{truck.preferredRoute}</p>
+                      <p className="mt-1.5 text-sm text-navy/80">{truck.preferredRoute}</p>
                     </div>
                     <TruckBadge status={truck.status} />
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
                     <Link
                       href={`/dashboard/owner/trucks/${truck.id}/edit`}
-                      className="rounded-xl border border-line px-3 py-2 text-sm font-semibold"
+                      className="rounded-xl border border-line bg-white px-3 py-2 text-sm font-semibold text-navy shadow-soft transition hover:-translate-y-0.5 hover:border-navy/20"
                     >
                       Edit
                     </Link>
@@ -92,6 +96,7 @@ export default function OwnerTrucksPage() {
                     </GhostButton>
                     <GhostButton
                       type="button"
+                      className="hover:border-bad/25"
                       onClick={() => onDelete(truck.id)}
                     >
                       Delete

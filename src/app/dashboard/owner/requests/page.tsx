@@ -17,11 +17,15 @@ export default function OwnerRequestsPage() {
   return (
     <RequireAuth role="TRUCK_OWNER">
       <DashboardShell role="TRUCK_OWNER">
-        <h1 className="font-display text-3xl text-navy">Booking requests</h1>
-        <p className="mt-1 text-muted">
-          A request already holds the truck. Agree the price, then accept or
-          reject. Reject makes the truck available again.
-        </p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="font-display text-3xl tracking-tight text-navy">Booking requests</h1>
+            <p className="mt-1.5 text-sm text-muted">
+              A request already holds the truck. Agree the price, then accept
+              or reject. Reject makes the truck available again.
+            </p>
+          </div>
+        </div>
         <div className="mt-6 space-y-3">
           {requests.length ? (
             requests.map((booking) => (

@@ -24,11 +24,35 @@ export default function AdminHome() {
   return (
     <RequireAuth role="ADMIN">
       <DashboardShell role="ADMIN">
-        <h1 className="font-display text-3xl text-navy">Admin dashboard</h1>
-        <p className="mt-1 text-muted">
-          Keep the marketplace fair: users, trucks, bookings and disputes.
-        </p>
-        <div className="mt-6 grid gap-4 sm:grid-cols-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="font-display text-3xl tracking-tight text-navy">
+              Admin dashboard
+            </h1>
+            <p className="mt-1.5 text-sm text-muted">
+              Keep the marketplace fair: users, trucks, bookings and disputes.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/dashboard/admin/disputes"
+              className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-brand-dark hover:shadow-card"
+            >
+              Review disputes
+            </Link>
+            <GhostButton
+              type="button"
+              disabled={resetting}
+              onClick={() => void handleReset()}
+            >
+              {resetting ? "Resetting…" : "Reset demo data"}
+            </GhostButton>
+          </div>
+        </div>
+        {resetError ? (
+          <p className="mt-4 w-full text-sm text-bad">{resetError}</p>
+        ) : null}
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard label="Users" value={users.length} />
           <StatCard label="Trucks" value={trucks.length} />
           <StatCard label="Bookings" value={bookings.length} />
@@ -38,46 +62,41 @@ export default function AdminHome() {
             hint="Needs review"
           />
         </div>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link
-            href="/dashboard/admin/disputes"
-            className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white"
-          >
-            Review disputes
-          </Link>
-          <GhostButton
-            type="button"
-            disabled={resetting}
-            onClick={() => void handleReset()}
-          >
-            {resetting ? "Resetting…" : "Reset demo data"}
-          </GhostButton>
-          {resetError ? (
-            <p className="w-full text-sm text-bad">{resetError}</p>
-          ) : null}
+        <div className="mt-10">
+          <h2 className="font-display text-xl tracking-tight text-navy">
+            Bookings by status
+          </h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {[
+              "PENDING",
+              "ACCEPTED",
+              "IN_PROGRESS",
+              "DELIVERED",
+              "COMPLETED",
+              "DISPUTED",
+              "REJECTED",
+            ].map((status) => {
+              const count = bookings.filter((b) => b.status === status).length;
+              return (
+                <div
+                  key={status}
+                  className="flex items-center justify-between rounded-2xl border border-line bg-card px-4 py-3.5 shadow-soft"
+                >
+                  <span className="text-sm font-medium text-muted">
+                    {status.replace("_", " ")}
+                  </span>
+                  <span
+                    className={`inline-flex min-w-8 items-center justify-center rounded-full px-2 py-0.5 text-sm font-semibold ${
+                      count === 0 ? "bg-line text-muted" : "bg-brand-soft text-brand-dark"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
-        <h2 className="mt-10 font-display text-xl text-navy">By status</h2>
-        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-          {[
-            "PENDING",
-            "ACCEPTED",
-            "IN_PROGRESS",
-            "DELIVERED",
-            "COMPLETED",
-            "DISPUTED",
-            "REJECTED",
-          ].map((status) => (
-            <li
-              key={status}
-              className="flex justify-between rounded-xl border border-line bg-card px-4 py-3 text-sm"
-            >
-              <span>{status.replace("_", " ")}</span>
-              <span className="font-semibold">
-                {bookings.filter((b) => b.status === status).length}
-              </span>
-            </li>
-          ))}
-        </ul>
       </DashboardShell>
     </RequireAuth>
   );
