@@ -9,7 +9,6 @@ import {
   useState,
 } from "react";
 import { api, getToken, setToken } from "./api";
-import { seedBookings, seedDisputes, seedUsers } from "./mock-data";
 import {
   ACTIVE_BOOKING_STATUSES,
   type Booking,
@@ -20,8 +19,6 @@ import {
   type TruckStatus,
   type User,
 } from "./types";
-
-const STORAGE_KEY = "ibanga-mvp-v3";
 
 type State = {
   users: User[];
@@ -112,37 +109,34 @@ type Store = State & {
   ) => Promise<string | null>;
   deleteTruck: (id: string) => Promise<string | null>;
   setAvailability: (id: string, status: TruckStatus) => Promise<string | null>;
-  createBooking: (truck: Truck, input: NewBookingInput) => string | null;
-  setAgreedPrice: (id: string, price: string) => string | null;
-  setBookingStatus: (id: string, status: BookingStatus) => string | null;
-  reportProblem: (bookingId: string, reason: string) => string | null;
-  resolveDispute: (disputeId: string, notes: string) => string | null;
+  createBooking: (truck: Truck, input: NewBookingInput) => Promise<string | null>;
+  setAgreedPrice: (id: string, price: string) => Promise<string | null>;
+  setBookingStatus: (id: string, status: BookingStatus) => Promise<string | null>;
+  reportProblem: (bookingId: string, reason: string) => Promise<string | null>;
+  resolveDispute: (disputeId: string, notes: string) => Promise<string | null>;
   setUserActive: (userId: string, active: boolean) => void;
   resetDemo: () => Promise<string | null>;
 };
 
 const StoreContext = createContext<Store | null>(null);
 
-function uid(prefix: string) {
-  return `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
 function seed(): State {
   return {
-    users: seedUsers,
-    bookings: seedBookings,
-    disputes: seedDisputes,
+    users: [],
+    bookings: [],
+    disputes: [],
     currentUserId: null,
   };
 }
 
-function hasActiveTrip(bookings: Booking[], truckId: string, exceptId?: string) {
-  return bookings.some(
-    (b) =>
-      b.truckId === truckId &&
-      b.id !== exceptId &&
-      ACTIVE_BOOKING_STATUSES.includes(b.status),
-  );
+type ApiBooking = Omit<Booking, "cargoWeight"> & {
+  cargoWeight: number;
+  importer?: AuthPayload["user"];
+  truck?: Truck;
+};
+
+function toBooking(booking: ApiBooking): Booking {
+  return { ...booking, cargoWeight: String(booking.cargoWeight) };
 }
 
 export function IbangaProvider({ children }: { children: React.ReactNode }) {
@@ -153,13 +147,6 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setState(JSON.parse(raw) as State);
-    } catch {
-      /* keep seed */
-    }
-
     const token = getToken();
     if (!token) {
       setReady(true);
@@ -167,15 +154,13 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     }
 
     api<AuthPayload["user"]>("/auth/me")
-      .then((user) => setAuthUser(toUser(user)))
+      .then((user) => {
+        setAuthUser(toUser(user));
+        void refreshBookings();
+      })
       .catch(() => setToken(null))
       .finally(() => setReady(true));
   }, []);
-
-  useEffect(() => {
-    if (!ready) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state, ready]);
 
   const currentUser = authUser;
 
@@ -187,6 +172,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
       });
       setToken(data.token);
       setAuthUser(toUser(data.user));
+      void refreshBookings();
       return null;
     } catch (err) {
       return err instanceof Error ? err.message : "Login failed.";
@@ -208,6 +194,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
       });
       setToken(data.token);
       setAuthUser(toUser(data.user));
+      void refreshBookings();
       return null;
     } catch (err) {
       return err instanceof Error ? err.message : "Registration failed.";
@@ -296,116 +283,85 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const createBooking = useCallback<Store["createBooking"]>((truck, input) => {
-    if (truck.status !== "AVAILABLE") return "This truck is not available to book.";
-    if (hasActiveTrip(state.bookings, truck.id)) {
-      return "This truck already has an active booking.";
+  const refreshBookings = useCallback(async (): Promise<string | null> => {
+    if (!getToken()) return null;
+    try {
+      const [bookingData, disputeData] = await Promise.all([
+        api<ApiBooking[]>("/bookings"),
+        api<Dispute[]>("/disputes"),
+      ]);
+      const bookings = bookingData.map(toBooking);
+      const relatedUsers: User[] = bookingData.flatMap((booking) => [
+        ...(booking.importer ? [toUser(booking.importer)] : []),
+        ...(booking.truck?.owner
+          ? [
+              {
+                ...booking.truck.owner,
+                role: "TRUCK_OWNER" as const,
+                active: true,
+                phone: booking.truck.owner.phone ?? "",
+                location: booking.truck.owner.location ?? "",
+              },
+            ]
+          : []),
+      ]);
+      setState((current) => ({
+        ...current,
+        bookings,
+        disputes: disputeData,
+        users: Array.from(new Map(relatedUsers.map((user) => [user.id, user])).values()),
+      }));
+      return null;
+    } catch (err) {
+      return err instanceof Error ? err.message : "Could not load bookings.";
     }
-    const booking: Booking = {
-      ...input,
-      id: uid("b"),
-      agreedPrice: input.agreedPrice ?? "",
-      status: "PENDING",
-      createdAt: new Date().toISOString(),
-    };
-    setState((s) => ({ ...s, bookings: [booking, ...s.bookings] }));
-    setTrucks((prev) =>
-      prev.map((t) => (t.id === truck.id ? { ...t, status: "UNAVAILABLE" } : t)),
-    );
-    return null;
-  }, [state.bookings]);
+  }, []);
 
-  const setAgreedPrice = useCallback((id: string, price: string) => {
-    const booking = state.bookings.find((b) => b.id === id);
-    if (!booking) return "Booking not found.";
-    if (booking.status !== "PENDING") {
-      return "Price can only be set while the request is pending.";
+  const createBooking = useCallback<Store["createBooking"]>(async (truck, input) => {
+    try {
+      const created = await api<ApiBooking>("/bookings", {
+        method: "POST",
+        body: JSON.stringify({ ...input, truckId: truck.id, cargoWeight: input.cargoWeight }),
+      });
+      const booking = toBooking(created);
+      setState((s) => ({ ...s, bookings: [booking, ...s.bookings] }));
+      setTrucks((prev) => prev.map((item) => item.id === truck.id ? { ...item, status: "UNAVAILABLE" } : item));
+      return null;
+    } catch (err) {
+      return err instanceof Error ? err.message : "Could not create booking.";
     }
-    setState((s) => ({
-      ...s,
-      bookings: s.bookings.map((b) =>
-        b.id === id ? { ...b, agreedPrice: price.trim() } : b,
-      ),
-    }));
-    return null;
-  }, [state.bookings]);
+  }, []);
 
-  const setBookingStatus = useCallback<Store["setBookingStatus"]>((id, status) => {
-    const booking = state.bookings.find((b) => b.id === id);
-    if (!booking) return "Booking not found.";
-    if (status === "ACCEPTED" && !booking.agreedPrice.trim()) {
-      return "Agree a price first, then accept or reject.";
-    }
+  const setAgreedPrice = useCallback<Store["setAgreedPrice"]>(async (id, price) => {
+    try {
+      const updated = toBooking(await api<ApiBooking>(`/bookings/${id}`, { method: "PATCH", body: JSON.stringify({ agreedPrice: price }) }));
+      setState((s) => ({ ...s, bookings: s.bookings.map((b) => b.id === id ? updated : b) }));
+      return null;
+    } catch (err) { return err instanceof Error ? err.message : "Could not agree price."; }
+  }, []);
 
-    setState((s) => ({
-      ...s,
-      bookings: s.bookings.map((b) => (b.id === id ? { ...b, status } : b)),
-    }));
-    if (status === "ACCEPTED") {
-      setTrucks((prev) =>
-        prev.map((t) => (t.id === booking.truckId ? { ...t, status: "UNAVAILABLE" } : t)),
-      );
-    }
-    if (status === "REJECTED" || status === "COMPLETED") {
-      setTrucks((prev) =>
-        prev.map((t) => (t.id === booking.truckId ? { ...t, status: "AVAILABLE" } : t)),
-      );
-    }
-    return null;
-  }, [state.bookings]);
+  const setBookingStatus = useCallback<Store["setBookingStatus"]>(async (id, status) => {
+    try {
+      const updated = toBooking(await api<ApiBooking>(`/bookings/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }));
+      setState((s) => ({ ...s, bookings: s.bookings.map((b) => b.id === id ? updated : b) }));
+      if (status === "REJECTED" || status === "COMPLETED") setTrucks((items) => items.map((item) => item.id === updated.truckId ? { ...item, status: "AVAILABLE" } : item));
+      return null;
+    } catch (err) { return err instanceof Error ? err.message : "Could not update booking."; }
+  }, []);
 
-  const reportProblem = useCallback<Store["reportProblem"]>((bookingId, reason) => {
-    const booking = state.bookings.find((b) => b.id === bookingId);
-    if (!booking) return "Booking not found.";
-    const dispute: Dispute = {
-      id: uid("d"),
-      bookingId,
-      raisedBy: booking.importerId,
-      reason,
-      status: "OPEN",
-      resolutionNotes: "",
-      createdAt: new Date().toISOString(),
-    };
-    setState((s) => ({
-      ...s,
-      disputes: [dispute, ...s.disputes],
-      bookings: s.bookings.map((b) =>
-        b.id === bookingId ? { ...b, status: "DISPUTED" } : b,
-      ),
-    }));
-    setTrucks((prev) =>
-      prev.map((t) => (t.id === booking.truckId ? { ...t, status: "UNAVAILABLE" } : t)),
-    );
-    return null;
-  }, [state.bookings]);
+  const reportProblem = useCallback<Store["reportProblem"]>(async (bookingId, reason) => {
+    try {
+      await api<Dispute>("/disputes", { method: "POST", body: JSON.stringify({ bookingId, reason }) });
+      return refreshBookings();
+    } catch (err) { return err instanceof Error ? err.message : "Could not report problem."; }
+  }, [refreshBookings]);
 
-  const resolveDispute = useCallback<Store["resolveDispute"]>((disputeId, notes) => {
-    const dispute = state.disputes.find((d) => d.id === disputeId);
-    if (!dispute) return "Dispute not found.";
-    const booking = state.bookings.find((b) => b.id === dispute.bookingId);
-    setState((s) => ({
-      ...s,
-      disputes: s.disputes.map((d) =>
-        d.id === disputeId
-          ? {
-              ...d,
-              status: "RESOLVED",
-              resolutionNotes: notes,
-              resolvedAt: new Date().toISOString(),
-            }
-          : d,
-      ),
-      bookings: s.bookings.map((b) =>
-        b.id === dispute.bookingId ? { ...b, status: "COMPLETED" } : b,
-      ),
-    }));
-    if (booking) {
-      setTrucks((prev) =>
-        prev.map((t) => (t.id === booking.truckId ? { ...t, status: "AVAILABLE" } : t)),
-      );
-    }
-    return null;
-  }, [state.bookings, state.disputes]);
+  const resolveDispute = useCallback<Store["resolveDispute"]>(async (disputeId, notes) => {
+    try {
+      await api(`/disputes/${disputeId}/resolve`, { method: "PATCH", body: JSON.stringify({ resolutionNotes: notes }) });
+      return refreshBookings();
+    } catch (err) { return err instanceof Error ? err.message : "Could not resolve dispute."; }
+  }, [refreshBookings]);
 
   const setUserActive = useCallback((userId: string, active: boolean) => {
     setState((s) => ({
@@ -420,11 +376,9 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       return err instanceof Error ? err.message : "Could not reset demo data.";
     }
-    const next = seed();
-    setState(next);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    await refreshBookings();
     return refreshTrucks();
-  }, [refreshTrucks]);
+  }, [refreshBookings, refreshTrucks]);
 
   const value = useMemo<Store>(
     () => ({

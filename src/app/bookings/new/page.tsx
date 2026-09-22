@@ -35,10 +35,10 @@ function BookingForm() {
     additionalInstructions: "",
   });
 
-  function onSubmit(e: FormEvent) {
+  async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!currentUser || !truck) return;
-    const err = createBooking(truck, {
+    const err = await createBooking(truck, {
       ...form,
       truckId: truck.id,
       importerId: currentUser.id,

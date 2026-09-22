@@ -43,8 +43,8 @@ export function PriceAgree({
           </Field>
           <PrimaryButton
             type="button"
-            onClick={() => {
-              const err = setAgreedPrice(bookingId, price);
+            onClick={async () => {
+              const err = await setAgreedPrice(bookingId, price);
               if (!err) setSaved(true);
             }}
           >

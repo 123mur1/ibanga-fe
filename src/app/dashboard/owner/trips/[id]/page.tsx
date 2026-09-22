@@ -25,8 +25,8 @@ export default function OwnerTripDetail() {
 
   const [actionError, setActionError] = useState<string | null>(null);
 
-  function act(status: BookingStatus) {
-    const err = setBookingStatus(id, status);
+  async function act(status: BookingStatus) {
+    const err = await setBookingStatus(id, status);
     setActionError(err);
   }
 

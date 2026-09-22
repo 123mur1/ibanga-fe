@@ -67,8 +67,8 @@ export default function AdminDisputesPage() {
                       </Field>
                       <PrimaryButton
                         type="button"
-                        onClick={() =>
-                          resolveDispute(
+                        onClick={async () =>
+                          await resolveDispute(
                             dispute.id,
                             notes[dispute.id] || "Resolved by admin",
                           )

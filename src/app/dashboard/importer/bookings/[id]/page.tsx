@@ -102,9 +102,9 @@ export default function ImporterBookingDetail() {
                 </p>
                 <PrimaryButton
                   type="button"
-                  onClick={() => {
-                    setBookingStatus(booking.id, "COMPLETED");
-                    setMessage("Receipt confirmed. Trip completed.");
+                  onClick={async () => {
+                    const error = await setBookingStatus(booking.id, "COMPLETED");
+                    setMessage(error ?? "Receipt confirmed. Trip completed.");
                   }}
                 >
                   Confirm receipt
@@ -119,13 +119,13 @@ export default function ImporterBookingDetail() {
                 </Field>
                 <GhostButton
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     if (!reason.trim()) {
                       setMessage("Please describe the problem.");
                       return;
                     }
-                    reportProblem(booking.id, reason.trim());
-                    setMessage("Dispute opened. Admin will review.");
+                    const error = await reportProblem(booking.id, reason.trim());
+                    setMessage(error ?? "Dispute opened. Admin will review.");
                   }}
                 >
                   Report problem
