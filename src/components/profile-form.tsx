@@ -14,6 +14,8 @@ export default function ProfilePage({
 }) {
   const { currentUser, updateProfile } = useIbanga();
   const [saved, setSaved] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -61,18 +63,40 @@ export default function ProfilePage({
                 <Avatar src={currentUser?.photo} name={form.name || "You"} size="lg" />
                 <Field label="Profile photo">
                   <input
-                    className="max-w-44 cursor-pointer rounded-xl border border-line bg-white px-3 py-2 text-xs text-muted shadow-soft file:mr-2 file:rounded-lg file:border-0 file:bg-brand-soft file:px-2 file:py-1 file:text-xs file:font-semibold file:text-brand-dark"
+                    className="max-w-44 cursor-pointer rounded-xl border border-line bg-white px-3 py-2 text-xs text-muted shadow-soft file:mr-2 file:rounded-lg file:border-0 file:bg-brand-soft file:px-2 file:py-1 file:text-xs file:font-semibold file:text-brand-dark disabled:opacity-50"
                     type="file"
                     accept="image/*"
+                    disabled={photoBusy}
                     onChange={async (e) => {
-                      const file = e.target.files?.[0];
+                      const input = e.target;
+                      const file = input.files?.[0];
                       if (!file) return;
-                      const photo = await readImageFile(file);
-                      const error = await updateProfile({ photo });
-                      setSaved(!error);
+                      input.value = "";
+                      setPhotoBusy(true);
+                      setPhotoError(null);
+                      try {
+                        const photo = await readImageFile(file);
+                        const error = await updateProfile({ photo });
+                        if (error) setPhotoError(error);
+                        else setSaved(true);
+                      } catch (err) {
+                        setPhotoError(
+                          err instanceof Error ? err.message : "Could not upload this image.",
+                        );
+                      } finally {
+                        setPhotoBusy(false);
+                      }
                     }}
                   />
                 </Field>
+                {photoBusy ? (
+                  <p className="text-xs font-medium text-muted">Processing…</p>
+                ) : null}
+                {photoError ? (
+                  <p className="max-w-44 text-center text-xs font-medium text-bad">
+                    {photoError}
+                  </p>
+                ) : null}
               </div>
               <div className="flex-1 space-y-4">
                 <Field label="Name">
