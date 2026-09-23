@@ -2,7 +2,7 @@
 
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
-import { Field, inputClass, PrimaryButton } from "@/components/ui";
+import { Field, inputClass, PrimaryButton, PageHeader } from "@/components/ui";
 import { Avatar, readImageFile } from "@/components/photos";
 import { useIbanga } from "@/lib/store";
 import { FormEvent, useEffect, useState } from "react";
@@ -45,22 +45,40 @@ export default function ProfilePage({
   return (
     <RequireAuth role={role}>
       <DashboardShell role={role}>
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="font-display text-3xl tracking-tight text-navy">
-              Profile
-            </h1>
-            <p className="mt-1.5 text-sm text-muted">
-              Keep your contact details current so owners and importers can
-              reach you.
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          eyebrow="Account"
+          title="Profile"
+          subtitle="Keep your contact details current so owners and importers can reach you."
+          icon={
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="8" r="3.5" />
+              <path d="M5 20a7 7 0 0 1 14 0" />
+            </svg>
+          }
+        />
         <form onSubmit={onSubmit} className="mt-6 max-w-2xl">
-          <div className="rounded-2xl border border-line bg-card p-6 shadow-soft">
-            <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+          <section className="overflow-hidden rounded-2xl border border-line bg-card shadow-soft">
+            <div className="flex items-center gap-2.5 border-b border-line bg-background/60 px-6 py-4">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft text-brand">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </span>
+              <h2 className="font-display text-lg tracking-tight text-navy">
+                Personal details
+              </h2>
+            </div>
+            <div className="flex flex-col gap-6 p-6 sm:flex-row sm:items-start">
               <div className="flex shrink-0 flex-col items-center gap-3">
-                <Avatar src={currentUser?.photo} name={form.name || "You"} size="lg" />
+                <div className="relative">
+                  <Avatar src={currentUser?.photo} name={form.name || "You"} size="lg" />
+                  {photoBusy ? (
+                    <span className="absolute inset-0 flex items-center justify-center rounded-full bg-navy/40">
+                      <span className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    </span>
+                  ) : null}
+                </div>
                 <Field label="Profile photo">
                   <input
                     className="max-w-44 cursor-pointer rounded-xl border border-line bg-white px-3 py-2 text-xs text-muted shadow-soft file:mr-2 file:rounded-lg file:border-0 file:bg-brand-soft file:px-2 file:py-1 file:text-xs file:font-semibold file:text-brand-dark disabled:opacity-50"
@@ -89,9 +107,6 @@ export default function ProfilePage({
                     }}
                   />
                 </Field>
-                {photoBusy ? (
-                  <p className="text-xs font-medium text-muted">Processing…</p>
-                ) : null}
                 {photoError ? (
                   <p className="max-w-44 text-center text-xs font-medium text-bad">
                     {photoError}
@@ -127,16 +142,24 @@ export default function ProfilePage({
                     onChange={(e) => setForm({ ...form, company: e.target.value })}
                   />
                 </Field>
-                <p className="text-xs text-muted">{currentUser?.email}</p>
-                <div className="flex items-center gap-3">
+                <p className="inline-flex items-center gap-1.5 text-xs text-muted">
+                  <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                  {currentUser?.email}
+                </p>
+                <div className="flex items-center gap-3 border-t border-line pt-4">
                   <PrimaryButton type="submit">Save profile</PrimaryButton>
                   {saved ? (
-                    <p className="text-sm font-medium text-good">Saved.</p>
+                    <p className="inline-flex items-center gap-1.5 text-sm font-medium text-good">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
+                      Saved.
+                    </p>
                   ) : null}
                 </div>
               </div>
             </div>
-          </div>
+          </section>
           <p className="mt-3 text-xs text-muted">
             Images are resized before they are saved to your profile.
           </p>

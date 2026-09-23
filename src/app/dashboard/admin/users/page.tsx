@@ -3,13 +3,20 @@
 import { useCallback, useEffect, useState } from "react";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
-import { GhostButton } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
+import { Avatar } from "@/components/photos";
 import { api } from "@/lib/api";
-import type { User } from "@/lib/types";
+import type { Role, User } from "@/lib/types";
 
 type ApiUser = Omit<User, "phone" | "location" | "active"> & {
   phone: string | null;
   location: string | null;
+};
+
+const roleChip: Record<Role, string> = {
+  IMPORTER: "bg-brand-soft text-brand-dark",
+  TRUCK_OWNER: "bg-accent-soft text-accent-dark",
+  ADMIN: "bg-navy text-white",
 };
 
 export default function AdminUsersPage() {
@@ -61,83 +68,79 @@ export default function AdminUsersPage() {
   return (
     <RequireAuth role="ADMIN">
       <DashboardShell role="ADMIN">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="font-display text-3xl tracking-tight text-navy">Users</h1>
-            <p className="mt-1.5 text-sm text-muted">
-              Everyone on iBanga — importers, truck owners and admins.
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          eyebrow="Community"
+          title="Users"
+          subtitle="Everyone on iBanga — importers, truck owners and admins."
+          icon={
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="9" cy="8" r="3.5" />
+              <path d="M3 20a6 6 0 0 1 12 0" />
+              <path d="M16 5.2a3.5 3.5 0 0 1 0 5.6M17 14.5a6 6 0 0 1 4 5.5" />
+            </svg>
+          }
+        />
+
         {error ? (
-          <p className="mt-4 inline-flex rounded-xl bg-bad-soft px-3 py-2 text-sm font-medium text-bad">
+          <p className="mt-4 flex items-center gap-2 rounded-xl border border-bad/20 bg-bad-soft px-3.5 py-2.5 text-sm text-bad">
             {error}
           </p>
         ) : null}
-        <div className="mt-6 overflow-hidden rounded-2xl border border-line bg-card shadow-soft">
-          <table className="w-full min-w-160 text-left text-sm">
-            <thead className="border-b border-line bg-background/60">
-              <tr>
-                <th className="px-5 py-3.5 font-semibold text-muted">Name</th>
-                <th className="px-5 py-3.5 font-semibold text-muted">Role</th>
-                <th className="px-5 py-3.5 font-semibold text-muted">Contact</th>
-                <th className="px-5 py-3.5 font-semibold text-muted">Status</th>
-                <th className="px-5 py-3.5 font-semibold text-muted" />
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={5} className="px-5 py-10 text-center text-muted">
-                    Loading users…
-                  </td>
-                </tr>
-              ) : users.map((user) => (
-                <tr key={user.id} className="border-b border-line bg-white transition-colors last:border-0 hover:bg-background/50">
-                  <td className="px-5 py-4">
-                    <p className="font-semibold text-navy">{user.name}</p>
-                    <p className="text-muted">{user.company}</p>
-                  </td>
-                  <td className="px-5 py-4">
-                    <span className="inline-flex rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand-dark">
-                      {user.role.replace("_", " ")}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4">
-                    {user.email}
-                    <br />
-                    <span className="text-muted">{user.phone}</span>
-                  </td>
-                  <td className="px-5 py-4">
-                    <span
-                      className={`inline-flex items-center gap-1.5 text-sm font-medium ${
-                        user.active ? "text-good" : "text-bad"
-                      }`}
-                    >
-                      <span
-                        className={`h-1.5 w-1.5 rounded-full ${
-                          user.active ? "bg-good" : "bg-bad"
-                        }`}
-                      />
-                      {user.active ? "Active" : "Suspended"}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4">
-                    {user.role !== "ADMIN" ? (
-                      <GhostButton
-                        type="button"
-                        disabled={deletingId === user.id}
-                        className="border-bad/20 text-bad hover:bg-bad-soft"
-                        onClick={() => void deleteUser(user)}
-                      >
-                        {deletingId === user.id ? "Deleting…" : "Delete"}
-                      </GhostButton>
-                    ) : null}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {loading ? (
+            <p className="text-muted">Loading users…</p>
+          ) : users.map((user) => (
+            <article
+              key={user.id}
+              className="flex flex-col rounded-2xl border border-line bg-card p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-card"
+            >
+              <div className="flex items-center gap-3">
+                <Avatar src={user.photo} name={user.name} size="md" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold text-navy">{user.name}</p>
+                  <p className="truncate text-sm text-muted">{user.company || user.email}</p>
+                </div>
+                <span
+                  className={`inline-flex shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${roleChip[user.role]}`}
+                >
+                  {user.role.replace("_", " ")}
+                </span>
+              </div>
+
+              <dl className="mt-4 space-y-1.5 border-t border-line pt-4 text-sm">
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted">Email</dt>
+                  <dd className="truncate font-medium text-navy">{user.email}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted">Phone</dt>
+                  <dd className="font-medium text-navy">{user.phone || "—"}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted">Location</dt>
+                  <dd className="font-medium text-navy">{user.location || "—"}</dd>
+                </div>
+              </dl>
+
+              <div className="mt-4 flex items-center justify-between border-t border-line pt-3">
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-good">
+                  <span className="h-1.5 w-1.5 rounded-full bg-good" />
+                  Active
+                </span>
+                {user.role !== "ADMIN" ? (
+                  <button
+                    type="button"
+                    disabled={deletingId === user.id}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-bad/20 px-2.5 py-1.5 text-xs font-semibold text-bad transition hover:bg-bad-soft disabled:opacity-60"
+                    onClick={() => void deleteUser(user)}
+                  >
+                    {deletingId === user.id ? "Deleting…" : "Delete account"}
+                  </button>
+                ) : null}
+              </div>
+            </article>
+          ))}
         </div>
       </DashboardShell>
     </RequireAuth>

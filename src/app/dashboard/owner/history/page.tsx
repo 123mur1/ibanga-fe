@@ -2,7 +2,7 @@
 
 import { BookingRow } from "@/components/booking-row";
 import { DashboardShell } from "@/components/dashboard-shell";
-import { EmptyState } from "@/components/ui";
+import { EmptyState, PageHeader } from "@/components/ui";
 import { RequireAuth } from "@/components/require-auth";
 import { useIbanga } from "@/lib/store";
 
@@ -18,15 +18,22 @@ export default function OwnerHistoryPage() {
   return (
     <RequireAuth role="TRUCK_OWNER">
       <DashboardShell role="TRUCK_OWNER">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="font-display text-3xl tracking-tight text-navy">Trip history</h1>
-            <p className="mt-1.5 text-sm text-muted">
-              Finished and rejected bookings collect here.
-            </p>
-          </div>
-        </div>
-        <div className="mt-6 space-y-3">
+        <PageHeader
+          eyebrow="Trip log"
+          title="Trip history"
+          subtitle="Finished and rejected bookings collect here for your records."
+          icon={
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M3.5 12a8.5 8.5 0 1 1 2.5 6" />
+              <path d="M3.5 15.5V11H8" />
+              <path d="M12 7v5l3 2" />
+            </svg>
+          }
+        />
+        <p className="mt-4 inline-flex items-center gap-2 rounded-full bg-line px-3 py-1 text-xs font-semibold text-muted">
+          {history.length} recorded trips
+        </p>
+        <div className="mt-4 space-y-3">
           {history.length ? (
             history.map((booking) => (
               <BookingRow

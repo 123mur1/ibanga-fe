@@ -2,7 +2,7 @@
 
 import { BookingRow } from "@/components/booking-row";
 import { DashboardShell } from "@/components/dashboard-shell";
-import { EmptyState } from "@/components/ui";
+import { EmptyState, PageHeader } from "@/components/ui";
 import { RequireAuth } from "@/components/require-auth";
 import { useIbanga } from "@/lib/store";
 import type { BookingStatus } from "@/lib/types";
@@ -26,17 +26,23 @@ export default function OwnerTripsPage() {
   return (
     <RequireAuth role="TRUCK_OWNER">
       <DashboardShell role="TRUCK_OWNER">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="font-display text-3xl tracking-tight text-navy">Active trips</h1>
-            <p className="mt-1.5 text-sm text-muted">
-              Update status as you start and deliver. The truck stays
-              unavailable until the importer confirms — or admin closes a
-              dispute.
-            </p>
-          </div>
-        </div>
-        <div className="mt-6 space-y-3">
+        <PageHeader
+          eyebrow="On the road"
+          title="Active trips"
+          subtitle="Update status as you start and deliver. The truck stays unavailable until the importer confirms — or admin closes a dispute."
+          icon={
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="6" cy="19" r="2.5" />
+              <circle cx="18" cy="5" r="2.5" />
+              <path d="M8.5 19H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.5" />
+            </svg>
+          }
+        />
+        <p className="mt-4 inline-flex items-center gap-2 rounded-full bg-brand-soft px-3 py-1 text-xs font-semibold text-brand-dark">
+          <span className="h-1.5 w-1.5 rounded-full bg-brand" />
+          {trips.length} trips in progress
+        </p>
+        <div className="mt-4 space-y-3">
           {trips.length ? (
             trips.map((booking) => (
               <BookingRow
