@@ -6,6 +6,7 @@ import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { BookingBadge } from "@/components/status-badge";
 import { PriceAgree } from "@/components/price-agree";
+import { Avatar } from "@/components/photos";
 import { GhostButton, PrimaryButton, formatDate } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
 import type { BookingStatus } from "@/lib/types";
@@ -34,37 +35,78 @@ export default function OwnerTripDetail() {
     <RequireAuth role="TRUCK_OWNER">
       <DashboardShell role="TRUCK_OWNER">
         {!booking ? (
-          <p>Booking not found.</p>
+          <p className="rounded-2xl border border-line bg-card px-5 py-8 text-center text-muted shadow-soft">
+            Booking not found.
+          </p>
         ) : (
           <div className="max-w-3xl">
             <Link
               href="/dashboard/owner/requests"
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:text-brand-dark"
+              className="group inline-flex items-center gap-2 text-sm font-semibold text-brand transition hover:text-brand-dark"
             >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="m15 4-8 8 8 8" />
-              </svg>
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft text-brand transition duration-200 group-hover:-translate-x-0.5 group-hover:bg-brand group-hover:text-white">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="m15 4-8 8 8 8" />
+                </svg>
+              </span>
               Requests
             </Link>
-            <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
-              <h1 className="font-display text-3xl tracking-tight text-navy">
-                {booking.pickupLocation} → {booking.destination}
-              </h1>
-              <BookingBadge status={booking.status} />
+
+            <div className="relative mt-4 overflow-hidden rounded-3xl bg-gradient-to-br from-navy via-brand-dark to-brand p-6 shadow-card sm:p-8">
+              <div className="paper-grid absolute inset-0 opacity-30" />
+              <div
+                aria-hidden="true"
+                className="absolute -right-12 -top-16 h-44 w-44 rounded-full border-[18px] border-white/10"
+              />
+              <div className="relative flex flex-wrap items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/70">
+                    {booking.status === "PENDING" ? "New request" : "Trip"}
+                  </p>
+                  <h1 className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 font-display text-2xl leading-tight text-white sm:text-3xl">
+                    {booking.pickupLocation}
+                    <svg className="shrink-0 text-accent" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M5 12h14M13 6l6 6-6 6" />
+                    </svg>
+                    {booking.destination}
+                  </h1>
+                  <p className="mt-2 text-sm text-white/75">
+                    {truck ? `${truck.plateNumber} · ${truck.truckType}` : "Truck"} ·{" "}
+                    {booking.cargoType}
+                  </p>
+                </div>
+                <div className="shrink-0 rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/20 backdrop-blur-sm">
+                  <p className="text-center text-xs text-white/70">Status</p>
+                  <div className="mt-1">
+                    <BookingBadge status={booking.status} />
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="mt-6 rounded-2xl border border-line bg-card p-6 shadow-soft">
-              <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+            <section className="mt-4 overflow-hidden rounded-2xl border border-line bg-card shadow-soft">
+              <div className="group flex items-center gap-2.5 border-b border-line bg-background/60 px-5 py-3.5">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft text-brand transition duration-200 group-hover:scale-105 group-hover:bg-brand group-hover:text-white">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <rect x="3" y="5" width="18" height="14" rx="2" />
+                    <path d="M8 10.5h.01M16 10.5h.01M8 14h.01M16 14h.01" />
+                  </svg>
+                </span>
+                <h2 className="font-display text-lg tracking-tight text-navy">
+                  Load details
+                </h2>
+              </div>
+              <dl className="grid gap-x-8 gap-y-5 px-5 py-5 sm:grid-cols-2">
                 <div>
                   <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">
                     Cargo
@@ -94,51 +136,46 @@ export default function OwnerTripDetail() {
                   </dd>
                 </div>
               </dl>
-              <div className="mt-5 border-t border-line pt-4">
+              <div className="border-t border-line px-5 py-4">
                 <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">
                   Description
                 </dt>
                 <dd className="mt-1.5 text-navy">{booking.cargoDescription}</dd>
               </div>
-            </div>
+            </section>
 
             {importer ? (
-              <div className="mt-4 rounded-2xl border border-line bg-card p-6 shadow-soft">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-soft text-brand">
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
+              <section className="mt-4 overflow-hidden rounded-2xl border border-line bg-card shadow-soft">
+                <div className="group flex items-center gap-2.5 border-b border-line bg-background/60 px-5 py-3.5">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft text-brand transition duration-200 group-hover:scale-105 group-hover:bg-brand group-hover:text-white">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <circle cx="12" cy="8" r="3.5" />
                       <path d="M5 20a7 7 0 0 1 14 0" />
                     </svg>
                   </span>
-                  <p className="font-display text-lg text-navy">Importer</p>
+                  <h2 className="font-display text-lg tracking-tight text-navy">
+                    Importer
+                  </h2>
                 </div>
-                <p className="mt-4 font-medium text-navy">
-                  {importer.name} · {importer.phone}
-                </p>
-              </div>
-            ) : null}
-            {truck ? (
-              <p className="mt-4 text-sm text-muted">
-                Truck {truck.plateNumber} · {truck.truckType} · {truck.status}
-              </p>
+                <div className="flex items-center gap-4 px-5 py-5">
+                  <Avatar src={importer.photo ?? undefined} name={importer.name} size="md" />
+                  <div>
+                    <p className="font-medium text-navy">{importer.name}</p>
+                    <p className="text-sm text-muted">{importer.phone}</p>
+                  </div>
+                </div>
+              </section>
             ) : null}
 
             {booking.status === "PENDING" ? (
-              <div className="mt-4 rounded-2xl bg-warn-soft px-4 py-3.5 text-sm font-medium text-warn ring-1 ring-warn/10">
-                This booking already made the truck unavailable. Agree the
-                price, then accept (keep it locked) or reject (make it
-                available again).
+              <div className="mt-4 flex items-start gap-3 rounded-2xl bg-warn-soft px-4 py-3.5 text-sm font-medium text-warn ring-1 ring-warn/10">
+                <svg className="mt-0.5 shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 8v4.5M12 16h.01" />
+                </svg>
+                This booking already made the truck unavailable. Agree a price,
+                then accept to keep it locked or reject to make it available
+                again.
               </div>
             ) : null}
 
@@ -155,48 +192,97 @@ export default function OwnerTripDetail() {
                 <>
                   <PrimaryButton
                     type="button"
+                    className="group"
                     disabled={!booking.agreedPrice.trim()}
                     onClick={() => act("ACCEPTED")}
                   >
+                    <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white/20 transition duration-200 group-hover:scale-110">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
+                    </span>
                     Accept booking
                   </PrimaryButton>
-                  <GhostButton type="button" onClick={() => act("REJECTED")}>
+                  <GhostButton
+                    type="button"
+                    className="group transition hover:border-bad/30 hover:text-bad"
+                    onClick={() => act("REJECTED")}
+                  >
+                    <span className="flex h-5 w-5 items-center justify-center rounded-md bg-bad-soft text-bad transition duration-200 group-hover:scale-110">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M6 6l12 12M18 6 6 18" />
+                      </svg>
+                    </span>
                     Reject — make truck available
                   </GhostButton>
                 </>
               ) : null}
               {booking.status === "ACCEPTED" ? (
-                <PrimaryButton type="button" onClick={() => act("IN_PROGRESS")}>
+                <PrimaryButton
+                  type="button"
+                  className="group"
+                  onClick={() => act("IN_PROGRESS")}
+                >
+                  <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white/20 transition duration-200 group-hover:scale-110">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="m12 5 7 14-7-3.5L5 19 12 5Z" />
+                    </svg>
+                  </span>
                   Start trip
                 </PrimaryButton>
               ) : null}
               {booking.status === "IN_PROGRESS" ? (
-                <PrimaryButton type="button" onClick={() => act("DELIVERED")}>
+                <PrimaryButton
+                  type="button"
+                  className="group"
+                  onClick={() => act("DELIVERED")}
+                >
+                  <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white/20 transition duration-200 group-hover:scale-110">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M3.5 7h11m0 0 3 3m-3-3 3-3" />
+                      <path d="M7 13.5h13.5m0 0-3-3m3 3-3 3" />
+                      <path d="M20.5 4h0M3.5 20h0" />
+                    </svg>
+                  </span>
                   Mark delivered
                 </PrimaryButton>
               ) : null}
             </div>
+
             {actionError ? (
-              <p className="mt-3 inline-flex rounded-xl bg-bad-soft px-3 py-2 text-sm font-medium text-bad">
+              <p className="mt-3 flex items-center gap-2 rounded-xl bg-bad-soft px-3.5 py-2 text-sm font-medium text-bad">
                 {actionError}
               </p>
             ) : null}
+
             {booking.status === "REJECTED" ? (
-              <p className="mt-4 inline-flex rounded-xl bg-good-soft px-3 py-2 text-sm font-medium text-good">
+              <div className="mt-4 flex items-start gap-3 rounded-2xl bg-good-soft px-4 py-3.5 text-sm font-medium text-good ring-1 ring-good/10">
+                <svg className="mt-0.5 shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="m8 12 3 3 5-6" />
+                </svg>
                 You rejected this request. The truck is available again.
-              </p>
+              </div>
             ) : null}
             {booking.status === "DELIVERED" ? (
-              <p className="mt-4 text-sm text-muted">
+              <div className="mt-4 flex items-start gap-3 rounded-2xl bg-warn-soft px-4 py-3.5 text-sm font-medium text-warn ring-1 ring-warn/10">
+                <svg className="mt-0.5 shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 8v4.5M12 16h.01" />
+                </svg>
                 Waiting for the importer to confirm receipt. Marking delivered
                 does not free the truck.
-              </p>
+              </div>
             ) : null}
             {booking.status === "DISPUTED" ? (
-              <p className="mt-4 inline-flex rounded-xl bg-bad-soft px-3 py-2 text-sm font-medium text-bad">
+              <div className="mt-4 flex items-start gap-3 rounded-2xl bg-bad-soft px-4 py-3.5 text-sm font-medium text-bad ring-1 ring-bad/10">
+                <svg className="mt-0.5 shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 3 2.5 20h19L12 3Z" />
+                  <path d="M12 9.5V14M12 17.5h.01" />
+                </svg>
                 Importer reported a problem. The truck stays unavailable until
                 admin resolves the dispute.
-              </p>
+              </div>
             ) : null}
           </div>
         )}
