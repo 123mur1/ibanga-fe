@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { GhostButton, PageHeader, StatCard } from "@/components/ui";
+import { api } from "@/lib/api";
 import { useIbanga } from "@/lib/store";
 import type { BookingStatus } from "@/lib/types";
 import Link from "next/link";
@@ -19,10 +20,26 @@ const STATUS_FLOW: { status: BookingStatus; label: string; tone: string }[] = [
 ];
 
 export default function AdminHome() {
-  const { users, trucks, bookings, disputes, resetDemo } = useIbanga();
+  const { trucks, bookings, disputes, resetDemo } = useIbanga();
+  const [userCount, setUserCount] = useState<number | null>(null);
+  const [userCountError, setUserCountError] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
   const openDisputes = disputes.filter((d) => d.status === "OPEN").length;
+
+  useEffect(() => {
+    let active = true;
+    api<{ id: string }[]>("/users")
+      .then((allUsers) => {
+        if (active) setUserCount(allUsers.length);
+      })
+      .catch(() => {
+        if (active) setUserCountError(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function handleReset() {
     setResetting(true);
@@ -79,7 +96,8 @@ export default function AdminHome() {
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label="Users"
-            value={users.length}
+            value={userCount ?? "—"}
+            hint={userCountError ? "Could not load" : userCount === null ? "Loading" : "All accounts"}
             icon={
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <circle cx="9" cy="8" r="3.5" />
