@@ -94,7 +94,7 @@ export function StatCard({
   return (
     <article className="group relative overflow-hidden rounded-2xl border border-line bg-card p-4 shadow-soft transition duration-200 hover:-translate-y-0.5 hover:shadow-card">
       <span
-        className={`absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r ${tone.gradient}`}
+        className={`absolute inset-x-0 top-0 h-0.5 bg-linear-to-r ${tone.gradient}`}
       />
       <div className="flex items-center gap-3">
         {icon ? (
@@ -139,7 +139,7 @@ export function PageHeader({
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div className="flex items-start gap-4">
         {icon ? (
-          <span className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand to-brand-dark text-white shadow-soft [&_svg]:h-4 [&_svg]:w-4 sm:flex">
+          <span className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-linear-to-br from-brand to-brand-dark text-white shadow-soft [&_svg]:h-4 [&_svg]:w-4 sm:flex">
             {icon}
           </span>
         ) : null}
@@ -179,10 +179,10 @@ export function EmptyState({
     <div className="relative overflow-hidden rounded-3xl border border-dashed border-line bg-card px-6 py-16 text-center">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -top-20 left-1/2 h-48 w-96 -translate-x-1/2 rounded-full bg-gradient-to-r from-brand/10 via-accent/10 to-transparent blur-2xl"
+        className="pointer-events-none absolute -top-20 left-1/2 h-48 w-96 -translate-x-1/2 rounded-full bg-linear-to-r from-brand/10 via-accent/10 to-transparent blur-2xl"
       />
       <div className="relative">
-        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-soft to-accent-soft text-brand shadow-soft ring-1 ring-brand/10 [&_svg]:h-[18px] [&_svg]:w-[18px]">
+        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-linear-to-br from-brand-soft to-accent-soft text-brand shadow-soft ring-1 ring-brand/10 [&_svg]:h-4.5 [&_svg]:w-4.5">
           {icon ?? (
             <svg
               width="24"
