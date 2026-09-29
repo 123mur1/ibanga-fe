@@ -37,6 +37,7 @@ export type Truck = {
   plateNumber: string;
   truckType: string;
   capacity: number;
+  priceRwf?: number | null;
   currentLocation: string;
   preferredRoute: string;
   description: string;
@@ -58,7 +59,30 @@ export type Booking = {
   expectedDeliveryDate: string;
   additionalInstructions: string;
   agreedPrice: string;
+  agreedPriceRwf?: number | null;
+  payment?: BookingPayment | null;
+  dispute?: Dispute | null;
   status: BookingStatus;
+  createdAt: string;
+};
+
+export type BookingPayment = {
+  status: "PENDING" | "FUNDED" | "RELEASED" | "REFUNDED";
+  amountRwf: number;
+  commissionRwf: number;
+  ownerAmountRwf: number;
+  fundedAt?: string | null;
+  releasedAt?: string | null;
+};
+
+export type WalletTransaction = {
+  id: string;
+  type: "DEPOSIT" | "BOOKING_PAYMENT" | "BOOKING_EARNING" | "PLATFORM_COMMISSION" | "WITHDRAWAL" | "REFUND";
+  status: "PENDING" | "SUCCEEDED" | "FAILED";
+  direction: "CREDIT" | "DEBIT";
+  amountRwf: number;
+  reference: string;
+  description?: string | null;
   createdAt: string;
 };
 

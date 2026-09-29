@@ -26,6 +26,14 @@ export function TruckCard({ truck }: { truck: Truck }) {
         </div>
 
         <dl className="mt-4 space-y-1.5 text-sm">
+          <div className="flex justify-between gap-4 border-b border-line pb-2">
+            <dt className="text-muted">Price per booking</dt>
+            <dd className="font-semibold text-navy">
+              {truck.priceRwf == null
+                ? "Price required"
+                : `RWF ${truck.priceRwf.toLocaleString("en-RW")}`}
+            </dd>
+          </div>
           <div className="flex justify-between gap-4">
             <dt className="text-muted">Capacity</dt>
             <dd className="font-medium text-navy">{truck.capacity} tons</dd>

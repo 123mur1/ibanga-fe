@@ -15,6 +15,7 @@ const nav: Record<Role, NavItem[]> = {
     { href: "/dashboard/importer", label: "Overview", icon: "grid" },
     { href: "/trucks", label: "Find trucks", icon: "search" },
     { href: "/dashboard/importer/bookings", label: "My bookings", icon: "calendar" },
+    { href: "/dashboard/wallet", label: "Wallet", icon: "wallet" },
     { href: "/dashboard/importer/profile", label: "Profile", icon: "user" },
   ],
   TRUCK_OWNER: [
@@ -23,10 +24,12 @@ const nav: Record<Role, NavItem[]> = {
     { href: "/dashboard/owner/requests", label: "Requests", icon: "inbox" },
     { href: "/dashboard/owner/trips", label: "Active trips", icon: "route" },
     { href: "/dashboard/owner/history", label: "History", icon: "history" },
+    { href: "/dashboard/wallet", label: "Wallet", icon: "wallet" },
     { href: "/dashboard/owner/profile", label: "Profile", icon: "user" },
   ],
   ADMIN: [
     { href: "/dashboard/admin", label: "Dashboard", icon: "grid" },
+    { href: "/dashboard/wallet", label: "Wallet", icon: "wallet" },
     { href: "/dashboard/admin/users", label: "Users", icon: "users" },
     { href: "/dashboard/admin/trucks", label: "Trucks", icon: "truck" },
     { href: "/dashboard/admin/bookings", label: "Bookings", icon: "calendar" },
@@ -86,6 +89,12 @@ const iconPaths: Record<string, React.ReactNode> = {
       <path d="M3.5 12a8.5 8.5 0 1 1 2.5 6" />
       <path d="M3.5 15.5V11H8" />
       <path d="M12 7v5l3 2" />
+    </>
+  ),
+  wallet: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 9h18m-5 5h2" />
     </>
   ),
   users: (
@@ -160,7 +169,7 @@ function roleTip(role: Role) {
   if (role === "TRUCK_OWNER")
     return "To free a truck from a trip, the importer must confirm the delivery.";
   if (role === "ADMIN")
-    return "Resolving a dispute completes the booking and unlocks the truck.";
+    return "After dispute review, only the importer can confirm receipt and release the held payment.";
   return "Booking a truck holds it until the owner accepts or rejects.";
 }
 

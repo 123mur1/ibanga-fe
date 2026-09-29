@@ -52,6 +52,7 @@ function TruckDetailsContent() {
 
   const canBook =
     truck.status === "AVAILABLE" &&
+    truck.priceRwf != null &&
     (!currentUser || currentUser.role === "IMPORTER");
 
   return (
@@ -83,6 +84,14 @@ function TruckDetailsContent() {
           <p className="mt-4 text-muted">{truck.description}</p>
           <dl className="mt-6 grid gap-4 sm:grid-cols-2">
             <div>
+              <dt className="text-sm text-muted">Price per booking</dt>
+              <dd className="font-display text-2xl font-semibold text-navy">
+                {truck.priceRwf == null
+                  ? "Not priced"
+                  : `RWF ${truck.priceRwf.toLocaleString("en-RW")}`}
+              </dd>
+            </div>
+            <div>
               <dt className="text-sm text-muted">Current location</dt>
               <dd className="font-medium text-navy">{truck.currentLocation}</dd>
             </div>
@@ -98,8 +107,7 @@ function TruckDetailsContent() {
                 Owner contact
               </h2>
               <p className="mt-1 text-sm text-muted">
-                After you book, the truck is held. Use this number to agree the
-                price, then the owner accepts or rejects.
+                The listed RWF price is fixed for this booking. The owner accepts or rejects your request, then you pay from your wallet.
               </p>
               <div className="mt-4 flex items-center gap-3">
                 <Avatar src={owner.photo ?? undefined} name={owner.name} />
@@ -130,6 +138,8 @@ function TruckDetailsContent() {
             <p className="mt-6 text-sm text-muted">
               {truck.status !== "AVAILABLE"
                 ? "This truck is already held by a booking and cannot be booked."
+                : truck.priceRwf == null
+                  ? "This truck needs an RWF price before importers can book it."
                 : "Only importers can submit a booking. Log in with an importer account."}
             </p>
           )}

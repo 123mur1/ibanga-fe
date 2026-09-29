@@ -27,6 +27,7 @@ export default function EditTruckPage() {
     plateNumber: "",
     truckType: "Container",
     capacity: "",
+    priceRwf: "",
     currentLocation: "",
     preferredRoute: "",
     description: "",
@@ -47,6 +48,7 @@ export default function EditTruckPage() {
           plateNumber: t.plateNumber,
           truckType: t.truckType,
           capacity: String(t.capacity),
+          priceRwf: t.priceRwf == null ? "" : String(t.priceRwf),
           currentLocation: t.currentLocation,
           preferredRoute: t.preferredRoute,
           description: t.description,
@@ -59,8 +61,13 @@ export default function EditTruckPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     const capacity = Number(form.capacity);
+    const priceRwf = Number(form.priceRwf);
     if (!capacity || capacity <= 0) {
       setError("Enter a valid capacity in tons.");
+      return;
+    }
+    if (!Number.isInteger(priceRwf) || priceRwf < 1) {
+      setError("Enter a whole-number asking price in RWF.");
       return;
     }
     setSaving(true);
@@ -69,6 +76,7 @@ export default function EditTruckPage() {
       plateNumber: form.plateNumber,
       truckType: form.truckType,
       capacity,
+      priceRwf,
       currentLocation: form.currentLocation,
       preferredRoute: form.preferredRoute,
       description: form.description,
@@ -198,6 +206,19 @@ export default function EditTruckPage() {
                     </div>
                   </Field>
                 </div>
+                <Field label="Price per booking (RWF)">
+                  <input
+                    className={inputClass}
+                    type="number"
+                    min="1"
+                    max="1000000000"
+                    step="1"
+                    required
+                    value={form.priceRwf}
+                    onChange={(e) => setForm({ ...form, priceRwf: e.target.value })}
+                    placeholder="850000"
+                  />
+                </Field>
                 <Field label="Current location">
                   <div className="relative">
                     <FieldIcon>

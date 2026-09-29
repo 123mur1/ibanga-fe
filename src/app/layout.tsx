@@ -16,7 +16,7 @@ const display = Outfit({
 export const metadata: Metadata = {
   title: "iBanga — Direct cargo–truck marketplace",
   description:
-    "Book a truck to hold it, agree the price with the owner, then they accept or reject. Reject makes the truck available again.",
+    "Book a truck at its listed RWF price, pay after the owner accepts, then confirm delivery to release the held payment.",
 };
 
 export default function RootLayout({

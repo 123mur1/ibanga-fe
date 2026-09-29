@@ -162,7 +162,7 @@ function BookingForm() {
           <svg className="mt-0.5 shrink-0 text-accent-dark" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="9" /><path d="M12 8v4m0 4h.01" />
           </svg>
-          <p>Submitting holds this truck while the owner reviews your request. You’ll agree the price directly with the owner; iBanga does not collect payment.</p>
+          <p>Submitting holds this truck at its listed RWF price while the owner reviews your request. After acceptance, pay from your iBanga wallet before the trip starts.</p>
         </div>
         {error ? <p role="alert" className="mb-4 rounded-lg border border-bad/20 bg-bad-soft px-4 py-3 text-sm text-bad">{error}</p> : null}
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">

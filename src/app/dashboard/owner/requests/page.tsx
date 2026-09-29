@@ -20,7 +20,7 @@ export default function OwnerRequestsPage() {
         <PageHeader
           eyebrow="Inbox"
           title="Booking requests"
-          subtitle="A request already holds the truck. Agree the price, then accept or reject. Reject makes the truck available again."
+          subtitle="Each request uses the RWF price on your truck listing. Accept or reject; importers pay before the trip starts."
           icon={
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M3 13h5l1.5 2.5h5L16 13h5" />

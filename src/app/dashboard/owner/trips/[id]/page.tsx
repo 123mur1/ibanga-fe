@@ -5,7 +5,6 @@ import { useParams } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { BookingBadge } from "@/components/status-badge";
-import { PriceAgree } from "@/components/price-agree";
 import { Avatar } from "@/components/photos";
 import { GhostButton, PrimaryButton, formatDate } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
@@ -173,18 +172,23 @@ export default function OwnerTripDetail() {
                   <circle cx="12" cy="12" r="9" />
                   <path d="M12 8v4.5M12 16h.01" />
                 </svg>
-                This booking already made the truck unavailable. Agree a price,
-                then accept to keep it locked or reject to make it available
-                again.
+                This booking holds the truck at its listed RWF price. Accept to
+                proceed or reject to make it available again.
               </div>
             ) : null}
 
-            <div className="mt-5">
-              <PriceAgree
-                bookingId={booking.id}
-                currentPrice={booking.agreedPrice}
-                pending={booking.status === "PENDING"}
-              />
+            <div className="mt-5 border-y border-line py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">
+                Listed booking price
+              </p>
+              <p className="mt-1 font-display text-2xl text-navy">
+                {booking.agreedPriceRwf == null
+                  ? "No price set"
+                  : `RWF ${booking.agreedPriceRwf.toLocaleString("en-RW")}`}
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                Price is copied from this truck&apos;s listing and cannot be changed per booking.
+              </p>
             </div>
 
             <div className="mt-5 flex flex-wrap gap-3">
@@ -193,7 +197,7 @@ export default function OwnerTripDetail() {
                   <PrimaryButton
                     type="button"
                     className="group"
-                    disabled={!booking.agreedPrice.trim()}
+                    disabled={!booking.agreedPriceRwf}
                     onClick={() => act("ACCEPTED")}
                   >
                     <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white/20 transition duration-200 group-hover:scale-110">
@@ -218,18 +222,24 @@ export default function OwnerTripDetail() {
                 </>
               ) : null}
               {booking.status === "ACCEPTED" ? (
-                <PrimaryButton
-                  type="button"
-                  className="group"
-                  onClick={() => act("IN_PROGRESS")}
-                >
-                  <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white/20 transition duration-200 group-hover:scale-110">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="m12 5 7 14-7-3.5L5 19 12 5Z" />
-                    </svg>
-                  </span>
-                  Start trip
-                </PrimaryButton>
+                booking.payment?.status === "FUNDED" ? (
+                  <PrimaryButton
+                    type="button"
+                    className="group"
+                    onClick={() => act("IN_PROGRESS")}
+                  >
+                    <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white/20 transition duration-200 group-hover:scale-110">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="m12 5 7 14-7-3.5L5 19 12 5Z" />
+                      </svg>
+                    </span>
+                    Start trip
+                  </PrimaryButton>
+                ) : (
+                  <p className="rounded-lg bg-warn-soft px-4 py-3 text-sm font-medium text-warn">
+                    Waiting for the importer to pay. The trip cannot start until funds are held.
+                  </p>
+                )
               ) : null}
               {booking.status === "IN_PROGRESS" ? (
                 <PrimaryButton
