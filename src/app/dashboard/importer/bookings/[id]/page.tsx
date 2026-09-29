@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import { api } from "@/lib/api";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
-import { BookingBadge, PayNotice } from "@/components/status-badge";
-import { PriceAgree } from "@/components/price-agree";
+import { BookingBadge } from "@/components/status-badge";
 import { Avatar } from "@/components/photos";
 import { Field, GhostButton, inputClass, PrimaryButton, formatDate } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
@@ -22,6 +22,25 @@ export default function ImporterBookingDetail() {
   const owner = truck ? users.find((u) => u.id === truck.ownerId) : undefined;
   const [reason, setReason] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [paymentPending, setPaymentPending] = useState(false);
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+
+  async function payForBooking() {
+    if (!booking || paymentPending) return;
+    setPaymentPending(true);
+    setPaymentError(null);
+    try {
+      await api(`/wallet/bookings/${booking.id}/pay`, { method: "POST" });
+      setPaymentConfirmed(true);
+    } catch (error) {
+      setPaymentError(
+        error instanceof Error ? error.message : "Could not pay for this booking.",
+      );
+    } finally {
+      setPaymentPending(false);
+    }
+  }
 
   return (
     <RequireAuth role="IMPORTER">
@@ -187,17 +206,61 @@ export default function ImporterBookingDetail() {
               </section>
             ) : null}
 
-            <div className="mt-4">
-              <PayNotice />
-            </div>
-
-            <div className="mt-4">
-              <PriceAgree
-                bookingId={booking.id}
-                currentPrice={booking.agreedPrice}
-                pending={booking.status === "PENDING"}
-              />
-            </div>
+            <section className="mt-4 rounded-2xl border border-line bg-card px-5 py-4 shadow-soft">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">
+                    Truck listing price
+                  </p>
+                  <p className="mt-1 font-display text-2xl text-navy">
+                    {booking.agreedPriceRwf == null
+                      ? "Price unavailable"
+                      : `RWF ${booking.agreedPriceRwf.toLocaleString("en-RW")}`}
+                  </p>
+                  <p className="mt-1 text-xs text-muted">
+                    The 6% platform commission is deducted from the owner&apos;s proceeds.
+                  </p>
+                </div>
+                {booking.payment ? (
+                  <span className="rounded-full bg-good-soft px-3 py-1 text-xs font-semibold text-good">
+                    {booking.payment.status === "RELEASED"
+                      ? "Paid and released"
+                      : booking.payment.status === "FUNDED"
+                        ? "Payment held"
+                        : booking.payment.status}
+                  </span>
+                ) : null}
+              </div>
+              {booking.status === "ACCEPTED" &&
+              !booking.payment &&
+              !paymentConfirmed ? (
+                <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-line pt-4">
+                  <PrimaryButton
+                    type="button"
+                    disabled={paymentPending || !booking.agreedPriceRwf}
+                    onClick={payForBooking}
+                  >
+                    {paymentPending ? "Processing…" : "Pay from wallet"}
+                  </PrimaryButton>
+                  <Link
+                    href="/dashboard/wallet"
+                    className="text-sm font-semibold text-brand hover:text-brand-dark"
+                  >
+                    Add wallet funds
+                  </Link>
+                </div>
+              ) : null}
+              {paymentConfirmed ? (
+                <p className="mt-3 text-sm font-medium text-good" role="status">
+                  Payment is held. The owner can now start the trip.
+                </p>
+              ) : null}
+              {paymentError ? (
+                <p className="mt-3 text-sm font-medium text-bad" role="alert">
+                  {paymentError}
+                </p>
+              ) : null}
+            </section>
 
             {booking.status === "PENDING" ? (
               <div className="mt-4 flex items-start gap-3 rounded-2xl bg-warn-soft px-4 py-3.5 text-sm font-medium text-warn ring-1 ring-warn/10">
@@ -205,9 +268,9 @@ export default function ImporterBookingDetail() {
                   <circle cx="12" cy="12" r="9" />
                   <path d="M12 8v4.5M12 16h.01" />
                 </svg>
-                This booking already made the truck unavailable. Once the price
-                is saved, the owner can accept or reject. A rejection puts the
-                truck back on the market.
+                The truck&apos;s listed price is fixed for this booking. The owner
+                can accept or reject your request. After acceptance, pay from
+                your wallet before the trip begins.
               </div>
             ) : null}
 
@@ -221,7 +284,8 @@ export default function ImporterBookingDetail() {
               </div>
             ) : null}
 
-            {booking.status === "DELIVERED" ? (
+            {booking.status === "DELIVERED" ||
+            (booking.status === "DISPUTED" && booking.dispute?.status === "RESOLVED") ? (
               <section className="mt-4 overflow-hidden rounded-2xl border border-line bg-card shadow-soft">
                 <div className="flex items-center gap-2.5 border-b border-line bg-good-soft/50 px-5 py-4">
                   <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-good-soft text-good">
@@ -230,14 +294,16 @@ export default function ImporterBookingDetail() {
                     </svg>
                   </span>
                   <p className="font-display text-lg tracking-tight text-navy">
-                    Goods marked delivered
+                    {booking.status === "DELIVERED"
+                      ? "Goods marked delivered"
+                      : "Admin review complete"}
                   </p>
                 </div>
                 <div className="space-y-4 px-5 py-5">
                   <p className="text-sm text-muted">
-                    Check the cargo. Confirming receipt completes the trip and
-                    makes the truck available again. Reporting a problem keeps
-                    the truck locked until admin resolves it.
+                    {booking.status === "DELIVERED"
+                      ? "Check the cargo. Confirming receipt completes the trip, releases the held funds, and makes the truck available again. Reporting a problem keeps the funds held until the review is complete and you confirm receipt."
+                      : "The admin has completed the review. Confirm receipt to release the held funds to the owner and make the truck available again."}
                   </p>
                   <PrimaryButton
                     type="button"
@@ -254,7 +320,8 @@ export default function ImporterBookingDetail() {
                     </span>
                     Confirm receipt
                   </PrimaryButton>
-                  <div className="space-y-3 border-t border-line pt-4">
+                  {booking.status === "DELIVERED" ? (
+                    <div className="space-y-3 border-t border-line pt-4">
                     <Field label="Or report a problem">
                       <textarea
                         className={`${inputClass} min-h-20`}
@@ -283,7 +350,8 @@ export default function ImporterBookingDetail() {
                       </span>
                       Report problem
                     </GhostButton>
-                  </div>
+                    </div>
+                  ) : null}
                 </div>
               </section>
             ) : null}

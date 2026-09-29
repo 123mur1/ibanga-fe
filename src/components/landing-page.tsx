@@ -18,8 +18,8 @@ const steps = [
   },
   {
     n: "03",
-    title: "Agree the price",
-    text: "Importer and owner agree the transport fee. Payment stays off iBanga.",
+    title: "Pay the listed price",
+    text: "The owner lists a fixed transport price in RWF. Pay from your iBanga wallet after acceptance.",
   },
   {
     n: "04",
@@ -108,7 +108,7 @@ export function LandingPage() {
           </h1>
           <p className="mt-5 max-w-xl text-lg text-muted">
             iBanga connects cargo owners with truck owners. Book an available
-            truck and it becomes unavailable immediately. Then agree the price.
+            truck at its listed price and it becomes unavailable immediately.
             If the owner rejects, the truck is available again.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
@@ -126,8 +126,8 @@ export function LandingPage() {
             </Link>
           </div>
           <p className="mt-6 max-w-lg text-sm text-muted">
-            No in-app payments, no commission in this MVP. You settle the
-            transport fee directly with the owner.
+            Pay in RWF by MTN Mobile Money, then track the payment and delivery
+            from your iBanga account.
           </p>
         </div>
 
@@ -181,7 +181,7 @@ export function LandingPage() {
             </div>
           </div>
           <p className="px-2 py-3 text-sm text-muted">
-            Book it and this truck leaves search immediately. Agree the price,
+            Book it at the listed RWF price and this truck leaves search immediately.
             then Eric accepts or rejects. Reject puts it back on the market.
           </p>
         </div>
@@ -261,8 +261,8 @@ export function LandingPage() {
         <div className="rounded-4xl bg-navy px-6 py-10 text-white sm:px-10">
           <h2 className="font-display text-3xl">Ready to move cargo?</h2>
           <p className="mt-3 max-w-xl text-white/70">
-             discovery, direct contact, booking, lock,
-            delivery and confirmation. Payments stay between you and the owner.
+            Find a truck, agree the RWF price, pay in-app, and confirm delivery
+            before the owner&apos;s proceeds are released.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
@@ -284,7 +284,7 @@ export function LandingPage() {
       <footer className="border-t border-line px-4 py-8 text-sm text-muted">
         <div className="mx-auto flex max-w-6xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <span>iBanga · cargo–truck marketplace · web MVP</span>
-          <span>No broker. No in-app payment.</span>
+          <span>Payments in RWF. MTN Mobile Money supported.</span>
         </div>
       </footer>
     </div>

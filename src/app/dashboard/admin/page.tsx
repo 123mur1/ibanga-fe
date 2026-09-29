@@ -22,6 +22,10 @@ const STATUS_FLOW: { status: BookingStatus; label: string; tone: string }[] = [
 export default function AdminHome() {
   const { trucks, bookings, disputes, resetDemo } = useIbanga();
   const [userCount, setUserCount] = useState<number | null>(null);
+  const [commission, setCommission] = useState<{
+    availableRwf: number;
+    totalEarnedRwf: number;
+  } | null>(null);
   const [userCountError, setUserCountError] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
@@ -36,6 +40,11 @@ export default function AdminHome() {
       .catch(() => {
         if (active) setUserCountError(true);
       });
+    api<{ availableRwf: number; totalEarnedRwf: number }>("/wallet/admin/commission")
+      .then((summary) => {
+        if (active) setCommission(summary);
+      })
+      .catch(() => {});
     return () => {
       active = false;
     };
@@ -94,6 +103,17 @@ export default function AdminHome() {
         ) : null}
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            label="Commission available"
+            value={commission ? `RWF ${commission.availableRwf.toLocaleString("en-RW")}` : "—"}
+            hint={commission ? `Earned RWF ${commission.totalEarnedRwf.toLocaleString("en-RW")}` : "Loading"}
+            icon={
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 2v20M17 5.5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+            }
+            accent="good"
+          />
           <StatCard
             label="Users"
             value={userCount ?? "—"}

@@ -44,7 +44,7 @@ export default function ImporterHome() {
                   ? "Some deliveries are waiting on your confirmation — let the trucks back to work."
                   : pending
                   ? "You have pending requests. Track them here while owners decide."
-                  : "Find an available truck, book it, and agree the price directly with the owner."}
+                  : "Find a priced truck, book it, and pay from your wallet after the owner accepts."}
               </p>
               <div className="mt-4 flex flex-wrap gap-3">
                 <Link

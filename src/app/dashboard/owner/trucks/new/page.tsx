@@ -25,6 +25,7 @@ export default function NewTruckPage() {
     plateNumber: "",
     truckType: "Container",
     capacity: "",
+    priceRwf: "",
     currentLocation: "",
     preferredRoute: "",
     description: "",
@@ -36,8 +37,13 @@ export default function NewTruckPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     const capacity = Number(form.capacity);
+    const priceRwf = Number(form.priceRwf);
     if (!capacity || capacity <= 0) {
       setError("Enter a valid capacity in tons.");
+      return;
+    }
+    if (!Number.isInteger(priceRwf) || priceRwf < 1) {
+      setError("Enter a whole-number asking price in RWF.");
       return;
     }
     setSaving(true);
@@ -46,6 +52,7 @@ export default function NewTruckPage() {
       plateNumber: form.plateNumber,
       truckType: form.truckType,
       capacity,
+      priceRwf,
       currentLocation: form.currentLocation,
       preferredRoute: form.preferredRoute,
       description: form.description,
@@ -166,6 +173,19 @@ export default function NewTruckPage() {
                   </div>
                 </Field>
               </div>
+              <Field label="Price per booking (RWF)">
+                <input
+                  className={inputClass}
+                  type="number"
+                  min="1"
+                  max="1000000000"
+                  step="1"
+                  required
+                  value={form.priceRwf}
+                  onChange={(e) => setForm({ ...form, priceRwf: e.target.value })}
+                  placeholder="850000"
+                />
+              </Field>
               <Field label="Current location">
                 <div className="relative">
                   <FieldIcon>

@@ -17,7 +17,7 @@ export default function AdminDisputesPage() {
         <PageHeader
           eyebrow="Fairness"
           title="Disputes"
-          subtitle="Resolving a dispute completes the booking and makes the truck available again."
+          subtitle="Resolve the review, then the importer must confirm receipt before funds are released and the truck becomes available."
           icon={
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M12 3 2.5 20h19L12 3Z" />

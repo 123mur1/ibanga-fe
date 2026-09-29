@@ -59,9 +59,9 @@ export function PayNotice() {
         <path d="M12 16h.01" />
       </svg>
       <p>
-        Booking a truck holds it immediately (unavailable). Then agree the
-        price. If the owner rejects, the truck becomes available again. iBanga
-        does not collect the money.
+        Booking holds the truck at its listed RWF price. After the owner accepts,
+        pay from your iBanga wallet before the trip starts. Funds stay held until
+        you confirm delivery.
       </p>
     </div>
   );

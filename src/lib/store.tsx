@@ -40,6 +40,7 @@ export type NewTruckInput = {
   plateNumber: string;
   truckType: string;
   capacity: number;
+  priceRwf: number;
   currentLocation?: string;
   preferredRoute?: string;
   description?: string;
@@ -113,7 +114,6 @@ type Store = State & {
   deleteTruck: (id: string) => Promise<string | null>;
   setAvailability: (id: string, status: TruckStatus) => Promise<string | null>;
   createBooking: (truck: Truck, input: NewBookingInput) => Promise<string | null>;
-  setAgreedPrice: (id: string, price: string) => Promise<string | null>;
   setBookingStatus: (id: string, status: BookingStatus) => Promise<string | null>;
   reportProblem: (bookingId: string, reason: string) => Promise<string | null>;
   resolveDispute: (disputeId: string, notes: string) => Promise<string | null>;
@@ -337,14 +337,6 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const setAgreedPrice = useCallback<Store["setAgreedPrice"]>(async (id, price) => {
-    try {
-      const updated = toBooking(await api<ApiBooking>(`/bookings/${id}`, { method: "PATCH", body: JSON.stringify({ agreedPrice: price }) }));
-      setState((s) => ({ ...s, bookings: s.bookings.map((b) => b.id === id ? updated : b) }));
-      return null;
-    } catch (err) { return err instanceof Error ? err.message : "Could not agree price."; }
-  }, []);
-
   const setBookingStatus = useCallback<Store["setBookingStatus"]>(async (id, status) => {
     try {
       const updated = toBooking(await api<ApiBooking>(`/bookings/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }));
@@ -403,7 +395,6 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
       deleteTruck,
       setAvailability,
       createBooking,
-      setAgreedPrice,
       setBookingStatus,
       reportProblem,
       resolveDispute,
@@ -427,7 +418,6 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
       deleteTruck,
       setAvailability,
       createBooking,
-      setAgreedPrice,
       setBookingStatus,
       reportProblem,
       resolveDispute,
