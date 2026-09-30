@@ -201,7 +201,7 @@ export function DashboardShell({
             <BrandLink href="/" />
           </div>
 
-          <div className="mx-4 mb-4 overflow-hidden rounded-2xl bg-gradient-to-br from-brand via-brand-dark to-navy p-4 shadow-soft">
+          <div className="mx-4 mb-4 overflow-hidden rounded-2xl bg-linear-to-br from-brand via-brand-dark to-navy p-4 shadow-soft">
             <div className="flex items-center gap-3">
               <span className="relative">
                 <Avatar src={currentUser?.photo} name={currentUser?.name ?? "User"} size="md" />
@@ -346,7 +346,7 @@ export function DashboardShell({
                     </svg>
                   </button>
                 </div>
-                <div className="mx-4 mb-4 overflow-hidden rounded-2xl bg-gradient-to-br from-brand via-brand-dark to-navy p-4">
+                <div className="mx-4 mb-4 overflow-hidden rounded-2xl bg-linear-to-br from-brand via-brand-dark to-navy p-4">
                   <div className="flex items-center gap-3">
                     <Avatar src={currentUser?.photo} name={currentUser?.name ?? "User"} size="md" />
                     <div className="min-w-0">
@@ -396,7 +396,7 @@ export function DashboardShell({
             </div>
           ) : null}
 
-          <main className="mx-auto w-full max-w-[1440px] px-4 py-6 lg:px-7 lg:py-8">{children}</main>
+          <main className="mx-auto w-full max-w-360 px-4 py-6 lg:px-7 lg:py-8">{children}</main>
         </div>
       </div>
     </div>
