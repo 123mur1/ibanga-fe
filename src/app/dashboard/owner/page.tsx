@@ -32,15 +32,15 @@ export default function OwnerDashboard() {
   return (
     <RequireAuth role="TRUCK_OWNER">
       <DashboardShell role="TRUCK_OWNER">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-navy via-brand-dark to-brand p-5 shadow-card sm:p-6">
+        <div className="relative overflow-hidden rounded-3xl bg-linear-to-br from-navy via-brand-dark to-brand p-5 shadow-card sm:p-6">
           <div className="paper-grid absolute inset-0 opacity-30" />
           <div
             aria-hidden="true"
-            className="absolute -left-14 -top-20 h-56 w-56 rounded-full border-[22px] border-white/10"
+            className="absolute -left-14 -top-20 h-56 w-56 rounded-full border-22 border-white/10"
           />
           <div
             aria-hidden="true"
-            className="absolute -bottom-28 right-20 h-48 w-48 rounded-full border-[18px] border-accent/30"
+            className="absolute -bottom-28 right-20 h-48 w-48 rounded-full border-18 border-accent/30"
           />
           <div className="relative flex flex-wrap items-center justify-between gap-5">
             <div className="max-w-xl">

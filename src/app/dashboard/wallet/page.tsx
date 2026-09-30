@@ -31,6 +31,7 @@ const formatRwf = (amount: number) =>
 export default function WalletPage() {
   const { currentUser } = useIbanga();
   const isAdmin = currentUser?.role === "ADMIN";
+  const canDeposit = currentUser?.role === "IMPORTER";
   const [wallet, setWallet] = useState<WalletResponse | null>(null);
   const [banks, setBanks] = useState<BankOption[]>([]);
   const [branches, setBranches] = useState<BranchOption[]>([]);
@@ -190,7 +191,7 @@ export default function WalletPage() {
 
   const bankValue = (bank: BankOption) => bank.code ?? bank.id ?? "";
   const branchValue = (branch: BranchOption) => branch.code ?? branch.id ?? "";
-  const activePaymentMode: PaymentMode = isAdmin ? "WITHDRAW" : paymentMode;
+  const activePaymentMode: PaymentMode = canDeposit ? paymentMode : "WITHDRAW";
   const activeAmount = activePaymentMode === "DEPOSIT" ? depositAmount : withdrawAmount;
   const transferAmount = Number(activeAmount) || 0;
   const selectedBank = banks.find((bank) => bankValue(bank) === bankCode);
@@ -203,7 +204,9 @@ export default function WalletPage() {
           title="Wallet"
           subtitle={isAdmin
             ? "Withdraw available funds and review wallet activity."
-            : "Deposit Rwandan francs, pay for a booking, and withdraw available funds."}
+            : canDeposit
+              ? "Deposit Rwandan francs, pay for a booking, and withdraw available funds."
+              : "Withdraw your available earnings to a mobile wallet or bank account."}
           icon={
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <rect x="3" y="5" width="18" height="14" rx="2" />
@@ -228,12 +231,18 @@ export default function WalletPage() {
             </div>
             <div className="max-w-sm border-l border-white/20 pl-5">
               <p className="text-sm font-semibold">
-                {isAdmin ? "Ready for platform withdrawals" : "Protected marketplace payments"}
+                {isAdmin
+                  ? "Ready for platform withdrawals"
+                  : canDeposit
+                    ? "Protected marketplace payments"
+                    : "Your earnings, ready to move"}
               </p>
               <p className="mt-1 text-sm leading-5 text-white/70">
                 {isAdmin
                   ? "Withdraw available funds to an MTN wallet or Rwanda bank account."
-                  : "Booking payments stay protected until delivery is confirmed. Owner earnings include the 6% iBanga commission."}
+                  : canDeposit
+                    ? "Booking payments stay protected until delivery is confirmed. Owner earnings include the 6% iBanga commission."
+                    : "Withdraw available earnings to an MTN wallet or Rwanda bank account."}
               </p>
             </div>
           </div>
@@ -243,7 +252,9 @@ export default function WalletPage() {
           <p className="mt-4 rounded-lg border border-warn/20 bg-warn-soft px-4 py-3 text-sm text-warn">
             {isAdmin
               ? "Local simulation: withdrawals change test balances only. No real money is transferred."
-              : "Local simulation: deposits and withdrawals change test balances only. No real money is charged or transferred."}
+              : canDeposit
+                ? "Local simulation: deposits and withdrawals change test balances only. No real money is charged or transferred."
+                : "Local simulation: withdrawals change test balances only. No real money is transferred."}
           </p>
         ) : null}
 
@@ -274,7 +285,7 @@ export default function WalletPage() {
                     : "Choose where to send your available balance and enter the payout details."}
                 </p>
               </div>
-              {!isAdmin ? (
+              {canDeposit ? (
                 <div className="inline-flex shrink-0 rounded-xl bg-background p-1" aria-label="Wallet action">
                   <button
                     type="button"
