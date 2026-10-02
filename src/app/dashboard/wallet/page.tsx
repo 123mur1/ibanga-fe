@@ -95,11 +95,8 @@ export default function WalletPage() {
   }, [method]);
 
   useEffect(() => {
-    if (!bankCode) {
-      setBranches([]);
-      setBranchCode("");
-      return;
-    }
+    if (!bankCode) return;
+
     let active = true;
     api<BranchOption[]>(`/wallet/banks/${encodeURIComponent(bankCode)}/branches`)
       .then((data) => {
@@ -404,7 +401,15 @@ export default function WalletPage() {
                             name="withdrawal-method"
                             value={option.value}
                             checked={method === option.value}
-                            onChange={() => setMethod(option.value)}
+                            onChange={() => {
+                              const nextMethod = option.value;
+                              setMethod(nextMethod);
+                              if (nextMethod !== "BANK") {
+                                setBankCode("");
+                                setBranchCode("");
+                                setBranches([]);
+                              }
+                            }}
                           />
                           <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
                             method === option.value ? "bg-white text-brand" : "bg-background text-muted"
