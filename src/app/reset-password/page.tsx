@@ -2,40 +2,55 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, Suspense, useEffect, useState } from "react";
+import { FormEvent, Suspense, useState } from "react";
 import { AuthShell } from "@/components/auth-shell";
 import { Field, inputClass, PrimaryButton } from "@/components/ui";
-import { dashboardPath, useIbanga } from "@/lib/store";
+import { useIbanga } from "@/lib/store";
 
-function LoginForm() {
-  const { login, currentUser } = useIbanga();
+function ResetPasswordForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const { resetPassword } = useIbanga();
 
-  useEffect(() => {
-    if (currentUser) {
-      const next = params.get("next");
-      router.replace(next || dashboardPath(currentUser.role));
-    }
-  }, [currentUser, params, router]);
+  const [token, setToken] = useState(params.get("token") ?? "");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    setBusy(true);
+    setMessage(null);
     setError(null);
-    const err = await login(email, password);
-    setBusy(false);
-    if (err) {
-      setError(err);
+
+    if (!token.trim()) {
+      setError("A reset token is required.");
       return;
     }
-    const next = params.get("next");
-    router.push(next || "/dashboard");
+
+    if (password.length < 8) {
+      setError("Use at least 8 characters for your new password.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setBusy(true);
+    const result = await resetPassword(token, password);
+    setBusy(false);
+
+    if (result) {
+      setError(result);
+      return;
+    }
+
+    setMessage("Your password has been reset. Redirecting you to sign in...");
+    window.setTimeout(() => router.push("/login"), 1200);
   }
 
   return (
@@ -45,7 +60,7 @@ function LoginForm() {
         className="pointer-events-none absolute -inset-6 -z-10 rounded-full bg-linear-to-tr from-brand/25 via-accent/15 to-transparent blur-2xl"
       />
       <div className="overflow-hidden rounded-3xl border border-line bg-card shadow-card">
-        <div className="relative h-36 overflow-hidden bg-linear-to-br from-brand via-brand-dark to-navy">
+        <div className="relative h-32 overflow-hidden bg-linear-to-br from-brand via-brand-dark to-navy">
           <div className="paper-grid absolute inset-0 opacity-40" />
           <div
             aria-hidden="true"
@@ -53,38 +68,35 @@ function LoginForm() {
           />
           <div
             aria-hidden="true"
-            className="absolute -bottom-24 left-16 h-40 w-40 rounded-full border-18 border-accent/30"
+            className="absolute -bottom-20 left-16 h-36 w-36 rounded-full border-18 border-accent/30"
           />
-          <div className="relative flex h-full items-center justify-center gap-4 px-8">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 shadow-lg ring-1 ring-white/25 backdrop-blur-sm">
+          <div className="relative flex h-full items-center justify-center gap-3 px-8 text-center text-white">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25 backdrop-blur-sm">
               <svg
-                width="30"
-                height="30"
+                width="26"
+                height="26"
                 viewBox="0 0 24 24"
                 fill="none"
-                stroke="white"
+                stroke="currentColor"
                 strokeWidth="1.8"
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 aria-hidden="true"
               >
-                <path d="M1 3h15v13H1z" />
-                <path d="M16 8h4l3 3v5h-7V8z" />
-                <circle cx="5.5" cy="18.5" r="2.5" />
-                <circle cx="18.5" cy="18.5" r="2.5" />
+                <rect x="4" y="10" width="16" height="11" rx="2" />
+                <path d="M8 10V7a4 4 0 0 1 8 0v3" />
               </svg>
             </div>
-            <div className="text-left">
-              <p className="font-display text-xl text-white">Welcome back</p>
-              <p className="text-sm text-white/75">Drive your cargo forward</p>
+            <div>
+              <p className="font-display text-xl text-white">Set a new password</p>
+              <p className="text-sm text-white/75">Choose a strong secure password</p>
             </div>
           </div>
-          <div className="absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-white/40 to-transparent" />
         </div>
 
         <div className="p-8">
           <form onSubmit={onSubmit} className="space-y-5">
-            <Field label="Email">
+            <Field label="Reset token">
               <div className="relative">
                 <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-muted">
                   <svg
@@ -98,21 +110,22 @@ function LoginForm() {
                     strokeLinejoin="round"
                     aria-hidden="true"
                   >
-                    <rect x="3" y="5" width="18" height="14" rx="2" />
-                    <path d="m3 7 9 6 9-6" />
+                    <path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 1 0-7.07-7.07L10.6 5.6" />
+                    <path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 1 0 7.07 7.07l2.83-2.83" />
                   </svg>
                 </span>
                 <input
                   className={`${inputClass} pl-11`}
-                  type="email"
+                  type="text"
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                  placeholder="Paste your reset token"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@company.com"
                 />
               </div>
             </Field>
-            <Field label="Password">
+
+            <Field label="New password">
               <div className="relative">
                 <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-muted">
                   <svg
@@ -133,17 +146,16 @@ function LoginForm() {
                 <input
                   className={`${inputClass} pl-11 pr-11`}
                   type={showPassword ? "text" : "password"}
-                  required
-                  minLength={6}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="Enter new password"
+                  required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
                   className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-muted transition hover:text-navy"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
                     <svg
@@ -180,97 +192,51 @@ function LoginForm() {
               </div>
             </Field>
 
-            <div className="flex items-center justify-between gap-3 pt-1 text-sm">
-              <span className="flex items-center gap-2 text-muted">
-                <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-                Secured sign-in
-              </span>
-              <Link href="/forgot-password" className="text-sm font-medium text-brand hover:text-brand-dark">
-                Forgot password?
-              </Link>
-            </div>
+            <Field label="Confirm new password">
+              <input
+                className={inputClass}
+                type={showPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Re-enter new password"
+                required
+              />
+            </Field>
+
+            {message ? (
+              <p className="rounded-xl border border-good/20 bg-good-soft px-3.5 py-2.5 text-sm text-good">
+                {message}
+              </p>
+            ) : null}
 
             {error ? (
-              <p className="flex items-center gap-2 rounded-xl border border-bad/20 bg-bad-soft px-3.5 py-2.5 text-sm text-bad">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 8v4M12 16h.01" />
-                </svg>
+              <p className="rounded-xl border border-bad/20 bg-bad-soft px-3.5 py-2.5 text-sm text-bad">
                 {error}
               </p>
             ) : null}
 
             <PrimaryButton className="w-full py-3" type="submit" disabled={busy}>
-              {busy ? (
-                <>
-                  <svg
-                    className="animate-spin"
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                  </svg>
-                  Signing in…
-                </>
-              ) : (
-                <>
-                  Continue
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M5 12h14M13 6l6 6-6 6" />
-                  </svg>
-                </>
-              )}
+              {busy ? "Updating password…" : "Set new password"}
             </PrimaryButton>
           </form>
 
-          <div className="mt-6 flex items-center gap-3">
-            <span className="h-px flex-1 bg-line" />
-            <span className="text-xs font-medium text-muted">New to iBanga?</span>
-            <span className="h-px flex-1 bg-line" />
+          <div className="mt-6 flex items-center justify-center gap-2 text-sm text-muted">
+            <span>Need another reset link?</span>
+            <Link href="/forgot-password" className="font-semibold text-brand hover:text-brand-dark">
+              Request again
+            </Link>
           </div>
-          <Link
-            href="/register"
-            className="mt-4 block w-full rounded-xl border border-brand/25 bg-brand-soft/60 px-4 py-2.5 text-center text-sm font-semibold text-brand-dark transition hover:-translate-y-0.5 hover:border-brand/40 hover:bg-brand-soft"
-          >
-            Create an account
-          </Link>
         </div>
       </div>
     </div>
   );
 }
 
-export default function LoginPage() {
+export default function ResetPasswordPage() {
   return (
     <AuthShell image="/photos/ibanga-container-highway.png">
       <Suspense>
-        <LoginForm />
+        <ResetPasswordForm />
       </Suspense>
     </AuthShell>
   );

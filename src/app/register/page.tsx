@@ -43,18 +43,18 @@ function RegisterForm() {
     <div className="relative mx-auto w-full max-w-lg">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -inset-6 -z-10 rounded-full bg-gradient-to-tr from-accent/20 via-brand/15 to-transparent blur-2xl"
+        className="pointer-events-none absolute -inset-6 -z-10 rounded-full bg-linear-to-tr from-accent/20 via-brand/15 to-transparent blur-2xl"
       />
       <div className="overflow-hidden rounded-3xl border border-line bg-card shadow-card">
-        <div className="relative h-40 overflow-hidden bg-gradient-to-br from-accent via-brand to-navy">
+        <div className="relative h-40 overflow-hidden bg-linear-to-br from-accent via-brand to-navy">
           <div className="paper-grid absolute inset-0 opacity-40" />
           <div
             aria-hidden="true"
-            className="absolute -right-10 -top-14 h-44 w-44 rounded-full border-[18px] border-white/10"
+            className="absolute -right-10 -top-14 h-44 w-44 rounded-full border-18 border-white/10"
           />
           <div
             aria-hidden="true"
-            className="absolute -bottom-24 left-16 h-40 w-40 rounded-full border-[18px] border-brand/40"
+            className="absolute -bottom-24 left-16 h-40 w-40 rounded-full border-18 border-brand/40"
           />
           <div className="relative flex h-full items-center justify-center gap-4 px-8">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 shadow-lg ring-1 ring-white/25 backdrop-blur-sm">
@@ -80,7 +80,7 @@ function RegisterForm() {
               </p>
             </div>
           </div>
-          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-white/40 to-transparent" />
         </div>
 
         <div className="p-8">

@@ -91,6 +91,8 @@ type Store = State & {
   ready: boolean;
   currentUser: User | null;
   login: (email: string, password: string) => Promise<string | null>;
+  requestPasswordReset: (email: string) => Promise<{ message: string; error?: string } | null>;
+  resetPassword: (token: string, password: string) => Promise<string | null>;
   register: (input: {
     name: string;
     email: string;
@@ -214,6 +216,33 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
       return err instanceof Error ? err.message : "Login failed.";
     }
   }, [refreshBookings]);
+
+  const requestPasswordReset = useCallback<Store["requestPasswordReset"]>(async (email) => {
+    try {
+      return await api<{ message: string }>("/auth/password-reset/request", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      });
+    } catch (err) {
+      return {
+        message: "",
+        error:
+          err instanceof Error ? err.message : "Could not request a password reset.",
+      };
+    }
+  }, []);
+
+  const resetPassword = useCallback<Store["resetPassword"]>(async (token, password) => {
+    try {
+      const data = await api<{ message: string }>("/auth/password-reset/reset", {
+        method: "POST",
+        body: JSON.stringify({ token, password }),
+      });
+      return data.message;
+    } catch (err) {
+      return err instanceof Error ? err.message : "Could not reset password.";
+    }
+  }, []);
 
   const register = useCallback<Store["register"]>(async (input) => {
     try {
@@ -383,6 +412,8 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
       ready,
       currentUser,
       login,
+      requestPasswordReset,
+      resetPassword,
       register,
       logout,
       updateProfile,
@@ -406,6 +437,8 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
       ready,
       currentUser,
       login,
+      requestPasswordReset,
+      resetPassword,
       register,
       logout,
       updateProfile,
