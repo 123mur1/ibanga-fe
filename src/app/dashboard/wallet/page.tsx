@@ -11,7 +11,7 @@ import type { WalletTransaction } from "@/lib/types";
 type WalletResponse = {
   balanceRwf: number;
   currency: "RWF";
-  mode: "mock" | "flutterwave";
+  mode: "mock";
   transactions: WalletTransaction[];
 };
 
@@ -170,11 +170,7 @@ export default function WalletPage() {
       });
       await refreshWallet();
       setWithdrawAmount("");
-      setNotice(
-        wallet?.mode === "mock"
-          ? "Local test withdrawal completed. No real money was sent."
-          : "Withdrawal submitted. The reserved amount will return if the provider rejects it.",
-      );
+      setNotice("Simulated withdrawal completed. No real money was sent.");
     } catch (submitError) {
       setError(
         submitError instanceof Error
@@ -229,17 +225,17 @@ export default function WalletPage() {
             <div className="max-w-sm border-l border-white/20 pl-5">
               <p className="text-sm font-semibold">
                 {isAdmin
-                  ? "Ready for platform withdrawals"
+                  ? "Simulated platform withdrawals"
                   : canDeposit
-                    ? "Protected marketplace payments"
-                    : "Your earnings, ready to move"}
+                    ? "Simulated marketplace wallet"
+                    : "Simulated wallet earnings"}
               </p>
               <p className="mt-1 text-sm leading-5 text-white/70">
                 {isAdmin
-                  ? "Withdraw available funds to an MTN wallet or Rwanda bank account."
+                  ? "Test withdrawals update the wallet ledger only."
                   : canDeposit
-                    ? "Booking payments stay protected until delivery is confirmed. Owner earnings include the 6% iBanga commission."
-                    : "Withdraw available earnings to an MTN wallet or Rwanda bank account."}
+                    ? "Deposits, booking payments, and withdrawals update test balances only. Owner earnings include the 6% iBanga commission."
+                    : "Withdrawals update the wallet ledger only; no payout is sent."}
               </p>
             </div>
           </div>
@@ -248,10 +244,10 @@ export default function WalletPage() {
         {wallet?.mode === "mock" ? (
           <p className="mt-4 rounded-lg border border-warn/20 bg-warn-soft px-4 py-3 text-sm text-warn">
             {isAdmin
-              ? "Local simulation: withdrawals change test balances only. No real money is transferred."
+              ? "Simulation only: withdrawals update test balances. No real money is transferred."
               : canDeposit
-                ? "Local simulation: deposits and withdrawals change test balances only. No real money is charged or transferred."
-                : "Local simulation: withdrawals change test balances only. No real money is transferred."}
+                ? "Simulation only: deposits and withdrawals update test balances. No real money is charged or transferred."
+                : "Simulation only: withdrawals update test balances. No real money is transferred."}
           </p>
         ) : null}
 
@@ -278,8 +274,8 @@ export default function WalletPage() {
                 </h2>
                 <p className="mt-1.5 max-w-lg text-sm leading-5 text-muted">
                   {activePaymentMode === "DEPOSIT"
-                    ? "Choose an amount and confirm the MTN number for your payment."
-                    : "Choose where to send your available balance and enter the payout details."}
+                    ? "Choose an amount and enter a test mobile number. No external payment request is sent."
+                    : "Choose an amount and enter test payout details. No money will be sent."}
                 </p>
               </div>
               {canDeposit ? (
