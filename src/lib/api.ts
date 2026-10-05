@@ -1,5 +1,8 @@
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === "production"
+    ? "https://ibanga-be-1.onrender.com"
+    : "http://localhost:3001");
 
 const TOKEN_KEY = "ibanga-token";
 
