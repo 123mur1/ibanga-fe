@@ -1,26 +1,26 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f5f7fb;
+  --background: #f5f7ff;
   --foreground: #0f172a;
-  --navy: #1d2a3a;
-  --navy-soft: #33415c;
-  --brand: #4f46e5;
-  --brand-dark: #4338ca;
-  --brand-soft: #eef0ff;
-  --accent: #0d9488;
-  --accent-dark: #0f766e;
-  --accent-soft: #e6faf6;
-  --good: #047857;
-  --good-soft: #e6f6ee;
-  --warn: #b45309;
-  --warn-soft: #fdf4e3;
-  --bad: #be123c;
-  --bad-soft: #fdeef2;
+  --navy: #0f172a;
+  --navy-soft: #1e293b;
+  --brand: #2563eb;
+  --brand-dark: #1d4ed8;
+  --brand-soft: #eaf3ff;
+  --accent: #f59e0b;
+  --accent-dark: #d97706;
+  --accent-soft: #fff4dc;
+  --good: #059669;
+  --good-soft: #eafaf4;
+  --warn: #ea580c;
+  --warn-soft: #fff1e6;
+  --bad: #dc2626;
+  --bad-soft: #fef2f2;
   --ink: #0f172a;
-  --muted: #64748b;
+  --muted: #5f6f87;
   --card: #ffffff;
-  --line: #e4e9f0;
+  --line: #e5e7eb;
 }
 
 @theme {
@@ -80,4 +80,46 @@ body {
     transparent 0
   );
   background-size: 22px 22px;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+.float-slow {
+  animation: float 7s ease-in-out infinite;
+}
+
+.shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent 18%,
+    rgba(255, 255, 255, 0.28) 50%,
+    transparent 82%
+  );
+  transform: translateX(-120%);
+  animation: shimmer 6s ease-in-out infinite;
 }
