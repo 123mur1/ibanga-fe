@@ -289,6 +289,80 @@ export function LandingPage() {
           </div>
         </section>
 
+        <section className="bg-slate-950 py-16 text-white">
+          <div className="mx-auto max-w-6xl px-4">
+            <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-200">Why teams switch</p>
+                <h2 className="mt-2 font-display text-3xl sm:text-4xl">The direct path beats broker chaos</h2>
+              </div>
+              <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-200">
+                built for real logistics flow
+              </span>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+                <h3 className="font-display text-2xl text-white">Traditional process</h3>
+                <ul className="mt-6 space-y-4 text-sm text-slate-300">
+                  <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-rose-400" />Multiple calls, manual messages, and unclear truck availability.</li>
+                  <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-rose-400" />Pricing is often negotiated off-platform and not tracked properly.</li>
+                  <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-rose-400" />Status updates are fragmented and delayed.</li>
+                </ul>
+              </div>
+
+              <div className="rounded-[28px] border border-brand/30 bg-gradient-to-br from-brand/20 via-blue-500/10 to-white/5 p-6">
+                <h3 className="font-display text-2xl text-white">iBanga experience</h3>
+                <ul className="mt-6 space-y-4 text-sm text-blue-50">
+                  <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-400" />One clean booking flow with live truck availability.</li>
+                  <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-400" />Direct RWF pricing visibility before anyone commits.</li>
+                  <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-400" />Trip status, confirmations, and dispute tracking in one place.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-6xl px-4 py-16">
+          <div className="mb-8 text-center">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">What partners say</p>
+            <h2 className="mt-2 font-display text-3xl text-navy sm:text-4xl">Trusted by teams moving cargo every day</h2>
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-3">
+            {[
+              {
+                quote: "We needed a faster way to find available trucks without chasing calls all day. iBanga made the whole flow feel clearer and more reliable.",
+                name: "Aline Uwamahoro",
+                role: "Importer, Kigali",
+              },
+              {
+                quote: "The process was simple enough for my team to keep listings updated, and the booking status gave us much more control over scheduling.",
+                name: "Eric Ndayisaba",
+                role: "Truck owner, Rusizi",
+              },
+              {
+                quote: "The dashboard keeps everyone aligned. It reduces confusion between booking requests, confirmations, and exceptions — which matters in cargo logistics.",
+                name: "Moses Kamanzi",
+                role: "Operations lead",
+              },
+            ].map((item) => (
+              <div key={item.name} className="rounded-[28px] border border-line bg-white p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
+                <div className="mb-5 flex gap-1 text-amber-400">
+                  {Array.from({ length: 5 }).map((_, idx) => (
+                    <span key={idx}>★</span>
+                  ))}
+                </div>
+                <p className="text-base leading-7 text-slate-700">“{item.quote}”</p>
+                <div className="mt-6 border-t border-line pt-4">
+                  <p className="font-semibold text-navy">{item.name}</p>
+                  <p className="text-sm text-muted">{item.role}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section id="how" className="border-y border-line bg-card/70">
           <div className="mx-auto max-w-6xl px-4 py-16">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
