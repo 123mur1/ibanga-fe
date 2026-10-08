@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Sans, Outfit } from "next/font/google";
 import { IbangaProvider } from "@/lib/store";
+import { SiteFooter } from "@/components/site-footer";
 import "./globals.css";
 
 const sans = DM_Sans({
@@ -30,7 +31,12 @@ export default function RootLayout({
       className={`${sans.variable} ${display.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-ink">
-        <IbangaProvider>{children}</IbangaProvider>
+        <IbangaProvider>
+          <div className="flex min-h-screen flex-col">
+            <div className="flex-1">{children}</div>
+          </div>
+          <SiteFooter />
+        </IbangaProvider>
       </body>
     </html>
   );

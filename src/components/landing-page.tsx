@@ -311,7 +311,7 @@ export function LandingPage() {
                 </ul>
               </div>
 
-              <div className="rounded-[28px] border border-brand/30 bg-gradient-to-br from-brand/20 via-blue-500/10 to-white/5 p-6">
+              <div className="rounded-[28px] border border-brand/30 bg-linear-to-br from-brand/20 via-blue-500/10 to-white/5 p-6">
                 <h3 className="font-display text-2xl text-white">iBanga experience</h3>
                 <ul className="mt-6 space-y-4 text-sm text-blue-50">
                   <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-400" />One clean booking flow with live truck availability.</li>
@@ -470,12 +470,6 @@ export function LandingPage() {
         </section>
       </main>
 
-      <footer className="border-t border-line bg-white/60 px-4 py-8 text-sm text-muted">
-        <div className="mx-auto flex max-w-6xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <span>iBanga · cargo–truck marketplace</span>
-          <span>Payments in RWF · MTN Mobile Money supported</span>
-        </div>
-      </footer>
     </div>
   );
 }

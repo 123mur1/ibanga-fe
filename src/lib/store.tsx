@@ -254,6 +254,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
           password: input.password,
           phone: input.phone,
           location: input.location,
+          company: input.company,
           role: input.role,
         }),
       });

@@ -8,6 +8,7 @@ import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { BookingBadge } from "@/components/status-badge";
 import { Avatar } from "@/components/photos";
+import { LiveTripTracking } from "@/components/live-trip-tracking";
 import { Field, GhostButton, inputClass, PrimaryButton, formatDate } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
 
@@ -104,6 +105,12 @@ export default function ImporterBookingDetail() {
               </div>
               <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
             </div>
+
+            <LiveTripTracking
+              bookingId={booking.id}
+              status={booking.status}
+              canShare={false}
+            />
 
             <section className="mt-4 overflow-hidden rounded-2xl border border-line bg-card shadow-soft">
               <div className="group flex items-center gap-2.5 border-b border-line bg-background/60 px-5 py-3.5">

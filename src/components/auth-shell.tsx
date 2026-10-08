@@ -32,7 +32,7 @@ export function AuthShell({
             alt="Truck driving along a cargo corridor"
             className="absolute inset-0 h-full w-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-navy/80 via-navy/15 to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-t from-navy/80 via-navy/15 to-transparent" />
           <div className="relative flex h-full flex-col justify-end p-10 lg:p-12">
             <p className="max-w-md font-display text-3xl leading-snug text-white lg:text-4xl">
               Direct cargo–truck marketplace.
