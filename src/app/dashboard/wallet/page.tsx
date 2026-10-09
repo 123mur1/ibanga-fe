@@ -1,25 +1,25 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
-import { Field, inputClass, PageHeader, PrimaryButton } from "@/components/ui";
-import { api } from "@/lib/api";
+import { DataTable, Field, inputClass, PageHeader, PrimaryButton, StatCard } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
-import type { WalletTransaction } from "@/lib/types";
-
-type WalletResponse = {
-  balanceRwf: number;
-  currency: "RWF";
-  mode: "mock";
-  transactions: WalletTransaction[];
-};
-
 type BankOption = { id?: string; code?: string; name?: string };
 type BranchOption = { id?: string; code?: string; name?: string };
 type PaymentMode = "DEPOSIT" | "WITHDRAW";
 
 const AMOUNT_PRESETS = [10000, 25000, 50000, 100000];
+const banks: BankOption[] = [
+  { code: "BK", name: "Bank of Kigali" },
+  { code: "EQUITY", name: "Equity Bank Rwanda" },
+  { code: "I&M", name: "I&M Bank Rwanda" },
+];
+const branches: BranchOption[] = [
+  { code: "KGL", name: "Kigali Main Branch" },
+  { code: "NYA", name: "Nyarutarama Branch" },
+  { code: "REM", name: "Remera Branch" },
+];
 
 const formatRwf = (amount: number) =>
   new Intl.NumberFormat("en-RW", {
@@ -29,12 +29,9 @@ const formatRwf = (amount: number) =>
   }).format(amount);
 
 export default function WalletPage() {
-  const { currentUser } = useIbanga();
+  const { currentUser, walletBalance, transactions, depositFunds, withdrawFunds } = useIbanga();
   const isAdmin = currentUser?.role === "ADMIN";
   const canDeposit = currentUser?.role === "IMPORTER";
-  const [wallet, setWallet] = useState<WalletResponse | null>(null);
-  const [banks, setBanks] = useState<BankOption[]>([]);
-  const [branches, setBranches] = useState<BranchOption[]>([]);
   const [method, setMethod] = useState<"MOBILE_MONEY" | "BANK">("MOBILE_MONEY");
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("DEPOSIT");
   const [bankCode, setBankCode] = useState("");
@@ -45,110 +42,22 @@ export default function WalletPage() {
   const [beneficiaryName, setBeneficiaryName] = useState("");
   const [withdrawPhone, setWithdrawPhone] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    api<WalletResponse>("/wallet")
-      .then((data) => {
-        if (active) setWallet(data);
-      })
-      .catch((loadError) => {
-        if (active) {
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Could not load the wallet.",
-          );
-        }
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (method !== "BANK") return;
-    let active = true;
-    api<BankOption[]>("/wallet/banks")
-      .then((data) => {
-        if (active) setBanks(data);
-      })
-      .catch((loadError) => {
-        if (active) {
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Could not load Rwanda banks.",
-          );
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [method]);
-
-  useEffect(() => {
-    if (!bankCode) return;
-
-    let active = true;
-    api<BranchOption[]>(`/wallet/banks/${encodeURIComponent(bankCode)}/branches`)
-      .then((data) => {
-        if (active) setBranches(data);
-      })
-      .catch((loadError) => {
-        if (active) {
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Could not load bank branches.",
-          );
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [bankCode]);
-
-  async function refreshWallet() {
-    setWallet(await api<WalletResponse>("/wallet"));
-  }
 
   async function deposit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
     setNotice(null);
-    try {
-      const result = await api<{ paymentUrl?: string; simulated?: boolean }>("/wallet/deposits", {
-        method: "POST",
-        body: JSON.stringify({
-          amountRwf: Number(depositAmount),
-          phoneNumber: depositPhone,
-        }),
-      });
-      if (result.simulated) {
-        await refreshWallet();
-        setDepositAmount("");
-        setNotice("Local test deposit added. No real money was charged.");
-      } else if (result.paymentUrl) {
-        window.location.assign(result.paymentUrl);
-      }
-    } catch (submitError) {
-      setError(
-        submitError instanceof Error
-          ? submitError.message
-          : "Could not start the deposit.",
-      );
-    } finally {
-      setSubmitting(false);
+    const problem = depositFunds(Number(depositAmount));
+    if (problem) setError(problem);
+    else {
+      setDepositAmount("");
+      setNotice("Wallet balance updated. No payment was processed.");
     }
+    setSubmitting(false);
   }
 
   async function withdraw(event: FormEvent<HTMLFormElement>) {
@@ -156,30 +65,13 @@ export default function WalletPage() {
     setSubmitting(true);
     setError(null);
     setNotice(null);
-    try {
-      await api("/wallet/withdrawals", {
-        method: "POST",
-        body: JSON.stringify({
-          amountRwf: Number(withdrawAmount),
-          method,
-          beneficiaryName,
-          ...(method === "MOBILE_MONEY"
-            ? { phoneNumber: withdrawPhone }
-            : { bankCode, branchCode, accountNumber }),
-        }),
-      });
-      await refreshWallet();
+    const problem = withdrawFunds(Number(withdrawAmount));
+    if (problem) setError(problem);
+    else {
       setWithdrawAmount("");
-      setNotice("Simulated withdrawal completed. No real money was sent.");
-    } catch (submitError) {
-      setError(
-        submitError instanceof Error
-          ? submitError.message
-          : "Could not submit the withdrawal.",
-      );
-    } finally {
-      setSubmitting(false);
+      setNotice("Wallet balance updated. No payout was processed.");
     }
+    setSubmitting(false);
   }
 
   const bankValue = (bank: BankOption) => bank.code ?? bank.id ?? "";
@@ -219,37 +111,35 @@ export default function WalletPage() {
                 Available balance
               </div>
               <p className="mt-2 font-display text-4xl tabular-nums">
-                {loading ? "Loading…" : formatRwf(wallet?.balanceRwf ?? 0)}
+                {formatRwf(walletBalance)}
               </p>
             </div>
             <div className="max-w-sm border-l border-white/20 pl-5">
               <p className="text-sm font-semibold">
                 {isAdmin
-                  ? "Simulated platform withdrawals"
+                  ? "Platform wallet"
                   : canDeposit
-                    ? "Simulated marketplace wallet"
-                    : "Simulated wallet earnings"}
+                    ? "Marketplace wallet"
+                    : "Wallet earnings"}
               </p>
               <p className="mt-1 text-sm leading-5 text-white/70">
                 {isAdmin
-                  ? "Test withdrawals update the wallet ledger only."
+                  ? "Transactions update the recorded balance only."
                   : canDeposit
-                    ? "Deposits, booking payments, and withdrawals update test balances only. Owner earnings include the 6% iBanga commission."
-                    : "Withdrawals update the wallet ledger only; no payout is sent."}
+                    ? "Deposits, booking payments, and withdrawals update recorded balances only. Owner earnings include the 6% iBanga commission."
+                    : "Withdrawals update the recorded balance only; no payout is sent."}
               </p>
             </div>
           </div>
         </section>
 
-        {wallet?.mode === "mock" ? (
-          <p className="mt-4 rounded-lg border border-warn/20 bg-warn-soft px-4 py-3 text-sm text-warn">
-            {isAdmin
-              ? "Simulation only: withdrawals update test balances. No real money is transferred."
-              : canDeposit
-                ? "Simulation only: deposits and withdrawals update test balances. No real money is charged or transferred."
-                : "Simulation only: withdrawals update test balances. No real money is transferred."}
-          </p>
-        ) : null}
+        <p className="mt-4 rounded-lg border border-brand/15 bg-brand-soft px-4 py-3 text-sm text-brand-dark">
+          {isAdmin
+            ? "Wallet activity is recorded here. No real money is transferred."
+            : canDeposit
+              ? "Wallet deposits and withdrawals update recorded balances only. No real money is charged or transferred."
+              : "Wallet withdrawals update the recorded balance only. No real money is transferred."}
+        </p>
 
         {error ? (
           <p role="alert" className="mt-4 rounded-lg border border-bad/20 bg-bad-soft px-4 py-3 text-sm text-bad">
@@ -403,7 +293,6 @@ export default function WalletPage() {
                               if (nextMethod !== "BANK") {
                                 setBankCode("");
                                 setBranchCode("");
-                                setBranches([]);
                               }
                             }}
                           />
@@ -511,7 +400,7 @@ export default function WalletPage() {
                   {submitting
                     ? activePaymentMode === "DEPOSIT" ? "Starting deposit…" : "Submitting withdrawal…"
                     : activePaymentMode === "DEPOSIT"
-                      ? wallet?.mode === "mock" ? "Simulate deposit" : "Continue with MTN"
+                      ? "Add funds"
                       : "Withdraw funds"}
                 </span>
                 {!submitting ? (
@@ -522,8 +411,8 @@ export default function WalletPage() {
               </PrimaryButton>
               <p className="text-center text-xs text-muted">
                 {activePaymentMode === "DEPOSIT"
-                  ? "Your wallet updates after the payment is confirmed."
-                  : "The requested amount is reserved while the payout is processed."}
+                  ? "The displayed balance updates immediately. No provider payment is requested."
+                  : "The displayed balance updates immediately. No external transfer is started."}
               </p>
             </form>
           </section>
@@ -575,14 +464,14 @@ export default function WalletPage() {
               <ol className="mt-4 space-y-3">
                 {(activePaymentMode === "DEPOSIT"
                   ? [
-                      "Enter your amount and MTN number.",
-                      "Approve the payment with your mobile provider.",
-                      "Your wallet updates after confirmation.",
+                      "Enter an amount and sample mobile number.",
+                      "Submit to add funds to this wallet.",
+                      "Review the updated balance and activity.",
                     ]
                   : [
-                      "Choose a mobile wallet or bank account.",
-                      "We reserve the amount while processing.",
-                      "Follow the payout status in recent activity.",
+                      "Choose a sample mobile or bank destination.",
+                      "Submit to deduct the amount from this wallet.",
+                      "Review the transaction in recent activity.",
                     ]).map((step, index) => (
                   <li key={step} className="flex items-start gap-3 text-sm leading-5 text-navy/80">
                     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-semibold text-accent-dark ring-1 ring-accent/15">
@@ -600,38 +489,33 @@ export default function WalletPage() {
           <div className="flex items-end justify-between gap-3">
             <div>
               <h2 className="font-display text-xl text-navy">Recent activity</h2>
-              <p className="mt-1 text-sm text-muted">Latest wallet movements and their provider status.</p>
+              <p className="mt-1 text-sm text-muted">Recent sample transactions for this account.</p>
             </div>
-            <button
-              className="text-sm font-semibold text-brand hover:text-brand-dark"
-              type="button"
-              onClick={() => void refreshWallet().catch((refreshError) => setError(refreshError instanceof Error ? refreshError.message : "Could not refresh wallet."))}
-            >
-              Refresh
-            </button>
           </div>
-          <div className="mt-4 divide-y divide-line">
-            {(wallet?.transactions ?? []).map((transaction) => (
-              <div key={transaction.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                <div>
-                  <p className="text-sm font-semibold text-navy">
-                    {transaction.description ?? transaction.type.replaceAll("_", " ")}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted">
-                    {new Date(transaction.createdAt).toLocaleString("en-RW")}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className={`text-sm font-semibold ${transaction.direction === "CREDIT" ? "text-good" : "text-navy"}`}>
-                    {transaction.direction === "CREDIT" ? "+" : "−"}{formatRwf(transaction.amountRwf)}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted">{transaction.status.toLowerCase()}</p>
-                </div>
-              </div>
-            ))}
-            {!loading && !wallet?.transactions.length ? (
-              <p className="py-8 text-center text-sm text-muted">No wallet activity yet.</p>
-            ) : null}
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <StatCard label="Available balance" value={formatRwf(walletBalance)} hint="Recorded balance" />
+            <StatCard label="Transactions" value={transactions.length} hint="Account activity" accent="accent" />
+            <StatCard label="Credits" value={formatRwf(transactions.filter((item) => item.direction === "CREDIT").reduce((total, item) => total + item.amountRwf, 0))} hint="Total received" accent="good" />
+          </div>
+          <div className="mt-4">
+            <DataTable
+              columns={[{ label: "Description" }, { label: "Reference" }, { label: "Date" }, { label: "Direction" }, { label: "Amount" }, { label: "Status" }]}
+              filterLabel="All transaction types"
+              rows={transactions.map((transaction) => ({
+                id: transaction.id,
+                searchText: `${transaction.description ?? ""} ${transaction.reference ?? ""} ${transaction.type}`,
+                filterValue: transaction.type,
+                exportValues: [transaction.description ?? transaction.type.replaceAll("_", " "), transaction.reference ?? "", new Date(transaction.createdAt).toLocaleDateString("en-RW"), transaction.direction, formatRwf(transaction.amountRwf), transaction.status],
+                cells: [
+                  transaction.description ?? transaction.type.replaceAll("_", " "),
+                  transaction.reference ?? "—",
+                  new Date(transaction.createdAt).toLocaleDateString("en-RW"),
+                  transaction.direction,
+                  <span key={`${transaction.id}-amount`} className={`font-semibold ${transaction.direction === "CREDIT" ? "text-good" : "text-navy"}`}>{transaction.direction === "CREDIT" ? "+" : "−"}{formatRwf(transaction.amountRwf)}</span>,
+                  transaction.status.toLowerCase(),
+                ],
+              }))}
+            />
           </div>
         </section>
       </DashboardShell>

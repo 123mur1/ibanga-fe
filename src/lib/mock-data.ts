@@ -1,8 +1,24 @@
-import type { Booking, Dispute, User } from "./types";
+import type { Booking, Dispute, Truck, User } from "./types";
+
+export const accountPassword = "ibanga123";
+export const administratorPassword = "admin123";
+export const seedVersion = 2;
+
+const phonePrefixByLocation: Record<string, string> = {
+  Kigali: "+250 78",
+  Huye: "+250 78",
+  Musanze: "+250 78",
+  Rubavu: "+250 78",
+  Nairobi: "+254 70",
+  Mombasa: "+254 70",
+  Kampala: "+256 70",
+  "Dar es Salaam": "+255 71",
+};
 
 export const seedUsers: User[] = [
   {
     id: "u-importer",
+    createdAt: "2026-07-12T10:00:00.000Z",
     name: "Jeanine Uwase",
     email: "jeanine@importco.rw",
     phone: "+250 788 441 220",
@@ -14,6 +30,7 @@ export const seedUsers: User[] = [
   },
   {
     id: "u-importer-2",
+    createdAt: "2026-08-03T10:00:00.000Z",
     name: "David Okello",
     email: "david@okellocargo.ug",
     phone: "+256 772 118 904",
@@ -25,6 +42,7 @@ export const seedUsers: User[] = [
   },
   {
     id: "u-owner",
+    createdAt: "2026-06-22T10:00:00.000Z",
     name: "Eric Ndayisaba",
     email: "eric@ndayitrans.rw",
     phone: "+250 789 330 112",
@@ -36,6 +54,7 @@ export const seedUsers: User[] = [
   },
   {
     id: "u-owner-2",
+    createdAt: "2026-08-19T10:00:00.000Z",
     name: "Amina Hassan",
     email: "amina@coastalhaul.ke",
     phone: "+254 722 556 018",
@@ -47,6 +66,7 @@ export const seedUsers: User[] = [
   },
   {
     id: "u-admin",
+    createdAt: "2026-05-02T10:00:00.000Z",
     name: "Claire Mugisha",
     email: "admin@ibanga.com",
     phone: "+250 780 000 001",
@@ -56,9 +76,49 @@ export const seedUsers: User[] = [
     company: "iBanga",
     photo: "/photos/ibanga-admin-claire.png",
   },
+  ...[
+    ["u-importer-3", "Maya Niyonzima", "maya@greenroute.rw", "IMPORTER", "Kigali", "Green Route Imports"],
+    ["u-importer-4", "Peter Mwangi", "peter@mwangi-trade.ke", "IMPORTER", "Nairobi", "Mwangi Trade"],
+    ["u-importer-5", "Asha Nkurunziza", "asha@lakeview.co.ug", "IMPORTER", "Kampala", "Lakeview Supply"],
+    ["u-importer-6", "Samuel Kato", "samuel@katofoods.ug", "IMPORTER", "Kampala", "Kato Foods"],
+    ["u-importer-7", "Grace Mutesi", "grace@mutesi-retail.rw", "IMPORTER", "Huye", "Mutesi Retail"],
+    ["u-owner-3", "Patrick Niyitegeka", "patrick@pnt-logistics.rw", "TRUCK_OWNER", "Kigali", "PNT Logistics"],
+    ["u-owner-4", "Mary Wanjiku", "mary@highlandhaul.ke", "TRUCK_OWNER", "Nairobi", "Highland Haul"],
+    ["u-owner-5", "Joseph Kato", "joseph@kato-freight.ug", "TRUCK_OWNER", "Kampala", "Kato Freight"],
+    ["u-owner-6", "Diane Mukamana", "diane@eastlink.rw", "TRUCK_OWNER", "Rubavu", "Eastlink Transport"],
+    ["u-owner-7", "Hassan Ali", "hassan@coastline.ke", "TRUCK_OWNER", "Mombasa", "Coastline Carriers"],
+    ["u-importer-8", "Chantal Uwera", "chantal@kivucollective.ibanga.test", "IMPORTER", "Kigali", "Kivu Collective"],
+    ["u-importer-9", "Brian Otieno", "brian@otienosupply.ibanga.test", "IMPORTER", "Nairobi", "Otieno Supply"],
+    ["u-importer-10", "Fatima Nambasa", "fatima@nambasafoods.ibanga.test", "IMPORTER", "Kampala", "Nambasa Foods"],
+    ["u-importer-11", "Emmanuel Nkuranga", "emmanuel@nkuranga.ibanga.test", "IMPORTER", "Huye", "Nkuranga Hardware"],
+    ["u-importer-12", "Lilian Mushi", "lilian@mushitrade.ibanga.test", "IMPORTER", "Dar es Salaam", "Mushi Trade"],
+    ["u-importer-13", "Daniel Rukundo", "daniel@rukundomart.ibanga.test", "IMPORTER", "Musanze", "Rukundo Market"],
+    ["u-owner-8", "Beatrice Akello", "beatrice@akellofreight.ibanga.test", "TRUCK_OWNER", "Kampala", "Akello Freight"],
+    ["u-owner-9", "Wilson Kamanzi", "wilson@kamanzihaul.ibanga.test", "TRUCK_OWNER", "Kigali", "Kamanzi Haulage"],
+    ["u-owner-10", "Esther Chebet", "esther@chebettransport.ibanga.test", "TRUCK_OWNER", "Nairobi", "Chebet Transport"],
+    ["u-owner-11", "Moses Niyonzima", "moses@niyonzimalogistics.ibanga.test", "TRUCK_OWNER", "Rubavu", "Niyonzima Logistics"],
+    ["u-owner-12", "Rehema Mwakalinga", "rehema@mwakalinga.ibanga.test", "TRUCK_OWNER", "Dar es Salaam", "Mwakalinga Carriers"],
+    ["u-owner-13", "Isaac Tumusiime", "isaac@tumusiimehaul.ibanga.test", "TRUCK_OWNER", "Musanze", "Tumusiime Haul"],
+  ].map(([id, name, email, role, location, company], index) => ({
+    id,
+    createdAt: `2026-09-${String(index + 1).padStart(2, "0")}T10:00:00.000Z`,
+    name,
+    email,
+    phone: `${phonePrefixByLocation[location] ?? "+250 78"} ${String(1000000 + index).slice(-7, -4)} ${String(1000000 + index).slice(-4)}`,
+    role: role as User["role"],
+    location,
+    active: true,
+    company,
+    photo: role === "IMPORTER"
+      ? "/photos/ibanga-importer-jeanine.png"
+      : "/photos/ibanga-owner-eric.png",
+  })),
 ];
 
-export const seedBookings: Booking[] = [
+const importerUsers = seedUsers.filter((user) => user.role === "IMPORTER");
+const ownerUsers = seedUsers.filter((user) => user.role === "TRUCK_OWNER");
+
+const originalBookings: Booking[] = [
   {
     id: "b1",
     truckId: "t1",
@@ -68,12 +128,12 @@ export const seedBookings: Booking[] = [
     cargoWeight: "16 tons",
     pickupLocation: "Kigali dry port",
     destination: "Mombasa port",
-    pickupDate: "2026-09-08",
-    expectedDeliveryDate: "2026-09-12",
+    pickupDate: "2026-10-12",
+    expectedDeliveryDate: "2026-10-16",
     additionalInstructions: "Need evening loading. Call before arrival.",
     agreedPrice: "",
     status: "PENDING",
-    createdAt: "2026-09-04T08:12:00.000Z",
+    createdAt: "2026-10-07T08:12:00.000Z",
   },
   {
     id: "b2",
@@ -84,12 +144,13 @@ export const seedBookings: Booking[] = [
     cargoWeight: "12 tons",
     pickupLocation: "Musanze",
     destination: "Kampala",
-    pickupDate: "2026-09-05",
-    expectedDeliveryDate: "2026-09-06",
+    pickupDate: "2026-10-06",
+    expectedDeliveryDate: "2026-10-10",
     additionalInstructions: "Keep 4–6°C.",
     agreedPrice: "RWF 850,000",
+    agreedPriceRwf: 850000,
     status: "IN_PROGRESS",
-    createdAt: "2026-09-03T14:40:00.000Z",
+    createdAt: "2026-10-03T14:40:00.000Z",
   },
   {
     id: "b3",
@@ -100,12 +161,13 @@ export const seedBookings: Booking[] = [
     cargoWeight: "7 tons",
     pickupLocation: "Kigali",
     destination: "Rusumo",
-    pickupDate: "2026-09-02",
-    expectedDeliveryDate: "2026-09-03",
+    pickupDate: "2026-10-04",
+    expectedDeliveryDate: "2026-10-05",
     additionalInstructions: "",
     agreedPrice: "RWF 220,000",
+    agreedPriceRwf: 220000,
     status: "DISPUTED",
-    createdAt: "2026-09-01T10:00:00.000Z",
+    createdAt: "2026-10-01T10:00:00.000Z",
   },
   {
     id: "b4",
@@ -119,7 +181,8 @@ export const seedBookings: Booking[] = [
     pickupDate: "2026-08-20",
     expectedDeliveryDate: "2026-08-24",
     additionalInstructions: "",
-    agreedPrice: "USD 1,400",
+    agreedPrice: "RWF 1,400,000",
+    agreedPriceRwf: 1400000,
     status: "COMPLETED",
     createdAt: "2026-08-18T09:00:00.000Z",
   },
@@ -135,10 +198,39 @@ export const seedBookings: Booking[] = [
     pickupDate: "2026-09-10",
     expectedDeliveryDate: "2026-09-13",
     additionalInstructions: "Gate pass under Okello Cargo.",
-    agreedPrice: "USD 980",
+    agreedPrice: "RWF 740,000",
+    agreedPriceRwf: 740000,
     status: "DELIVERED",
-    createdAt: "2026-09-02T16:20:00.000Z",
+    createdAt: "2026-10-02T16:20:00.000Z",
   },
+];
+
+export const seedBookings: Booking[] = [
+  ...originalBookings,
+  ...ownerUsers.flatMap((owner, ownerIndex) =>
+    Array.from({ length: 70 }, (_, index) => {
+      const truckId = `truck-${owner.id}-${(index % 12) + 1}`;
+      const importer = importerUsers[(ownerIndex * 12 + index) % importerUsers.length];
+      const status = (["PENDING", "ACCEPTED", "IN_PROGRESS", "DELIVERED", "COMPLETED", "DISPUTED", "REJECTED"] as const)[index % 7];
+      return {
+        id: `booking-${owner.id}-${index + 1}`,
+        truckId,
+        importerId: importer.id,
+        cargoType: ["General cargo", "Building materials", "Perishables", "Machinery"][index % 4],
+        cargoDescription: `Regional freight shipment ${index + 1} for ${importer.company}.`,
+        cargoWeight: `${8 + (index % 18)} tons`,
+        pickupLocation: ["Kigali", "Kampala", "Nairobi", "Mombasa"][index % 4],
+        destination: ["Mombasa", "Kigali", "Kampala", "Nairobi"][(index + 1) % 4],
+        pickupDate: `2026-11-${String((index % 27) + 1).padStart(2, "0")}`,
+        expectedDeliveryDate: `2026-11-${String((index % 27) + 2).padStart(2, "0")}`,
+        additionalInstructions: index % 3 === 0 ? "Contact the site manager before loading." : "",
+        agreedPrice: `RWF ${(420000 + index * 65000).toLocaleString()}`,
+        agreedPriceRwf: 420000 + index * 65000,
+        status,
+        createdAt: `2026-10-${String((index % 27) + 1).padStart(2, "0")}T09:00:00.000Z`,
+      };
+    }),
+  ),
 ];
 
 export const seedDisputes: Dispute[] = [
@@ -149,6 +241,161 @@ export const seedDisputes: Dispute[] = [
     reason: "Three crates arrived opened and 40 tiles were broken.",
     status: "OPEN",
     resolutionNotes: "",
-    createdAt: "2026-09-03T11:15:00.000Z",
+    createdAt: "2026-10-07T11:15:00.000Z",
+  },
+  ...seedBookings
+    .filter((booking) => booking.status === "DISPUTED")
+    .slice(0, 60)
+    .map((booking, index) => {
+    return {
+      id: `dispute-${booking.id}`,
+      bookingId: booking.id,
+      raisedBy: booking.importerId,
+      reason: [
+        "Delivery arrived outside the agreed window.",
+        "Cargo count needs to be reconciled against the dispatch note.",
+        "Packaging was damaged during transit.",
+      ][index % 3],
+      status: index % 3 === 0 ? "OPEN" as const : "RESOLVED" as const,
+      resolutionNotes: index % 3 === 0 ? "" : "Resolved after reviewing delivery records with both parties.",
+      createdAt: booking.createdAt,
+      ...(index % 3 === 0 ? {} : { resolvedAt: booking.createdAt }),
+    };
+  }),
+];
+
+function ownerContact(ownerId: string) {
+  const owner = seedUsers.find((user) => user.id === ownerId);
+  if (!owner) return undefined;
+  return {
+    id: owner.id,
+    name: owner.name,
+    email: owner.email,
+    phone: owner.phone,
+    location: owner.location,
+    photo: owner.photo,
+  };
+}
+
+const showcaseTrucks: Truck[] = [
+  {
+    id: "t1",
+    ownerId: "u-owner",
+    owner: ownerContact("u-owner"),
+    plateNumber: "RAD 418C",
+    truckType: "Container",
+    capacity: 24,
+    priceRwf: 1250000,
+    currentLocation: "Kigali",
+    preferredRoute: "Kigali — Mombasa",
+    description: "Well-maintained 40ft container carrier with an experienced regional driver.",
+    status: "UNAVAILABLE",
+    photos: ["/photos/ibanga-container-highway.png"],
+  },
+  {
+    id: "t2",
+    ownerId: "u-owner-2",
+    owner: ownerContact("u-owner-2"),
+    plateNumber: "KDA 620M",
+    truckType: "Refrigerated",
+    capacity: 18,
+    priceRwf: 980000,
+    currentLocation: "Musanze",
+    preferredRoute: "Kigali — Kampala",
+    description: "Temperature-controlled reefer, ideal for fresh and frozen cargo.",
+    status: "UNAVAILABLE",
+    photos: ["/photos/ibanga-reefer.png"],
+  },
+  {
+    id: "t3",
+    ownerId: "u-owner-2",
+    owner: ownerContact("u-owner-2"),
+    plateNumber: "KDM 204B",
+    truckType: "Flatbed",
+    capacity: 30,
+    priceRwf: 1580000,
+    currentLocation: "Mombasa",
+    preferredRoute: "Mombasa — Kigali",
+    description: "Heavy-duty flatbed for machinery and oversized freight.",
+    status: "AVAILABLE",
+    photos: ["/photos/ibanga-flatbed.png"],
+  },
+  {
+    id: "t4",
+    ownerId: "u-owner",
+    owner: ownerContact("u-owner"),
+    plateNumber: "RAD 731K",
+    truckType: "Box truck",
+    capacity: 12,
+    priceRwf: 740000,
+    currentLocation: "Nairobi",
+    preferredRoute: "Nairobi — Kigali",
+    description: "Secure box truck for packaged goods and retail inventory.",
+    status: "UNAVAILABLE",
+    photos: ["/photos/ibanga-box.png"],
+  },
+  {
+    id: "t5",
+    ownerId: "u-owner-2",
+    owner: ownerContact("u-owner-2"),
+    plateNumber: "KDA 885R",
+    truckType: "Semi-trailer",
+    capacity: 20,
+    priceRwf: 620000,
+    currentLocation: "Kigali",
+    preferredRoute: "Kigali — Rusumo",
+    description: "Reliable semi-trailer for building materials and palletized cargo.",
+    status: "UNAVAILABLE",
+    photos: ["/photos/ibanga-semi.png"],
+  },
+  {
+    id: "t6",
+    ownerId: "u-owner",
+    owner: ownerContact("u-owner"),
+    plateNumber: "RAD 092T",
+    truckType: "Tanker",
+    capacity: 28,
+    priceRwf: 1120000,
+    currentLocation: "Kigali",
+    preferredRoute: "Kigali — Dar es Salaam",
+    description: "Commercial tanker maintained to regional transport standards.",
+    status: "AVAILABLE",
+    photos: ["/photos/ibanga-tanker.png"],
   },
 ];
+
+export const allSeedTrucks: Truck[] = [
+  ...showcaseTrucks,
+  ...ownerUsers.flatMap((owner, ownerIndex) =>
+    Array.from({ length: 12 }, (_, index) => ({
+      id: `truck-${owner.id}-${index + 1}`,
+      ownerId: owner.id,
+      owner: ownerContact(owner.id),
+      plateNumber: `${["RAD", "KDA", "KDM", "UBB", "RAC"][ownerIndex % 5]} ${String(310 + ownerIndex * 12 + index).padStart(3, "0")}${String.fromCharCode(65 + (index % 26))}`,
+      truckType: ["Container", "Refrigerated", "Flatbed", "Box truck", "Semi-trailer"][index % 5],
+      capacity: 12 + (index % 21),
+      priceRwf: 460000 + index * 45000,
+      currentLocation: ["Kigali", "Nairobi", "Kampala", "Mombasa", "Rubavu"][index % 5],
+      preferredRoute: `${["Kigali", "Nairobi", "Kampala"][index % 3]} — ${["Mombasa", "Kampala", "Kigali"][index % 3]}`,
+      description: `Well-maintained ${["regional", "long-haul", "commercial"][index % 3]} ${["carrier", "truck", "freight vehicle"][index % 3]} ready for verified shipments.`,
+      status: index % 4 === 0 ? "UNAVAILABLE" as const : "AVAILABLE" as const,
+      photos: ["/photos/ibanga-container-highway.png"],
+    })),
+  ),
+];
+
+export const seedWalletTransactions = seedUsers.flatMap((user, userIndex) =>
+  Array.from({ length: 12 }, (_, index) => ({
+    id: `tx-${user.id}-${index + 1}`,
+    userId: user.id,
+    type: (index % 3 === 0 ? "DEPOSIT" : index % 3 === 1 ? "BOOKING_EARNING" : "WITHDRAWAL") as "DEPOSIT" | "BOOKING_EARNING" | "WITHDRAWAL",
+    status: "SUCCEEDED" as const,
+    direction: index % 3 === 2 ? "DEBIT" as const : "CREDIT" as const,
+    amountRwf: 85000 + (userIndex * 7000) + (index * 25000),
+    reference: `IB-${user.id.toUpperCase()}-${String(index + 1).padStart(3, "0")}`,
+    description: ["Wallet top-up", "Completed freight payment", "Scheduled withdrawal"][index % 3],
+    createdAt: `2026-10-${String((index % 27) + 1).padStart(2, "0")}T09:30:00.000Z`,
+  })),
+);
+
+export { allSeedTrucks as seedTrucks };

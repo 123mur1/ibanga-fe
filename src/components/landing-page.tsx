@@ -1,506 +1,299 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { BrandLink } from "./brand";
-import { dashboardPath, useIbanga } from "@/lib/store";
+import { useEffect, useState } from "react";
+import { TruckCard } from "./truck-card";
+import { PublicNavbar } from "./public-navbar";
+import { useIbanga } from "@/lib/store";
+import { ACTIVE_BOOKING_STATUSES } from "@/lib/types";
 
-const steps = [
+const heroSlides = [
   {
-    n: "01",
-    title: "Owner lists a truck",
-    text: "The truck stays available until someone books it.",
+    image: "/photos/ibanga-container-highway.png",
+    eyebrow: "Freight moves forward",
+    title: "The right truck for every journey.",
+    text: "Find dependable regional transport, compare clear prices, and keep every booking in one place.",
   },
   {
-    n: "02",
-    title: "Importer books it",
-    text: "Cargo and journey details are sent. The truck becomes unavailable right away.",
+    image: "/photos/ibanga-container-yard.png",
+    eyebrow: "A clearer way to move cargo",
+    title: "Connect your cargo to the road.",
+    text: "Bring importers and verified truck owners together with simple, transparent freight booking.",
   },
   {
-    n: "03",
-    title: "Pay the listed price",
-    text: "The owner lists a fixed transport price in RWF. Pay from your iBanga wallet after acceptance.",
-  },
-  {
-    n: "04",
-    title: "Owner accepts or rejects",
-    text: "Accept keeps the truck locked for the trip. Reject makes it available again.",
-  },
-  {
-    n: "05",
-    title: "Move the cargo",
-    text: "Owner starts the trip and marks delivered.",
-  },
-  {
-    n: "06",
-    title: "Confirm or dispute",
-    text: "Importer confirms receipt — or reports a problem. Only then can a locked truck be freed after a completed trip.",
+    image: "/photos/ibanga-reefer.png",
+    eyebrow: "Built for business",
+    title: "From first booking to final delivery.",
+    text: "Track the journey, stay in control, and keep your logistics moving with iBanga.",
   },
 ];
 
 export function LandingPage() {
-  const { currentUser } = useIbanga();
-  const [menu, setMenu] = useState(false);
-  const appHref = currentUser ? dashboardPath(currentUser.role) : "/login";
+  const { trucks, bookings } = useIbanga();
+  const [activeSlide, setActiveSlide] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setInterval(
+      () => setActiveSlide((current) => (current + 1) % heroSlides.length),
+      5500,
+    );
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const featuredTrucks = trucks
+    .filter((truck) => truck.status === "AVAILABLE")
+    .slice(0, 6);
+  const availableTruckCount = trucks.filter((truck) => truck.status === "AVAILABLE").length;
+  const activeLoadCount = bookings.filter((booking) =>
+    ACTIVE_BOOKING_STATUSES.includes(booking.status),
+  ).length;
+  const slide = heroSlides[activeSlide];
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-30 border-b border-line/80 bg-background/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <BrandLink />
-          <nav className="hidden items-center gap-8 text-sm font-medium text-slate-700 md:flex">
-            <a href="#how" className="transition hover:text-brand">
-              How it works
-            </a>
-            <a href="#roles" className="transition hover:text-brand">
-              Roles
-            </a>
-            <Link href="/trucks" className="transition hover:text-brand">
-              Available trucks
-            </Link>
-          </nav>
-          <div className="hidden items-center gap-3 md:flex">
-            {currentUser ? (
-              <Link
-                href={appHref}
-                className="rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition hover:bg-brand-dark"
-              >
-                Open dashboard
-              </Link>
-            ) : (
-              <>
-                <Link href="/login" className="text-sm font-semibold text-slate-700 transition hover:text-brand">
-                  Log in
-                </Link>
-                <Link
-                  href="/register"
-                  className="rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition hover:bg-brand-dark"
-                >
-                  Get started
-                </Link>
-              </>
-            )}
-          </div>
-          <button
-            type="button"
-            className="rounded-full border border-line bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm md:hidden"
-            onClick={() => setMenu((v) => !v)}
-          >
-            Menu
-          </button>
-        </div>
-        {menu ? (
-          <div className="space-y-2 border-t border-line bg-white px-4 py-4 md:hidden">
-            <Link href="/trucks" className="block py-1.5 text-slate-700">
-              Available trucks
-            </Link>
-            <Link href="/login" className="block py-1.5 text-slate-700">
-              Log in
-            </Link>
-            <Link href="/register" className="block py-1.5 font-semibold text-brand">
-              Get started
-            </Link>
-          </div>
-        ) : null}
-      </header>
+    <div className="min-h-screen bg-white text-foreground">
+      <PublicNavbar />
 
       <main>
-        <section className="relative overflow-hidden">
-          <div className="absolute inset-x-0 top-0 -z-10 h-155 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.16),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(245,158,11,0.2),transparent_30%)]" />
-          <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:py-24">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-brand-soft px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-brand">
-                <span className="h-2 w-2 rounded-full bg-accent" />
-                Direct cargo–truck marketplace
-              </div>
-              <h1 className="mt-6 max-w-xl font-display text-4xl leading-[0.96] text-navy sm:text-5xl lg:text-6xl">
-                Move freight with clarity, speed, and trust.
+        <section
+          id="home"
+          aria-label="iBanga freight marketplace"
+          className="relative isolate flex min-h-[600px] items-center overflow-hidden bg-navy sm:min-h-[660px]"
+        >
+          {heroSlides.map((item, index) => (
+            <div
+              key={item.image}
+              aria-hidden="true"
+              className={`absolute inset-0 -z-10 bg-cover bg-center transition-opacity duration-1000 ${activeSlide === index ? "opacity-100" : "opacity-0"}`}
+              style={{ backgroundImage: `url("${item.image}")` }}
+            />
+          ))}
+          <div className="absolute inset-0 -z-10 bg-linear-to-r from-[#062839]/90 via-[#06334b]/70 to-[#06334b]/25" />
+          <div className="mx-auto grid w-full max-w-7xl items-center gap-12 px-5 py-16 sm:px-8 sm:py-20 lg:grid-cols-[1.2fr_0.8fr] lg:px-12">
+            <div key={slide.title} className="max-w-3xl animate-fade-in">
+              <p className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white backdrop-blur">
+                <span className="h-2 w-2 rounded-full bg-sky-300" />
+                {slide.eyebrow}
+              </p>
+              <h1 className="mt-6 max-w-3xl font-display text-4xl leading-[1.04] tracking-tight text-white sm:text-6xl lg:text-7xl">
+                {slide.title}
               </h1>
-              <p className="mt-5 max-w-xl text-lg leading-8 text-muted">
-                iBanga connects cargo importers and truck owners in one clean
-                marketplace. Search, book, pay, and confirm delivery without the
-                friction of brokers or scattered WhatsApp deals.
+              <p className="mt-6 max-w-2xl text-base leading-7 text-white/85 sm:text-lg sm:leading-8">
+                {slide.text}
               </p>
-
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Link
-                  href="/register?role=IMPORTER"
-                  className="rounded-full bg-brand px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand/25 transition hover:-translate-y-0.5 hover:bg-brand-dark"
-                >
-                  I need a truck
+              <div className="mt-9 flex flex-wrap gap-3">
+                <Link href="/trucks" className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-brand-dark shadow-lg transition hover:-translate-y-0.5 hover:bg-sky-50">
+                  Browse available trucks
                 </Link>
-                <Link
-                  href="/register?role=TRUCK_OWNER"
-                  className="rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-navy shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300"
-                >
-                  I have trucks
+                <Link href="/register?role=TRUCK_OWNER" className="rounded-full border border-white/40 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/20">
+                  List your truck
                 </Link>
               </div>
-
-              <div className="mt-8 flex flex-wrap items-center gap-6 text-sm text-slate-600">
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-good-soft text-good">✓</span>
-                  Verified listings
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft text-brand">₦</span>
-                  RWF pricing
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-amber-700">⚡</span>
-                  Fast booking flow
-                </div>
-              </div>
-            </div>
-
-            <div className="relative">
-              <div className="float-slow absolute -left-4 top-8 h-28 w-28 rounded-full bg-brand/15 blur-2xl" />
-              <div className="float-slow absolute -right-2 bottom-10 h-32 w-32 rounded-full bg-accent/15 blur-2xl [animation-delay:1s]" />
-              <div className="absolute -inset-6 rounded-4xl bg-linear-to-br from-brand/12 via-transparent to-accent/18 blur-2xl" />
-              <div className="relative overflow-hidden rounded-4xl border border-slate-200 bg-white p-3 shadow-[0_30px_80px_rgba(15,23,42,0.12)] sm:p-4">
-                <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600">
-                  <span>Marketplace overview</span>
-                  <span className="inline-flex items-center gap-2 rounded-full bg-good-soft px-2 py-1 text-[11px] font-semibold text-good">
-                    <span className="h-1.5 w-1.5 rounded-full bg-good" />
-                    Live
-                  </span>
-                </div>
-
-                <div className="mt-3 grid grid-cols-2 gap-2 overflow-hidden rounded-2xl">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/photos/ibanga-container-highway.png"
-                    alt="Container truck on the highway"
-                    className="h-36 w-full object-cover sm:h-44"
+              <div className="mt-10 flex items-center gap-2" aria-label="Hero slides">
+                {heroSlides.map((item, index) => (
+                  <button
+                    key={item.image}
+                    type="button"
+                    aria-label={`Show slide ${index + 1}`}
+                    aria-current={activeSlide === index}
+                    onClick={() => setActiveSlide(index)}
+                    className={`h-2.5 rounded-full transition-all ${activeSlide === index ? "w-9 bg-white" : "w-2.5 bg-white/50 hover:bg-white/80"}`}
                   />
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/photos/ibanga-container-yard.png"
-                    alt="Container truck in the depot"
-                    className="h-36 w-full object-cover sm:h-44"
-                  />
-                </div>
-
-                <div className="mt-3 rounded-2xl bg-linear-to-br from-navy via-navy-soft to-brand p-5 text-white">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.2em] text-white/65">Featured listing</p>
-                      <p className="mt-2 font-display text-2xl">Container · 28 tons</p>
-                    </div>
-                    <span className="rounded-full bg-good px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white">
-                      Available
-                    </span>
-                  </div>
-
-                  <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
-                    <div>
-                      <p className="text-[11px] uppercase tracking-[0.2em] text-white/60">Route</p>
-                      <p className="mt-1 font-medium">Kigali → Mombasa</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[11px] uppercase tracking-[0.2em] text-white/60">Price</p>
-                      <p className="mt-1 font-display text-xl">RWF 1,350,000</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src="/photos/ibanga-owner-eric.png"
-                        alt="Eric Ndayisaba"
-                        className="h-11 w-11 rounded-full border-2 border-white/30 object-cover"
-                      />
-                      <div>
-                        <p className="text-[11px] uppercase tracking-[0.2em] text-white/60">Owner</p>
-                        <p className="text-sm font-medium">Eric Ndayisaba</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[11px] uppercase tracking-[0.2em] text-white/60">Status</p>
-                      <p className="text-sm font-medium">Ready today</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                  <div className="float-slow rounded-2xl bg-brand-soft p-3">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-brand">Loads</p>
-                    <p className="mt-1 font-display text-2xl text-navy">120+</p>
-                  </div>
-                  <div className="float-slow rounded-2xl bg-accent-soft p-3 [animation-delay:0.9s]">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-amber-700">Trucks</p>
-                    <p className="mt-1 font-display text-2xl text-navy">90</p>
-                  </div>
-                  <div className="float-slow rounded-2xl bg-good-soft p-3 [animation-delay:1.4s]">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-good">Success</p>
-                    <p className="mt-1 font-display text-2xl text-navy">96%</p>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 lg:grid-cols-1">
+              <article className="rounded-2xl border border-white/20 bg-white/10 p-3 text-white shadow-xl backdrop-blur-md sm:p-5 lg:flex lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-200 sm:text-xs sm:tracking-[0.18em]">Loads</p>
+                  <p className="mt-2 font-display text-2xl font-bold sm:text-4xl">{activeLoadCount}</p>
+                  <p className="mt-1 text-[10px] leading-4 text-white/75 sm:text-sm">Active bookings</p>
+                </div>
+              </article>
+              <article className="rounded-2xl border border-white/20 bg-white/10 p-3 text-white shadow-xl backdrop-blur-md sm:p-5 lg:flex lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-200 sm:text-xs sm:tracking-[0.18em]">Trucks</p>
+                  <p className="mt-2 font-display text-2xl font-bold sm:text-4xl">{availableTruckCount}</p>
+                  <p className="mt-1 text-[10px] leading-4 text-white/75 sm:text-sm">Available now</p>
+                </div>
+              </article>
+              <article className="rounded-2xl border border-white/20 bg-white/10 p-3 text-white shadow-xl backdrop-blur-md sm:p-5 lg:flex lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-200 sm:text-xs sm:tracking-[0.18em]">Reliability</p>
+                  <p className="mt-2 font-display text-2xl font-bold sm:text-3xl">Live</p>
+                  <p className="mt-1 text-[10px] leading-4 text-white/75 sm:text-sm">Booking updates</p>
+                </div>
+              </article>
+            </div>
           </div>
+          <span className="absolute bottom-0 left-0 h-1 w-full bg-white/10">
+            <span key={activeSlide} className="block h-full origin-left animate-slide-progress bg-sky-300" />
+          </span>
         </section>
 
-        <section className="mx-auto max-w-6xl px-4 py-16">
-          <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">Simple pricing</p>
-              <h2 className="mt-2 font-display text-3xl text-navy sm:text-4xl">Built to make every move feel easy</h2>
-            </div>
-            <p className="max-w-xl text-muted">
-              Transparent, direct pricing for importers and a clear path for owners to list and manage trucks.
-            </p>
-          </div>
-
-          <div className="grid gap-5 lg:grid-cols-3">
-            <div className="shine rounded-[28px] border border-brand/15 bg-linear-to-b from-brand to-brand-dark p-6 text-white shadow-[0_25px_60px_rgba(37,99,235,0.28)]">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-100">Importer</p>
-              <h3 className="mt-4 font-display text-3xl">Book direct</h3>
-              <p className="mt-3 text-blue-100">Find trucks, compare routes, and secure the exact listed rate in one flow.</p>
-              <ul className="mt-6 space-y-3 text-sm text-blue-50">
-                <li>• Instant truck search</li>
-                <li>• RWF pricing visibility</li>
-                <li>• Booking status tracking</li>
-              </ul>
-            </div>
-
-            <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand">Owner</p>
-              <h3 className="mt-4 font-display text-3xl text-navy">List & manage</h3>
-              <p className="mt-3 text-muted">Keep availability up to date and accept or reject each booking without friction.</p>
-              <ul className="mt-6 space-y-3 text-sm text-slate-700">
-                <li>• Live availability updates</li>
-                <li>• One-click trip actions</li>
-                <li>• Clear dispute handling</li>
-              </ul>
-            </div>
-
-            <div className="rounded-[28px] border border-slate-200 bg-slate-950 p-6 text-white shadow-[0_25px_60px_rgba(15,23,42,0.22)]">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">Admin</p>
-              <h3 className="mt-4 font-display text-3xl">Oversight</h3>
-              <p className="mt-3 text-slate-300">Stay in control of bookings, disputes, and account health across the marketplace.</p>
-              <ul className="mt-6 space-y-3 text-sm text-slate-200">
-                <li>• Centralized dashboard</li>
-                <li>• Dispute resolution tools</li>
-                <li>• Safer operational visibility</li>
-              </ul>
-            </div>
-          </div>
-        </section>
-
-        <section className="bg-slate-950 py-16 text-white">
-          <div className="mx-auto max-w-6xl px-4">
-            <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <section id="available-trucks" className="scroll-mt-24 bg-slate-50 py-16 sm:py-20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-200">Why teams switch</p>
-                <h2 className="mt-2 font-display text-3xl sm:text-4xl">The direct path beats broker chaos</h2>
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">Ready to move</p>
+                <h2 className="mt-2 font-display text-3xl tracking-tight text-navy sm:text-4xl">Available trucks</h2>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-muted sm:text-base">
+                  Explore transport options, review their routes and listed rates, and choose the right fit for your cargo.
+                </p>
               </div>
-              <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-200">
-                built for real logistics flow
-              </span>
+              <Link href="/trucks" className="inline-flex shrink-0 items-center gap-2 text-sm font-semibold text-brand transition hover:text-brand-dark">
+                Browse all trucks
+                <span aria-hidden="true">→</span>
+              </Link>
             </div>
-
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div className="rounded-[28px] border border-white/10 bg-white/5 p-6">
-                <h3 className="font-display text-2xl text-white">Traditional process</h3>
-                <ul className="mt-6 space-y-4 text-sm text-slate-300">
-                  <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-rose-400" />Multiple calls, manual messages, and unclear truck availability.</li>
-                  <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-rose-400" />Pricing is often negotiated off-platform and not tracked properly.</li>
-                  <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-rose-400" />Status updates are fragmented and delayed.</li>
-                </ul>
+            {featuredTrucks.length ? (
+              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {featuredTrucks.map((truck) => <TruckCard key={truck.id} truck={truck} />)}
               </div>
-
-              <div className="rounded-[28px] border border-brand/30 bg-gradient-to-br from-brand/20 via-blue-500/10 to-white/5 p-6">
-                <h3 className="font-display text-2xl text-white">iBanga experience</h3>
-                <ul className="mt-6 space-y-4 text-sm text-blue-50">
-                  <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-400" />One clean booking flow with live truck availability.</li>
-                  <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-400" />Direct RWF pricing visibility before anyone commits.</li>
-                  <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-400" />Trip status, confirmations, and dispute tracking in one place.</li>
-                </ul>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-line bg-white px-6 py-14 text-center text-sm text-muted">
+                New trucks are being added to the marketplace.
               </div>
-            </div>
+            )}
           </div>
         </section>
 
-        <section className="mx-auto max-w-6xl px-4 py-16">
-          <div className="mb-8 text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">What partners say</p>
-            <h2 className="mt-2 font-display text-3xl text-navy sm:text-4xl">Trusted by teams moving cargo every day</h2>
-          </div>
-
-          <div className="grid gap-5 lg:grid-cols-3">
-            {[
-              {
-                quote: "We needed a faster way to find available trucks without chasing calls all day. iBanga made the whole flow feel clearer and more reliable.",
-                name: "Aline Uwamahoro",
-                role: "Importer, Kigali",
-              },
-              {
-                quote: "The process was simple enough for my team to keep listings updated, and the booking status gave us much more control over scheduling.",
-                name: "Eric Ndayisaba",
-                role: "Truck owner, Rusizi",
-              },
-              {
-                quote: "The dashboard keeps everyone aligned. It reduces confusion between booking requests, confirmations, and exceptions — which matters in cargo logistics.",
-                name: "Moses Kamanzi",
-                role: "Operations lead",
-              },
-            ].map((item) => (
-              <div key={item.name} className="rounded-[28px] border border-line bg-white p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
-                <div className="mb-5 flex gap-1 text-amber-400">
-                  {Array.from({ length: 5 }).map((_, idx) => (
-                    <span key={idx}>★</span>
-                  ))}
-                </div>
-                <p className="text-base leading-7 text-slate-700">“{item.quote}”</p>
-                <div className="mt-6 border-t border-line pt-4">
-                  <p className="font-semibold text-navy">{item.name}</p>
-                  <p className="text-sm text-muted">{item.role}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section id="how" className="border-y border-line bg-card/70">
-          <div className="mx-auto max-w-6xl px-4 py-16">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <section id="about" className="scroll-mt-24 bg-white py-16 sm:py-20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-end">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">How it works</p>
-                <h2 className="mt-2 font-display text-3xl text-navy sm:text-4xl">Built to simplify cargo movement</h2>
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">About iBanga</p>
+                <h2 className="mt-3 max-w-xl font-display text-3xl leading-tight tracking-tight text-navy sm:text-4xl">
+                  Built to simplify cargo movement.
+                </h2>
+                <p className="mt-5 max-w-xl text-base leading-7 text-muted">
+                  iBanga brings importers and truck owners together to find transport, arrange bookings, and follow each trip through delivery.
+                </p>
               </div>
-              <p className="max-w-xl text-muted">
-                One clear path from listing to confirmed delivery without brokers,
-                middlemen, or messy manual coordination.
+              <p className="max-w-2xl text-sm leading-6 text-muted sm:text-base">
+                One clear path from listing to confirmed delivery, with cargo details, listed prices, and booking progress available in one place.
               </p>
             </div>
 
-            <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {steps.map((step) => (
-                <div
-                  key={step.n}
-                  className="rounded-3xl border border-line bg-linear-to-br from-white to-slate-50 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="font-display text-sm text-brand">{step.n}</span>
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-soft text-sm font-bold text-brand">
-                      →
-                    </span>
-                  </div>
-                  <h3 className="mt-5 font-display text-xl text-navy">{step.title}</h3>
-                  <p className="mt-3 text-sm leading-6 text-muted">{step.text}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section id="roles" className="mx-auto max-w-6xl px-4 py-16">
-          <div className="mb-8 max-w-2xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">Who it’s for</p>
-            <h2 className="mt-2 font-display text-3xl text-navy sm:text-4xl">One platform for every part of the chain</h2>
-          </div>
-          <div className="mt-8 grid gap-5 lg:grid-cols-3">
-            <RoleCard
-              title="Importer"
-              text="Search trucks, compare routes, book a journey, pay in-app, and confirm delivery once cargo arrives."
-              href="/register?role=IMPORTER"
-              cta="Register as importer"
-            />
-            <RoleCard
-              title="Truck owner"
-              text="List your vehicles, keep availability fresh, accept or reject requests, and manage trips from one place."
-              href="/register?role=TRUCK_OWNER"
-              cta="Register as owner"
-            />
-            <RoleCard
-              title="Admin"
-              text="Track activity, oversee listings and bookings, and resolve disputes that affect truck availability and delivery flow."
-              href="/login"
-              cta="Admin sign-in"
-            />
-          </div>
-        </section>
-
-        <section className="mx-auto max-w-6xl px-4 pb-6">
-          <div className="mb-6 flex items-center justify-between gap-3">
-            <h2 className="font-display text-3xl text-navy">Fleet types</h2>
-            <span className="text-sm text-muted">Different trucks for different loads</span>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              ["/photos/ibanga-flatbed.png", "Flatbed"],
-              ["/photos/ibanga-reefer.png", "Refrigerated"],
-              ["/photos/ibanga-tanker.png", "Tanker"],
-              ["/photos/ibanga-semi.png", "Semi-trailer"],
-            ].map(([src, label]) => (
-              <figure key={label} className="overflow-hidden rounded-3xl border border-line bg-white shadow-sm">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt={label} className="h-32 w-full object-cover sm:h-36" />
-                <figcaption className="px-3 py-3 text-sm font-medium text-slate-700">{label}</figcaption>
-              </figure>
-            ))}
-          </div>
-        </section>
-
-        <section className="mx-auto max-w-6xl px-4 pb-16">
-          <div className="shine rounded-4xl bg-linear-to-r from-navy via-navy-soft to-brand px-6 py-10 text-white shadow-[0_30px_80px_rgba(37,99,235,0.22)] sm:px-10">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-              <div className="max-w-2xl">
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-200">Ready when you are</p>
-                <h2 className="mt-3 font-display text-3xl sm:text-4xl">Find the right truck for the next move.</h2>
+            <div className="mt-10">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand">How it works</p>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {[
+                  {
+                    title: "Owner lists a truck",
+                    description: "The truck stays available until someone books it.",
+                  },
+                  {
+                    title: "Importer books it",
+                    description: "Cargo and journey details are sent. The truck becomes unavailable right away.",
+                  },
+                  {
+                    title: "Pay the listed price",
+                    description: "The owner sets a fixed price. Pay from your iBanga wallet after acceptance.",
+                  },
+                  {
+                    title: "Owner accepts or rejects",
+                    description: "Accepting keeps the truck locked for the trip. Rejecting makes it available again.",
+                  },
+                  {
+                    title: "Move the cargo",
+                    description: "The owner starts the trip and marks it delivered.",
+                  },
+                  {
+                    title: "Confirm or dispute",
+                    description: "The importer confirms receipt or reports a problem. The truck is released after the trip is completed.",
+                  },
+                ].map((step, index) => (
+                  <article key={step.title} className="rounded-2xl border border-line bg-slate-50 p-5 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-brand">{String(index + 1).padStart(2, "0")}</span>
+                      <span aria-hidden="true" className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-soft text-sm text-brand">→</span>
+                    </div>
+                    <h3 className="mt-4 font-display text-lg text-navy">{step.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-muted">{step.description}</p>
+                  </article>
+                ))}
               </div>
-              <div className="flex flex-wrap gap-3">
-                <Link
-                  href="/trucks"
-                  className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-navy transition hover:bg-slate-100"
-                >
-                  Browse trucks
-                </Link>
-                <Link
-                  href="/login"
-                  className="rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
-                >
-                  Log in
-                </Link>
+            </div>
+
+            <div className="mt-14">
+              <div className="text-center">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand">What partners say</p>
+                <h2 className="mt-2 font-display text-2xl tracking-tight text-navy sm:text-3xl">
+                  Trusted by teams moving cargo every day
+                </h2>
+              </div>
+              <div className="mt-7 grid gap-4 md:grid-cols-3">
+                {[
+                  {
+                    quote: "We needed a faster way to find available trucks without chasing calls all day. iBanga made the whole flow feel clearer and more reliable.",
+                    name: "Aline Uwamahoro",
+                    role: "Importer, Kigali",
+                  },
+                  {
+                    quote: "The process was simple enough for my team to keep listings updated, and the booking status gave us much more control over scheduling.",
+                    name: "Eric Ndayisaba",
+                    role: "Truck owner, Rusizi",
+                  },
+                  {
+                    quote: "The dashboard keeps everyone aligned. It reduces confusion between booking requests, confirmations, and exceptions — which matters in cargo logistics.",
+                    name: "Moses Kamanzi",
+                    role: "Operations lead",
+                  },
+                ].map((review) => (
+                  <article key={review.name} className="flex h-full flex-col rounded-3xl border border-line bg-white p-6 shadow-sm">
+                    <div aria-label="5 out of 5 stars" className="flex gap-1 text-lg leading-none text-amber-500">
+                      {Array.from({ length: 5 }, (_, index) => (
+                        <span key={index} aria-hidden="true">★</span>
+                      ))}
+                    </div>
+                    <blockquote className="mt-5 flex-1 text-sm leading-6 text-slate-700">
+                      “{review.quote}”
+                    </blockquote>
+                    <div className="mt-5 border-t border-line pt-4">
+                      <p className="text-sm font-semibold text-navy">{review.name}</p>
+                      <p className="mt-1 text-xs text-muted">{review.role}</p>
+                    </div>
+                  </article>
+                ))}
               </div>
             </div>
           </div>
         </section>
       </main>
 
-      <footer className="border-t border-line bg-white/60 px-4 py-8 text-sm text-muted">
-        <div className="mx-auto flex max-w-6xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <span>iBanga · cargo–truck marketplace</span>
-          <span>Payments in RWF · MTN Mobile Money supported</span>
+      <footer className="bg-[#06334b] text-white">
+        <div id="contact" className="scroll-mt-24 mx-auto max-w-7xl px-5 py-12 sm:px-8 lg:px-12">
+          <div className="mb-7 max-w-2xl">
+            <p className="text-sm font-semibold uppercase tracking-wider text-sky-200">Contact iBanga</p>
+            <h2 className="mt-2 font-display text-2xl text-white sm:text-3xl">We’re here to help your freight move.</h2>
+            <p className="mt-3 text-sm leading-6 text-white/70">
+              For marketplace questions or support with a booking, reach out using the contact details below.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <section className="rounded-2xl border border-white/15 bg-white/5 p-5">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-200">Telephones</h3>
+              <a href="tel:+250780000001" className="mt-3 block text-base font-semibold text-white hover:text-sky-200">+250 780 000 001</a>
+              <a href="tel:+250788441220" className="mt-2 block text-base font-semibold text-white hover:text-sky-200">+250 788 441 220</a>
+            </section>
+            <section className="rounded-2xl border border-white/15 bg-white/5 p-5">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-200">Email &amp; reception</h3>
+              <a href="mailto:admin@ibanga.com" className="mt-3 block break-all text-base font-semibold text-white hover:text-sky-200">admin@ibanga.com</a>
+              <p className="mt-2 text-xs leading-5 text-white/60">For general enquiries and reception.</p>
+            </section>
+            <section className="rounded-2xl border border-white/15 bg-white/5 p-5 sm:col-span-2 lg:col-span-1">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-200">Address</h3>
+              <address className="mt-3 text-base font-semibold not-italic leading-6 text-white">KN 85 Street<br />Nyarugenge, Kigali<br />Rwanda</address>
+            </section>
+          </div>
+        </div>
+        <div className="border-t border-white/10">
+          <div className="mx-auto flex max-w-7xl flex-col gap-2 px-5 py-5 text-xs text-white/55 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-12">
+            <span>© {new Date().getFullYear()} iBanga. Freight moves forward.</span>
+            <span>Built for the regional logistics community.</span>
+          </div>
         </div>
       </footer>
-    </div>
-  );
-}
-
-function RoleCard({
-  title,
-  text,
-  href,
-  cta,
-}: {
-  title: string;
-  text: string;
-  href: string;
-  cta: string;
-}) {
-  return (
-    <div className="flex flex-col rounded-2xl border border-line bg-card p-6">
-      <h3 className="font-display text-2xl text-navy">{title}</h3>
-      <p className="mt-3 flex-1 text-sm text-muted">{text}</p>
-      <Link
-        href={href}
-        className="mt-6 text-sm font-semibold text-brand hover:text-brand-dark"
-      >
-        {cta} →
-      </Link>
     </div>
   );
 }

@@ -1,13 +1,13 @@
 "use client";
 
-import { BookingRow } from "@/components/booking-row";
+import { BookingManagementTable } from "@/components/booking-management-table";
 import { DashboardShell } from "@/components/dashboard-shell";
-import { EmptyState, PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
 import { RequireAuth } from "@/components/require-auth";
 import { useIbanga } from "@/lib/store";
 
 export default function OwnerRequestsPage() {
-  const { currentUser, trucks, bookings } = useIbanga();
+  const { currentUser, trucks, bookings, users } = useIbanga();
   const mine = trucks.filter((t) => t.ownerId === currentUser?.id);
   const requests = bookings.filter(
     (b) =>
@@ -28,27 +28,7 @@ export default function OwnerRequestsPage() {
             </svg>
           }
         />
-        <p className="mt-4 inline-flex items-center gap-2 rounded-full bg-brand-soft px-3 py-1 text-xs font-semibold text-brand-dark">
-          <span className="h-1.5 w-1.5 rounded-full bg-brand" />
-          {requests.length} waiting for your decision
-        </p>
-        <div className="mt-4 space-y-3">
-          {requests.length ? (
-            requests.map((booking) => (
-              <BookingRow
-                key={booking.id}
-                booking={booking}
-                truck={mine.find((t) => t.id === booking.truckId)}
-                href={`/dashboard/owner/trips/${booking.id}`}
-              />
-            ))
-          ) : (
-            <EmptyState
-              title="No pending requests"
-              text="When an importer books one of your available trucks, it appears here for you to accept or reject."
-            />
-          )}
-        </div>
+        <BookingManagementTable bookings={requests} trucks={mine} users={users} counterparty="TRUCK_OWNER" detailPath={(booking) => `/dashboard/owner/trips/${booking.id}`} />
       </DashboardShell>
     </RequireAuth>
   );

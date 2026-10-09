@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BrandLink } from "@/components/brand";
+import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { PayNotice, TruckBadge } from "@/components/status-badge";
 import { Avatar, TruckGallery } from "@/components/photos";
@@ -57,14 +57,6 @@ function TruckDetailsContent() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-line bg-card">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
-          <BrandLink />
-          <Link href="/trucks" className="text-sm font-semibold text-brand">
-            All trucks
-          </Link>
-        </div>
-      </header>
       <main className="mx-auto max-w-4xl px-4 py-8">
         <div className="rounded-3xl border border-line bg-card p-6 sm:p-8">
           <TruckGallery
@@ -152,7 +144,18 @@ function TruckDetailsContent() {
 export default function TruckDetailsPage() {
   return (
     <RequireAuth>
-      <TruckDetailsContent />
+      <AuthenticatedTruckDetails />
     </RequireAuth>
+  );
+}
+
+function AuthenticatedTruckDetails() {
+  const { currentUser } = useIbanga();
+  if (!currentUser) return null;
+
+  return (
+    <DashboardShell role={currentUser.role}>
+      <TruckDetailsContent />
+    </DashboardShell>
   );
 }

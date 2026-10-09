@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { BrandLink } from "./brand";
+import { BrandLink, LogoMark } from "./brand";
+import { LogoutConfirmationDialog } from "./logout-confirmation-dialog";
 import { Avatar } from "./photos";
 import { useIbanga } from "@/lib/store";
 import type { Role } from "@/lib/types";
@@ -16,7 +17,6 @@ const nav: Record<Role, NavItem[]> = {
     { href: "/trucks", label: "Find trucks", icon: "search" },
     { href: "/dashboard/importer/bookings", label: "My bookings", icon: "calendar" },
     { href: "/dashboard/wallet", label: "Wallet", icon: "wallet" },
-    { href: "/dashboard/importer/profile", label: "Profile", icon: "user" },
   ],
   TRUCK_OWNER: [
     { href: "/dashboard/owner", label: "Dashboard", icon: "grid" },
@@ -25,15 +25,14 @@ const nav: Record<Role, NavItem[]> = {
     { href: "/dashboard/owner/trips", label: "Active trips", icon: "route" },
     { href: "/dashboard/owner/history", label: "History", icon: "history" },
     { href: "/dashboard/wallet", label: "Wallet", icon: "wallet" },
-    { href: "/dashboard/owner/profile", label: "Profile", icon: "user" },
   ],
   ADMIN: [
     { href: "/dashboard/admin", label: "Dashboard", icon: "grid" },
-    { href: "/dashboard/wallet", label: "Wallet", icon: "wallet" },
     { href: "/dashboard/admin/users", label: "Users", icon: "users" },
     { href: "/dashboard/admin/trucks", label: "Trucks", icon: "truck" },
     { href: "/dashboard/admin/bookings", label: "Bookings", icon: "calendar" },
     { href: "/dashboard/admin/disputes", label: "Disputes", icon: "alert" },
+    { href: "/dashboard/admin/wallets", label: "Wallets", icon: "wallet" },
   ],
 };
 
@@ -46,6 +45,9 @@ const iconPaths: Record<string, React.ReactNode> = {
       <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5" />
     </>
   ),
+  collapse: <path d="m15 18-6-6 6-6M20 4v16M4 4v16" />,
+  expand: <path d="m9 18 6-6-6-6M4 4v16M20 4v16" />,
+  chevron: <path d="m6 9 6 6 6-6" />,
   search: (
     <>
       <circle cx="11" cy="11" r="6.5" />
@@ -159,12 +161,6 @@ function roleLabel(role: Role) {
   return "Importer";
 }
 
-function roleFlavor(role: Role) {
-  if (role === "TRUCK_OWNER") return "Move cargo";
-  if (role === "ADMIN") return "Marketplace watch";
-  return "Ship cargo";
-}
-
 function roleTip(role: Role) {
   if (role === "TRUCK_OWNER")
     return "To free a truck from a trip, the importer must confirm the delivery.";
@@ -184,11 +180,23 @@ export function DashboardShell({
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [logoutConfirmationOpen, setLogoutConfirmationOpen] = useState(false);
   const items = nav[role];
   const firstName = (currentUser?.name ?? "").split(" ")[0] || "there";
+  const profilePath = role === "TRUCK_OWNER"
+    ? "/dashboard/owner/profile"
+    : role === "ADMIN" ? "/dashboard/admin/profile" : "/dashboard/importer/profile";
 
   function handleLogout() {
+    setLogoutConfirmationOpen(true);
+  }
+
+  function confirmLogout() {
+    setLogoutConfirmationOpen(false);
     setOpen(false);
+    setProfileOpen(false);
     logout();
     router.push("/");
   }
@@ -196,29 +204,30 @@ export function DashboardShell({
   return (
     <div className="min-h-screen bg-background">
       <div className="flex">
-        <aside className="hidden min-h-screen w-72 shrink-0 flex-col border-r border-line bg-card lg:flex">
-          <div className="px-6 pb-5 pt-6">
-            <BrandLink href="/" />
+        <aside className={`sticky top-0 hidden h-screen min-h-0 shrink-0 self-start flex-col overflow-y-auto border-r border-line bg-white transition-[width] duration-200 lg:flex ${collapsed ? "w-[76px]" : "w-[264px]"}`}>
+          <div className={`flex items-center ${collapsed ? "justify-center px-2" : "justify-between px-5"} pb-5 pt-6`}>
+            {collapsed ? <Link href="/" aria-label="iBanga home"><LogoMark /></Link> : <BrandLink href="/" />}
+            {!collapsed ? (
+              <button
+                type="button"
+                onClick={() => setCollapsed(true)}
+                aria-label="Collapse sidebar"
+                className="rounded-lg p-2 text-muted transition hover:bg-background hover:text-brand"
+              >
+                <NavIcon name="collapse" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setCollapsed(false)}
+                aria-label="Expand sidebar"
+                className="absolute left-[54px] top-6 z-10 rounded-lg border border-line bg-white p-1.5 text-muted shadow-soft transition hover:text-brand"
+              >
+                <NavIcon name="expand" />
+              </button>
+            )}
           </div>
-
-          <div className="mx-4 mb-4 overflow-hidden rounded-2xl bg-linear-to-br from-brand via-brand-dark to-navy p-4 shadow-soft">
-            <div className="flex items-center gap-3">
-              <span className="relative">
-                <Avatar src={currentUser?.photo} name={currentUser?.name ?? "User"} size="md" />
-                <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-navy bg-good" />
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-white">
-                  {currentUser?.name ?? "Loading…"}
-                </p>
-                <p className="truncate text-xs text-white/70">
-                  {roleLabel(role)} · {roleFlavor(role)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <nav className="flex flex-1 flex-col gap-1 px-3">
+          <nav className={`flex flex-1 flex-col gap-1 ${collapsed ? "px-2" : "px-3"}`}>
             {items.map((item) => {
               const active =
                 pathname === item.href ||
@@ -227,7 +236,10 @@ export function DashboardShell({
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`group relative flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm transition ${
+                  title={collapsed ? item.label : undefined}
+                  className={`group relative flex items-center rounded-xl py-2.5 text-sm transition ${
+                    collapsed ? "justify-center px-2" : "gap-3 px-3.5"
+                  } ${
                     active
                       ? "bg-brand-soft font-semibold text-brand-dark"
                       : "text-muted hover:bg-background hover:text-navy"
@@ -237,7 +249,7 @@ export function DashboardShell({
                     name={item.icon}
                     className={active ? "text-brand" : "text-muted/70 group-hover:text-navy"}
                   />
-                  {item.label}
+                  {!collapsed ? item.label : null}
                   {active ? (
                     <span className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-brand" />
                   ) : null}
@@ -246,7 +258,7 @@ export function DashboardShell({
             })}
           </nav>
 
-          <div className="mx-4 mb-4 rounded-2xl border border-brand/15 bg-brand-soft/50 p-4">
+          {!collapsed ? <div className="mx-4 mb-4 rounded-2xl border border-brand/15 bg-brand-soft/50 p-4">
             <div className="flex items-center gap-2 text-brand-dark">
               <NavIcon name="spark" className="h-4 w-4" />
               <p className="text-xs font-semibold">Good to know</p>
@@ -254,18 +266,29 @@ export function DashboardShell({
             <p className="mt-1.5 text-xs leading-relaxed text-navy/70">
               {roleTip(role)}
             </p>
-          </div>
+          </div> : null}
 
-          <div className="m-3 flex items-center justify-between border-t border-line pt-4 px-1">
+          <div className={`mt-auto border-t border-line p-3 ${collapsed ? "px-2" : ""}`}>
+            <Link
+              href="/"
+              title={collapsed ? "Home" : undefined}
+              className={`flex items-center rounded-xl py-2.5 text-sm font-medium text-muted transition hover:bg-background hover:text-navy ${collapsed ? "justify-center px-2" : "gap-3 px-3.5"}`}
+            >
+              <NavIcon name="home" />
+              {!collapsed ? "Home" : null}
+            </Link>
             <button
               type="button"
+              title={collapsed ? "Log out" : undefined}
               onClick={handleLogout}
-              className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-muted transition hover:bg-bad-soft hover:text-bad"
+              className={`mt-1 flex w-full items-center rounded-xl py-2.5 text-left text-sm font-medium text-bad transition hover:bg-bad-soft ${collapsed ? "justify-center px-2" : "gap-3 px-3.5"}`}
             >
-              <NavIcon name="logout" className="h-4 w-4" />
-              Log out
+              <NavIcon name="logout" />
+              {!collapsed ? "Log out" : null}
             </button>
-            <span className="text-xs text-muted/70">v1 · iBanga</span>
+            <div className={`mt-2 px-1 pt-2 text-xs text-muted/70 ${collapsed ? "text-center" : ""}`}>
+              {collapsed ? "iB" : "iBanga"}
+            </div>
           </div>
         </aside>
 
@@ -298,23 +321,34 @@ export function DashboardShell({
               <span className="font-medium text-navy">Good {morning()}, {firstName}.</span>
             </div>
 
-            <div className="flex items-center gap-2.5">
-              <Link
-                href="/"
-                className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-3.5 py-2 text-sm font-semibold text-navy shadow-soft transition hover:-translate-y-0.5 hover:border-navy/20"
-              >
-                <NavIcon name="home" className="h-4 w-4" />
-                <span className="hidden sm:inline">Home</span>
-              </Link>
+            <div className="relative">
               <button
                 type="button"
-                className="hidden items-center gap-2 rounded-full border border-line bg-white py-1.5 pl-1.5 pr-3.5 shadow-soft transition hover:border-brand/30 sm:inline-flex"
+                aria-expanded={profileOpen}
+                onClick={() => setProfileOpen((value) => !value)}
+                className="flex items-center gap-3 rounded-xl border border-line bg-white px-2.5 py-2 text-left shadow-soft transition hover:border-brand/30"
               >
                 <Avatar src={currentUser?.photo} name={currentUser?.name ?? "User"} size="sm" />
-                <span className="max-w-28 truncate text-sm font-semibold text-navy">
-                  {currentUser?.name}
+                <span className="block min-w-0 max-w-[112px] sm:max-w-40">
+                  <span className="block max-w-40 truncate text-sm font-semibold leading-5 text-navy">{currentUser?.name}</span>
+                  <span className="block text-xs text-muted">{roleLabel(role)}</span>
                 </span>
+                <NavIcon name="chevron" className={`h-4 w-4 transition ${profileOpen ? "rotate-180" : ""}`} />
               </button>
+              {profileOpen ? (
+                <div className="absolute right-0 top-full z-30 mt-2 w-52 rounded-xl border border-line bg-white p-1.5 shadow-card">
+                  <Link href={profilePath} onClick={() => setProfileOpen(false)} className="block rounded-lg px-3 py-2.5 text-sm font-medium text-navy hover:bg-brand-soft">
+                    Profile
+                  </Link>
+                  <Link href="/dashboard/settings" onClick={() => setProfileOpen(false)} className="block rounded-lg px-3 py-2.5 text-sm font-medium text-navy hover:bg-brand-soft">
+                    Settings
+                  </Link>
+                  <button type="button" onClick={handleLogout} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-bad hover:bg-bad-soft">
+                    <NavIcon name="logout" />
+                    Log out
+                  </button>
+                </div>
+              ) : null}
             </div>
           </header>
 
@@ -346,19 +380,6 @@ export function DashboardShell({
                     </svg>
                   </button>
                 </div>
-                <div className="mx-4 mb-4 overflow-hidden rounded-2xl bg-linear-to-br from-brand via-brand-dark to-navy p-4">
-                  <div className="flex items-center gap-3">
-                    <Avatar src={currentUser?.photo} name={currentUser?.name ?? "User"} size="md" />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-white">
-                        {currentUser?.name}
-                      </p>
-                      <p className="truncate text-xs text-white/70">
-                        {roleLabel(role)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
                 <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3">
                   {items.map((item) => {
                     const active =
@@ -384,21 +405,38 @@ export function DashboardShell({
                     );
                   })}
                 </nav>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="m-4 inline-flex items-center justify-center gap-1.5 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-semibold text-bad shadow-soft transition hover:bg-bad-soft"
-                >
-                  <NavIcon name="logout" className="h-4 w-4" />
-                  Log out
-                </button>
+                <div className="space-y-1 border-t border-line px-3 py-4">
+                  <Link
+                    href="/"
+                    onClick={() => setOpen(false)}
+                    className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium text-navy hover:bg-background"
+                  >
+                    <NavIcon name="home" />
+                    Home
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-medium text-bad hover:bg-bad-soft"
+                  >
+                    <NavIcon name="logout" />
+                    Log out
+                  </button>
+                </div>
               </div>
             </div>
           ) : null}
 
-          <main className="mx-auto w-full max-w-360 px-4 py-6 lg:px-7 lg:py-8">{children}</main>
+          <main className="mx-0 w-full px-4 py-6 sm:px-5 lg:px-6 lg:py-7">{children}</main>
         </div>
       </div>
+      {logoutConfirmationOpen ? (
+        <LogoutConfirmationDialog
+          userName={currentUser?.name}
+          onCancel={() => setLogoutConfirmationOpen(false)}
+          onConfirm={confirmLogout}
+        />
+      ) : null}
     </div>
   );
 }

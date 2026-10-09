@@ -40,7 +40,7 @@ function RegisterForm() {
   }
 
   return (
-    <div className="relative mx-auto w-full max-w-lg">
+    <div className="relative mx-auto w-full max-w-2xl">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -inset-6 -z-10 rounded-full bg-linear-to-tr from-accent/20 via-brand/15 to-transparent blur-2xl"
@@ -175,7 +175,7 @@ function RegisterForm() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-4">
               <Field label="Full name">
                 <div className="relative">
                   <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-muted">
@@ -459,7 +459,7 @@ function RegisterForm() {
 
 export default function RegisterPage() {
   return (
-    <AuthShell image="/photos/ibanga-semi.png">
+    <AuthShell showImage={false}>
       <Suspense>
         <RegisterForm />
       </Suspense>

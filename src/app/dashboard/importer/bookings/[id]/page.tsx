@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { api } from "@/lib/api";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { BookingBadge } from "@/components/status-badge";
@@ -13,7 +12,7 @@ import { useIbanga } from "@/lib/store";
 
 export default function ImporterBookingDetail() {
   const { id } = useParams<{ id: string }>();
-  const { bookings, trucks, users, currentUser, setBookingStatus, reportProblem } =
+  const { bookings, trucks, users, currentUser, setBookingStatus, reportProblem, payBooking } =
     useIbanga();
   const booking = bookings.find(
     (b) => b.id === id && b.importerId === currentUser?.id,
@@ -30,16 +29,10 @@ export default function ImporterBookingDetail() {
     if (!booking || paymentPending) return;
     setPaymentPending(true);
     setPaymentError(null);
-    try {
-      await api(`/wallet/bookings/${booking.id}/pay`, { method: "POST" });
-      setPaymentConfirmed(true);
-    } catch (error) {
-      setPaymentError(
-        error instanceof Error ? error.message : "Could not pay for this booking.",
-      );
-    } finally {
-      setPaymentPending(false);
-    }
+    const error = payBooking(booking.id);
+    if (error) setPaymentError(error);
+    else setPaymentConfirmed(true);
+    setPaymentPending(false);
   }
 
   return (
