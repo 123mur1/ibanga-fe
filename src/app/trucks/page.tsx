@@ -1,16 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { BrandLink } from "@/components/brand";
-import { RequireAuth } from "@/components/require-auth";
 import { TruckCard } from "@/components/truck-card";
 import { Field, inputClass } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
 import { LOCATIONS, TRUCK_TYPES } from "@/lib/types";
 
 function TrucksPageContent() {
-  const { trucks, trucksLoading, currentUser, refreshTrucks } = useIbanga();
+  const { trucks, trucksLoading, currentUser, ready, refreshTrucks } = useIbanga();
   const [location, setLocation] = useState("");
   const [type, setType] = useState("");
   const [route, setRoute] = useState("");
@@ -29,19 +28,31 @@ function TrucksPageContent() {
   const results = trucks;
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-line bg-card">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <BrandLink />
-          <Link
-            href={currentUser ? "/dashboard/importer" : "/login"}
-            className="text-sm font-semibold text-brand"
-          >
-            {currentUser ? "Dashboard" : "Log in"}
-          </Link>
-        </div>
-      </header>
-
+    <>
+      {ready && !currentUser ? (
+        <header className="sticky top-0 z-20 border-b border-line bg-white/95 backdrop-blur">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4">
+            <BrandLink />
+            <nav className="flex items-center gap-4 text-sm font-semibold">
+              <Link href="/" className="text-muted transition hover:text-brand">
+                Home
+              </Link>
+              <Link
+                href="/#team-support-heading"
+                className="hidden text-muted transition hover:text-brand sm:inline"
+              >
+                Contact
+              </Link>
+              <Link
+                href="/login"
+                className="rounded-full bg-brand px-4 py-2 text-white transition hover:bg-brand-dark"
+              >
+                Log in
+              </Link>
+            </nav>
+          </div>
+        </header>
+      ) : null}
       <main className="mx-auto max-w-6xl px-4 py-8">
         <h1 className="font-display text-3xl text-navy">Available trucks</h1>
         <p className="mt-2 text-muted">
@@ -103,14 +114,10 @@ function TrucksPageContent() {
           ))}
         </div>
       </main>
-    </div>
+    </>
   );
 }
 
 export default function TrucksPage() {
-  return (
-    <RequireAuth>
-      <TrucksPageContent />
-    </RequireAuth>
-  );
+  return <TrucksPageContent />;
 }

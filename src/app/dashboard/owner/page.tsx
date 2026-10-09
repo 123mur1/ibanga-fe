@@ -32,7 +32,7 @@ export default function OwnerDashboard() {
   return (
     <RequireAuth role="TRUCK_OWNER">
       <DashboardShell role="TRUCK_OWNER">
-        <div className="relative overflow-hidden rounded-3xl bg-linear-to-br from-navy via-brand-dark to-brand p-5 shadow-card sm:p-6">
+        <div className="relative overflow-hidden rounded-3xl bg-brand p-5 shadow-card sm:p-6">
           <div className="paper-grid absolute inset-0 opacity-30" />
           <div
             aria-hidden="true"

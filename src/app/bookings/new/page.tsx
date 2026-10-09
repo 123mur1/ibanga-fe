@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useEffect, useState } from "react";
-import { BrandLink } from "@/components/brand";
 import { RequireAuth } from "@/components/require-auth";
 import { TruckThumb } from "@/components/photos";
 import { Field, inputClass, PrimaryButton } from "@/components/ui";
@@ -218,16 +217,7 @@ function BookingForm() {
 export default function NewBookingPage() {
   return (
     <RequireAuth role="IMPORTER">
-      <div className="min-h-screen bg-background">
-        <header className="border-b border-line bg-card">
-          <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-            <BrandLink />
-            <Link href="/trucks" className="text-sm font-semibold text-brand">
-              Cancel
-            </Link>
-          </div>
-        </header>
-        <main className="mx-auto max-w-5xl px-4 py-8 sm:py-10">
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:py-10">
           <div className="mx-auto mb-7 max-w-3xl">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-600">Booking request</p>
             <h1 className="mt-2 font-display text-3xl text-slate-900 sm:text-4xl">Request a freight booking</h1>
@@ -240,7 +230,6 @@ export default function NewBookingPage() {
               <BookingForm />
             </Suspense>
           </div>
-        </main>
       </div>
     </RequireAuth>
   );

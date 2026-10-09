@@ -74,7 +74,7 @@ export default function ImporterBookingDetail() {
               My bookings
             </Link>
 
-            <div className="relative mt-4 overflow-hidden rounded-3xl bg-gradient-to-br from-brand via-brand-dark to-navy p-6 shadow-card sm:p-8">
+            <div className="relative mt-4 overflow-hidden rounded-3xl bg-brand p-6 shadow-card sm:p-8">
               <div className="paper-grid absolute inset-0 opacity-30" />
               <div
                 aria-hidden="true"

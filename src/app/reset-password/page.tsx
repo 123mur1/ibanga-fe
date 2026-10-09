@@ -60,7 +60,7 @@ function ResetPasswordForm() {
         className="pointer-events-none absolute -inset-6 -z-10 rounded-full bg-linear-to-tr from-brand/25 via-accent/15 to-transparent blur-2xl"
       />
       <div className="overflow-hidden rounded-3xl border border-line bg-card shadow-card">
-        <div className="relative h-32 overflow-hidden bg-linear-to-br from-brand via-brand-dark to-navy">
+        <div className="relative h-32 overflow-hidden bg-brand">
           <div className="paper-grid absolute inset-0 opacity-40" />
           <div
             aria-hidden="true"

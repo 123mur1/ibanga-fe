@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { BrandLink } from "./brand";
 import { Avatar } from "./photos";
 import { useIbanga } from "@/lib/store";
 import type { Role } from "@/lib/types";
 
 type NavItem = { href: string; label: string; icon: string };
+const DashboardShellContext = createContext(false);
 
 const nav: Record<Role, NavItem[]> = {
   IMPORTER: [
@@ -180,6 +181,19 @@ export function DashboardShell({
   role: Role;
   children: React.ReactNode;
 }) {
+  const insideDashboardLayout = useContext(DashboardShellContext);
+  if (insideDashboardLayout) return <>{children}</>;
+
+  return <DashboardFrame role={role}>{children}</DashboardFrame>;
+}
+
+function DashboardFrame({
+  role,
+  children,
+}: {
+  role: Role;
+  children: React.ReactNode;
+}) {
   const { currentUser, logout } = useIbanga();
   const pathname = usePathname();
   const router = useRouter();
@@ -189,6 +203,11 @@ export function DashboardShell({
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const items = nav[role];
   const firstName = (currentUser?.name ?? "").split(" ")[0] || "there";
+
+  useEffect(() => {
+    setOpen(false);
+    setProfileMenuOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     if (!showLogoutConfirmation && !profileMenuOpen) return;
@@ -229,20 +248,21 @@ export function DashboardShell({
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <DashboardShellContext.Provider value>
+    <div className="dashboard-theme min-h-screen bg-background">
       <div className="flex">
-        <aside className="hidden min-h-screen w-72 shrink-0 flex-col border-r border-line bg-card lg:flex">
+        <aside className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col border-r border-line bg-card lg:flex">
           <div className="px-6 pb-5 pt-6">
             <BrandLink href="/" />
           </div>
 
-          <div className="mx-4 mb-4 overflow-hidden rounded-2xl bg-linear-to-br from-brand via-brand-dark to-navy p-4 shadow-soft">
+          <div className="mx-4 mb-4 flex min-h-20 items-center rounded-2xl bg-brand p-4 shadow-soft">
             <div className="flex items-center gap-3">
-              <span className="relative">
+              <span className="relative shrink-0">
                 <Avatar src={currentUser?.photo} name={currentUser?.name ?? "User"} size="md" />
                 <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-navy bg-good" />
               </span>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-white">
                   {currentUser?.name ?? "Loading…"}
                 </p>
@@ -425,10 +445,12 @@ export function DashboardShell({
                     </svg>
                   </button>
                 </div>
-                <div className="mx-4 mb-4 overflow-hidden rounded-2xl bg-linear-to-br from-brand via-brand-dark to-navy p-4">
+                <div className="mx-4 mb-4 flex min-h-20 items-center rounded-2xl bg-brand p-4">
                   <div className="flex items-center gap-3">
-                    <Avatar src={currentUser?.photo} name={currentUser?.name ?? "User"} size="md" />
-                    <div className="min-w-0">
+                    <span className="shrink-0">
+                      <Avatar src={currentUser?.photo} name={currentUser?.name ?? "User"} size="md" />
+                    </span>
+                    <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-white">
                         {currentUser?.name}
                       </p>
@@ -518,6 +540,7 @@ export function DashboardShell({
         </div>
       ) : null}
     </div>
+    </DashboardShellContext.Provider>
   );
 }
 

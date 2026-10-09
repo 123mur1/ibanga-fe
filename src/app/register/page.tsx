@@ -36,7 +36,7 @@ function RegisterForm() {
       setError(err);
       return;
     }
-    router.push(dashboardPath(role));
+    router.push(params.get("next") || dashboardPath(role));
   }
 
   return (
@@ -46,7 +46,7 @@ function RegisterForm() {
         className="pointer-events-none absolute -inset-6 -z-10 rounded-full bg-linear-to-tr from-accent/20 via-brand/15 to-transparent blur-2xl"
       />
       <div className="overflow-hidden rounded-3xl border border-line bg-card shadow-card">
-        <div className="relative h-40 overflow-hidden bg-linear-to-br from-accent via-brand to-navy">
+        <div className="relative h-40 overflow-hidden bg-brand">
           <div className="paper-grid absolute inset-0 opacity-40" />
           <div
             aria-hidden="true"
@@ -446,7 +446,11 @@ function RegisterForm() {
             <span className="h-px flex-1 bg-line" />
           </div>
           <Link
-            href="/login"
+            href={
+              params.get("next")
+                ? `/login?next=${encodeURIComponent(params.get("next")!)}`
+                : "/login"
+            }
             className="mt-4 block w-full rounded-xl border border-brand/25 bg-brand-soft/60 px-4 py-2.5 text-center text-sm font-semibold text-brand-dark transition hover:-translate-y-0.5 hover:border-brand/40 hover:bg-brand-soft"
           >
             Log in instead

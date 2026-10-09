@@ -208,7 +208,7 @@ export default function WalletPage() {
           }
         />
 
-        <section className="mt-6 overflow-hidden rounded-2xl bg-linear-to-r from-navy via-navy to-accent-dark px-5 py-6 text-white shadow-card sm:px-8 sm:py-7">
+        <section className="mt-6 overflow-hidden rounded-2xl bg-brand px-5 py-6 text-white shadow-card sm:px-8 sm:py-7">
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div>
               <div className="flex items-center gap-2 text-sm font-medium text-white/75">
@@ -240,16 +240,6 @@ export default function WalletPage() {
             </div>
           </div>
         </section>
-
-        {wallet?.mode === "mock" ? (
-          <p className="mt-4 rounded-lg border border-warn/20 bg-warn-soft px-4 py-3 text-sm text-warn">
-            {isAdmin
-              ? "Simulation only: withdrawals update test balances. No real money is transferred."
-              : canDeposit
-                ? "Simulation only: deposits and withdrawals update test balances. No real money is charged or transferred."
-                : "Simulation only: withdrawals update test balances. No real money is transferred."}
-          </p>
-        ) : null}
 
         {error ? (
           <p role="alert" className="mt-4 rounded-lg border border-bad/20 bg-bad-soft px-4 py-3 text-sm text-bad">
@@ -511,7 +501,7 @@ export default function WalletPage() {
                   {submitting
                     ? activePaymentMode === "DEPOSIT" ? "Starting deposit…" : "Submitting withdrawal…"
                     : activePaymentMode === "DEPOSIT"
-                      ? wallet?.mode === "mock" ? "Simulate deposit" : "Continue with MTN"
+                      ? wallet?.mode === "mock" ? "Deposit" : "Continue with MTN"
                       : "Withdraw funds"}
                 </span>
                 {!submitting ? (

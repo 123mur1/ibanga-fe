@@ -62,7 +62,7 @@ export default function OwnerTripDetail() {
               Requests
             </Link>
 
-            <div className="relative mt-4 overflow-hidden rounded-3xl bg-gradient-to-br from-navy via-brand-dark to-brand p-6 shadow-card sm:p-8">
+            <div className="relative mt-4 overflow-hidden rounded-3xl bg-brand p-6 shadow-card sm:p-8">
               <div className="paper-grid absolute inset-0 opacity-30" />
               <div
                 aria-hidden="true"

@@ -39,12 +39,12 @@ const steps = [
 ];
 
 export function LandingPage() {
-  const { currentUser } = useIbanga();
+  const { currentUser, ready } = useIbanga();
   const [menu, setMenu] = useState(false);
   const appHref = currentUser ? dashboardPath(currentUser.role) : "/login";
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="landing-page min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-30 border-b border-line/80 bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
           <BrandLink />
@@ -60,7 +60,7 @@ export function LandingPage() {
             </Link>
           </nav>
           <div className="hidden items-center gap-3 md:flex">
-            {currentUser ? (
+            {!ready ? null : currentUser ? (
               <Link
                 href={appHref}
                 className="rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition hover:bg-brand-dark"
@@ -94,70 +94,113 @@ export function LandingPage() {
             <Link href="/trucks" className="block py-1.5 text-slate-700">
               Available trucks
             </Link>
-            <Link href="/login" className="block py-1.5 text-slate-700">
-              Log in
-            </Link>
-            <Link href="/register" className="block py-1.5 font-semibold text-brand">
-              Get started
-            </Link>
+            {!ready ? null : currentUser ? (
+              <Link
+                href={appHref}
+                className="block py-1.5 font-semibold text-brand"
+                onClick={() => setMenu(false)}
+              >
+                Open dashboard
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="block py-1.5 text-slate-700"
+                  onClick={() => setMenu(false)}
+                >
+                  Log in
+                </Link>
+                <Link
+                  href="/register"
+                  className="block py-1.5 font-semibold text-brand"
+                  onClick={() => setMenu(false)}
+                >
+                  Get started
+                </Link>
+              </>
+            )}
           </div>
         ) : null}
       </header>
 
       <main>
-        <section className="relative overflow-hidden">
-          <div className="absolute inset-x-0 top-0 -z-10 h-155 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.16),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(245,158,11,0.2),transparent_30%)]" />
+        <section className="relative isolate overflow-hidden bg-navy">
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 -z-10 bg-[url('/photos/ibanga-container-highway.png')] bg-cover bg-center"
+          />
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 -z-10 bg-[#002f43]/75"
+          />
           <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:py-24">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-brand-soft px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-brand">
-                <span className="h-2 w-2 rounded-full bg-accent" />
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white">
+                <span className="h-2 w-2 rounded-full bg-white" />
                 Direct cargo–truck marketplace
               </div>
-              <h1 className="mt-6 max-w-xl font-display text-4xl leading-[0.96] text-navy sm:text-5xl lg:text-6xl">
+              <h1 className="mt-6 max-w-xl font-display text-4xl leading-[0.96] text-white sm:text-5xl lg:text-6xl">
                 Move freight with clarity, speed, and trust.
               </h1>
-              <p className="mt-5 max-w-xl text-lg leading-8 text-muted">
+              <p className="mt-5 max-w-xl text-lg leading-8 text-white/80">
                 iBanga connects cargo importers and truck owners in one clean
                 marketplace. Search, book, pay, and confirm delivery without the
                 friction of brokers or scattered WhatsApp deals.
               </p>
 
               <div className="mt-8 flex flex-wrap gap-3">
-                <Link
-                  href="/register?role=IMPORTER"
-                  className="rounded-full bg-brand px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand/25 transition hover:-translate-y-0.5 hover:bg-brand-dark"
-                >
-                  I need a truck
-                </Link>
-                <Link
-                  href="/register?role=TRUCK_OWNER"
-                  className="rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-navy shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300"
-                >
-                  I have trucks
-                </Link>
+                {currentUser ? (
+                  <>
+                    <Link
+                      href="/trucks"
+                      className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-navy shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:bg-white/90"
+                    >
+                      Browse trucks
+                    </Link>
+                    <Link
+                      href={appHref}
+                      className="rounded-full border border-white/35 bg-white/10 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-white/15"
+                    >
+                      Open dashboard
+                    </Link>
+                  </>
+                ) : ready ? (
+                  <>
+                    <Link
+                      href="/register?role=IMPORTER"
+                      className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-navy shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:bg-white/90"
+                    >
+                      I need a truck
+                    </Link>
+                    <Link
+                      href="/register?role=TRUCK_OWNER"
+                      className="rounded-full border border-white/35 bg-white/10 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-white/15"
+                    >
+                      I have trucks
+                    </Link>
+                  </>
+                ) : null}
               </div>
 
-              <div className="mt-8 flex flex-wrap items-center gap-6 text-sm text-slate-600">
+              <div className="mt-8 flex flex-wrap items-center gap-6 text-sm text-white/90">
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-good-soft text-good">✓</span>
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white">✓</span>
                   Verified listings
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft text-brand">₦</span>
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white">₦</span>
                   RWF pricing
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-amber-700">⚡</span>
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white">✓</span>
                   Fast booking flow
                 </div>
               </div>
             </div>
 
             <div className="relative">
-              <div className="float-slow absolute -left-4 top-8 h-28 w-28 rounded-full bg-brand/15 blur-2xl" />
-              <div className="float-slow absolute -right-2 bottom-10 h-32 w-32 rounded-full bg-accent/15 blur-2xl [animation-delay:1s]" />
-              <div className="absolute -inset-6 rounded-4xl bg-linear-to-br from-brand/12 via-transparent to-accent/18 blur-2xl" />
-              <div className="relative overflow-hidden rounded-4xl border border-slate-200 bg-white p-3 shadow-[0_30px_80px_rgba(15,23,42,0.12)] sm:p-4">
+              <div className="relative overflow-hidden rounded-4xl border border-line bg-white p-3 shadow-[0_24px_60px_rgba(0,98,139,0.10)] sm:p-4">
                 <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600">
                   <span>Marketplace overview</span>
                   <span className="inline-flex items-center gap-2 rounded-full bg-good-soft px-2 py-1 text-[11px] font-semibold text-good">
@@ -181,7 +224,7 @@ export function LandingPage() {
                   />
                 </div>
 
-                <div className="mt-3 rounded-2xl bg-linear-to-br from-navy via-navy-soft to-brand p-5 text-white">
+                <div className="mt-3 rounded-2xl bg-brand p-5 text-white">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-xs uppercase tracking-[0.2em] text-white/65">Featured listing</p>
@@ -229,7 +272,7 @@ export function LandingPage() {
                     <p className="mt-1 font-display text-2xl text-navy">120+</p>
                   </div>
                   <div className="float-slow rounded-2xl bg-accent-soft p-3 [animation-delay:0.9s]">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-amber-700">Trucks</p>
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-accent-dark">Trucks</p>
                     <p className="mt-1 font-display text-2xl text-navy">90</p>
                   </div>
                   <div className="float-slow rounded-2xl bg-good-soft p-3 [animation-delay:1.4s]">
@@ -254,11 +297,11 @@ export function LandingPage() {
           </div>
 
           <div className="grid gap-5 lg:grid-cols-3">
-            <div className="shine rounded-[28px] border border-brand/15 bg-linear-to-b from-brand to-brand-dark p-6 text-white shadow-[0_25px_60px_rgba(37,99,235,0.28)]">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-100">Importer</p>
+            <div className="rounded-[28px] border border-brand/15 bg-brand p-6 text-white shadow-[0_18px_40px_rgba(0,98,139,0.14)]">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-soft">Importer</p>
               <h3 className="mt-4 font-display text-3xl">Book direct</h3>
-              <p className="mt-3 text-blue-100">Find trucks, compare routes, and secure the exact listed rate in one flow.</p>
-              <ul className="mt-6 space-y-3 text-sm text-blue-50">
+              <p className="mt-3 text-brand-soft">Find trucks, compare routes, and secure the exact listed rate in one flow.</p>
+              <ul className="mt-6 space-y-3 text-sm text-white/90">
                 <li>• Instant truck search</li>
                 <li>• RWF pricing visibility</li>
                 <li>• Booking status tracking</li>
@@ -276,7 +319,7 @@ export function LandingPage() {
               </ul>
             </div>
 
-            <div className="rounded-[28px] border border-slate-200 bg-slate-950 p-6 text-white shadow-[0_25px_60px_rgba(15,23,42,0.22)]">
+            <div className="rounded-[28px] border border-line bg-brand p-6 text-white shadow-[0_18px_40px_rgba(0,98,139,0.14)]">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">Admin</p>
               <h3 className="mt-4 font-display text-3xl">Oversight</h3>
               <p className="mt-3 text-slate-300">Stay in control of bookings, disputes, and account health across the marketplace.</p>
@@ -289,11 +332,11 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className="bg-slate-950 py-16 text-white">
+        <section className="bg-brand py-16 text-white">
           <div className="mx-auto max-w-6xl px-4">
             <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-200">Why teams switch</p>
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-soft">Why teams switch</p>
                 <h2 className="mt-2 font-display text-3xl sm:text-4xl">The direct path beats broker chaos</h2>
               </div>
               <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-200">
@@ -311,9 +354,9 @@ export function LandingPage() {
                 </ul>
               </div>
 
-              <div className="rounded-[28px] border border-brand/30 bg-linear-to-br from-brand/20 via-blue-500/10 to-white/5 p-6">
+              <div className="rounded-[28px] border border-white/15 bg-white/8 p-6">
                 <h3 className="font-display text-2xl text-white">iBanga experience</h3>
-                <ul className="mt-6 space-y-4 text-sm text-blue-50">
+                <ul className="mt-6 space-y-4 text-sm text-white/85">
                   <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-400" />One clean booking flow with live truck availability.</li>
                   <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-400" />Direct RWF pricing visibility before anyone commits.</li>
                   <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-400" />Trip status, confirmations, and dispute tracking in one place.</li>
@@ -401,26 +444,46 @@ export function LandingPage() {
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">Who it’s for</p>
             <h2 className="mt-2 font-display text-3xl text-navy sm:text-4xl">One platform for every part of the chain</h2>
           </div>
-          <div className="mt-8 grid gap-5 lg:grid-cols-3">
-            <RoleCard
-              title="Importer"
-              text="Search trucks, compare routes, book a journey, pay in-app, and confirm delivery once cargo arrives."
-              href="/register?role=IMPORTER"
-              cta="Register as importer"
-            />
-            <RoleCard
-              title="Truck owner"
-              text="List your vehicles, keep availability fresh, accept or reject requests, and manage trips from one place."
-              href="/register?role=TRUCK_OWNER"
-              cta="Register as owner"
-            />
-            <RoleCard
-              title="Admin"
-              text="Track activity, oversee listings and bookings, and resolve disputes that affect truck availability and delivery flow."
-              href="/login"
-              cta="Admin sign-in"
-            />
-          </div>
+          {ready ? (
+            <div className="mt-8 grid gap-5 lg:grid-cols-2">
+              <RoleCard
+                title="Importer"
+                text="Search trucks, compare routes, book a journey, pay in-app, and confirm delivery once cargo arrives."
+                href={
+                  currentUser
+                    ? currentUser.role === "IMPORTER"
+                      ? appHref
+                      : undefined
+                    : "/register?role=IMPORTER"
+                }
+                cta={
+                  currentUser
+                    ? currentUser.role === "IMPORTER"
+                      ? "Open dashboard"
+                      : undefined
+                    : "Register as importer"
+                }
+              />
+              <RoleCard
+                title="Truck owner"
+                text="List your vehicles, keep availability fresh, accept or reject requests, and manage trips from one place."
+                href={
+                  currentUser
+                    ? currentUser.role === "TRUCK_OWNER"
+                      ? appHref
+                      : undefined
+                    : "/register?role=TRUCK_OWNER"
+                }
+                cta={
+                  currentUser
+                    ? currentUser.role === "TRUCK_OWNER"
+                      ? "Open dashboard"
+                      : undefined
+                    : "Register as owner"
+                }
+              />
+            </div>
+          ) : null}
         </section>
 
         <section className="mx-auto max-w-6xl px-4 pb-6">
@@ -445,10 +508,10 @@ export function LandingPage() {
         </section>
 
         <section className="mx-auto max-w-6xl px-4 pb-16">
-          <div className="shine rounded-4xl bg-linear-to-r from-navy via-navy-soft to-brand px-6 py-10 text-white shadow-[0_30px_80px_rgba(37,99,235,0.22)] sm:px-10">
+          <div className="rounded-4xl bg-brand px-6 py-10 text-white shadow-[0_22px_55px_rgba(0,98,139,0.16)] sm:px-10">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-2xl">
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-200">Ready when you are</p>
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-soft">Ready when you are</p>
                 <h2 className="mt-3 font-display text-3xl sm:text-4xl">Find the right truck for the next move.</h2>
               </div>
               <div className="flex flex-wrap gap-3">
@@ -458,12 +521,21 @@ export function LandingPage() {
                 >
                   Browse trucks
                 </Link>
-                <Link
-                  href="/login"
-                  className="rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
-                >
-                  Log in
-                </Link>
+                {!ready ? null : currentUser ? (
+                  <Link
+                    href={appHref}
+                    className="rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
+                  >
+                    Open dashboard
+                  </Link>
+                ) : (
+                  <Link
+                    href="/login"
+                    className="rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
+                  >
+                    Log in
+                  </Link>
+                )}
               </div>
             </div>
           </div>
@@ -482,19 +554,21 @@ function RoleCard({
 }: {
   title: string;
   text: string;
-  href: string;
-  cta: string;
+  href?: string;
+  cta?: string;
 }) {
   return (
     <div className="flex flex-col rounded-2xl border border-line bg-card p-6">
       <h3 className="font-display text-2xl text-navy">{title}</h3>
       <p className="mt-3 flex-1 text-sm text-muted">{text}</p>
-      <Link
-        href={href}
-        className="mt-6 text-sm font-semibold text-brand hover:text-brand-dark"
-      >
-        {cta} →
-      </Link>
+      {href && cta ? (
+        <Link
+          href={href}
+          className="mt-6 text-sm font-semibold text-brand hover:text-brand-dark"
+        >
+          {cta} →
+        </Link>
+      ) : null}
     </div>
   );
 }

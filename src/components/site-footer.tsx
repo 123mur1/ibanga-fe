@@ -120,6 +120,26 @@ export function SiteFooter() {
                 </li>
               ))}
             </ul>
+            <a
+              href="mailto:patrickmurokore172@gmail.com"
+              className="mt-3 inline-flex items-center gap-2 rounded-md text-sm font-semibold text-brand-soft transition hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-soft"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="3" y="5" width="18" height="14" rx="2" />
+                <path d="m3 7 9 6 9-6" />
+              </svg>
+              Contact us via email
+            </a>
           </section>
         </div>
 
