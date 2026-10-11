@@ -31,6 +31,7 @@ const heroSlides = [
 export function LandingPage() {
   const { trucks, bookings } = useIbanga();
   const [activeSlide, setActiveSlide] = useState(0);
+  const [visibleTruckCount, setVisibleTruckCount] = useState(6);
 
   useEffect(() => {
     const timer = window.setInterval(
@@ -40,10 +41,9 @@ export function LandingPage() {
     return () => window.clearInterval(timer);
   }, []);
 
-  const featuredTrucks = trucks
-    .filter((truck) => truck.status === "AVAILABLE")
-    .slice(0, 6);
-  const availableTruckCount = trucks.filter((truck) => truck.status === "AVAILABLE").length;
+  const availableTrucks = trucks.filter((truck) => truck.status === "AVAILABLE");
+  const featuredTrucks = availableTrucks.slice(0, visibleTruckCount);
+  const availableTruckCount = availableTrucks.length;
   const activeLoadCount = bookings.filter((booking) =>
     ACTIVE_BOOKING_STATUSES.includes(booking.status),
   ).length;
@@ -81,7 +81,7 @@ export function LandingPage() {
                 {slide.text}
               </p>
               <div className="mt-9 flex flex-wrap gap-3">
-                <Link href="/trucks" className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-brand-dark shadow-lg transition hover:-translate-y-0.5 hover:bg-sky-50">
+                <Link href="#available-trucks" className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-brand-dark shadow-lg transition hover:-translate-y-0.5 hover:bg-sky-50">
                   Browse available trucks
                 </Link>
                 <Link href="/register?role=TRUCK_OWNER" className="rounded-full border border-white/40 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/20">
@@ -140,15 +140,25 @@ export function LandingPage() {
                   Explore transport options, review their routes and listed rates, and choose the right fit for your cargo.
                 </p>
               </div>
-              <Link href="/trucks" className="inline-flex shrink-0 items-center gap-2 text-sm font-semibold text-brand transition hover:text-brand-dark">
-                Browse all trucks
-                <span aria-hidden="true">→</span>
-              </Link>
             </div>
             {featuredTrucks.length ? (
-              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {featuredTrucks.map((truck) => <TruckCard key={truck.id} truck={truck} />)}
-              </div>
+              <>
+                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                  {featuredTrucks.map((truck) => <TruckCard key={truck.id} truck={truck} />)}
+                </div>
+                {featuredTrucks.length < availableTrucks.length ? (
+                  <div className="mt-8 text-center">
+                    <button
+                      type="button"
+                      onClick={() => setVisibleTruckCount((count) => count + 6)}
+                      className="inline-flex items-center gap-2 rounded-full border border-brand px-6 py-3 text-sm font-semibold text-brand transition hover:bg-brand hover:text-white"
+                    >
+                      Browse more trucks
+                      <span aria-hidden="true">↓</span>
+                    </button>
+                  </div>
+                ) : null}
+              </>
             ) : (
               <div className="rounded-2xl border border-dashed border-line bg-white px-6 py-14 text-center text-sm text-muted">
                 New trucks are being added to the marketplace.
@@ -181,35 +191,55 @@ export function LandingPage() {
                   {
                     title: "Owner lists a truck",
                     description: "The truck stays available until someone books it.",
+                    action: "List a truck",
+                    href: "/register?role=TRUCK_OWNER",
                   },
                   {
                     title: "Importer books it",
                     description: "Cargo and journey details are sent. The truck becomes unavailable right away.",
+                    action: "Browse available trucks",
+                    href: "/#available-trucks",
                   },
                   {
                     title: "Pay the listed price",
                     description: "The owner sets a fixed price. Pay from your iBanga wallet after acceptance.",
+                    action: "Go to your wallet",
+                    href: "/dashboard/wallet",
                   },
                   {
                     title: "Owner accepts or rejects",
                     description: "Accepting keeps the truck locked for the trip. Rejecting makes it available again.",
+                    action: "Review booking requests",
+                    href: "/dashboard/owner/requests",
                   },
                   {
                     title: "Move the cargo",
                     description: "The owner starts the trip and marks it delivered.",
+                    action: "Manage active trips",
+                    href: "/dashboard/owner/trips",
                   },
                   {
                     title: "Confirm or dispute",
                     description: "The importer confirms receipt or reports a problem. The truck is released after the trip is completed.",
+                    action: "Review your bookings",
+                    href: "/dashboard/importer/bookings",
                   },
                 ].map((step, index) => (
-                  <article key={step.title} className="rounded-2xl border border-line bg-slate-50 p-5 shadow-sm">
+                  <article key={step.title} className="group rounded-2xl border border-line bg-slate-50 p-5 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-brand/30 hover:shadow-card">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-semibold text-brand">{String(index + 1).padStart(2, "0")}</span>
-                      <span aria-hidden="true" className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-soft text-sm text-brand">→</span>
+                      <Link
+                        href={step.href}
+                        aria-label={step.action}
+                        title={step.action}
+                        className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-soft text-sm text-brand transition duration-200 group-hover:translate-x-1 group-hover:bg-brand group-hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                      >
+                        <span aria-hidden="true">→</span>
+                      </Link>
                     </div>
                     <h3 className="mt-4 font-display text-lg text-navy">{step.title}</h3>
                     <p className="mt-2 text-sm leading-6 text-muted">{step.description}</p>
+                    <p className="mt-4 text-xs font-semibold text-brand">{step.action}</p>
                   </article>
                 ))}
               </div>
@@ -240,7 +270,7 @@ export function LandingPage() {
                     role: "Operations lead",
                   },
                 ].map((review) => (
-                  <article key={review.name} className="flex h-full flex-col rounded-3xl border border-line bg-white p-6 shadow-sm">
+                  <article key={review.name} className="flex h-full flex-col rounded-3xl border border-line bg-white p-6 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-brand/30 hover:shadow-card">
                     <div aria-label="5 out of 5 stars" className="flex gap-1 text-lg leading-none text-amber-500">
                       {Array.from({ length: 5 }, (_, index) => (
                         <span key={index} aria-hidden="true">★</span>
