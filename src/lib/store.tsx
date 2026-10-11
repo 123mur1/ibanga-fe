@@ -243,8 +243,25 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     "Password reset is not available yet. Contact support for assistance.", []);
 
   const register = useCallback<Store["register"]>(async (input) => {
-    if (state.users.some((user) => user.email.toLowerCase() === input.email.toLowerCase())) {
-      return "An account with this email already exists.";
+    try {
+      const data = await api<AuthPayload>("/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          name: input.name,
+          email: input.email,
+          password: input.password,
+          phone: input.phone,
+          location: input.location,
+          company: input.company,
+          role: input.role,
+        }),
+      });
+      setToken(data.token);
+      setAuthUser(toUser(data.user));
+      void refreshBookings();
+      return null;
+    } catch (err) {
+      return err instanceof Error ? err.message : "Registration failed.";
     }
     const user: User = {
       id: `user-${Date.now()}`,

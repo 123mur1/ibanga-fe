@@ -134,11 +134,31 @@ export function LandingPage() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">Ready to move</p>
-                <h2 className="mt-2 font-display text-3xl tracking-tight text-navy sm:text-4xl">Available trucks</h2>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-muted sm:text-base">
-                  Explore transport options, review their routes and listed rates, and choose the right fit for your cargo.
-                </p>
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-200">Why teams switch</p>
+                <h2 className="mt-2 font-display text-3xl sm:text-4xl">The direct path beats broker chaos</h2>
+              </div>
+              <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-200">
+                built for real logistics flow
+              </span>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+                <h3 className="font-display text-2xl text-white">Traditional process</h3>
+                <ul className="mt-6 space-y-4 text-sm text-slate-300">
+                  <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-rose-400" />Multiple calls, manual messages, and unclear truck availability.</li>
+                  <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-rose-400" />Pricing is often negotiated off-platform and not tracked properly.</li>
+                  <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-rose-400" />Status updates are fragmented and delayed.</li>
+                </ul>
+              </div>
+
+              <div className="rounded-[28px] border border-brand/30 bg-linear-to-br from-brand/20 via-blue-500/10 to-white/5 p-6">
+                <h3 className="font-display text-2xl text-white">iBanga experience</h3>
+                <ul className="mt-6 space-y-4 text-sm text-blue-50">
+                  <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-400" />One clean booking flow with live truck availability.</li>
+                  <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-400" />Direct RWF pricing visibility before anyone commits.</li>
+                  <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-400" />Trip status, confirmations, and dispute tracking in one place.</li>
+                </ul>
               </div>
             </div>
             {featuredTrucks.length ? (
@@ -291,39 +311,6 @@ export function LandingPage() {
         </section>
       </main>
 
-      <footer className="bg-[#06334b] text-white">
-        <div id="contact" className="scroll-mt-24 mx-auto max-w-7xl px-5 py-12 sm:px-8 lg:px-12">
-          <div className="mb-7 max-w-2xl">
-            <p className="text-sm font-semibold uppercase tracking-wider text-sky-200">Contact iBanga</p>
-            <h2 className="mt-2 font-display text-2xl text-white sm:text-3xl">We’re here to help your freight move.</h2>
-            <p className="mt-3 text-sm leading-6 text-white/70">
-              For marketplace questions or support with a booking, reach out using the contact details below.
-            </p>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <section className="rounded-2xl border border-white/15 bg-white/5 p-5">
-              <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-200">Telephones</h3>
-              <a href="tel:+250780000001" className="mt-3 block text-base font-semibold text-white hover:text-sky-200">+250 780 000 001</a>
-              <a href="tel:+250788441220" className="mt-2 block text-base font-semibold text-white hover:text-sky-200">+250 788 441 220</a>
-            </section>
-            <section className="rounded-2xl border border-white/15 bg-white/5 p-5">
-              <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-200">Email &amp; reception</h3>
-              <a href="mailto:admin@ibanga.com" className="mt-3 block break-all text-base font-semibold text-white hover:text-sky-200">admin@ibanga.com</a>
-              <p className="mt-2 text-xs leading-5 text-white/60">For general enquiries and reception.</p>
-            </section>
-            <section className="rounded-2xl border border-white/15 bg-white/5 p-5 sm:col-span-2 lg:col-span-1">
-              <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-200">Address</h3>
-              <address className="mt-3 text-base font-semibold not-italic leading-6 text-white">KN 85 Street<br />Nyarugenge, Kigali<br />Rwanda</address>
-            </section>
-          </div>
-        </div>
-        <div className="border-t border-white/10">
-          <div className="mx-auto flex max-w-7xl flex-col gap-2 px-5 py-5 text-xs text-white/55 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-12">
-            <span>© {new Date().getFullYear()} iBanga. Freight moves forward.</span>
-            <span>Built for the regional logistics community.</span>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

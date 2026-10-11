@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
-import { BrandLink, LogoMark } from "./brand";
-import { LogoutConfirmationDialog } from "./logout-confirmation-dialog";
+import { useEffect, useRef, useState } from "react";
+import { BrandLink } from "./brand";
 import { Avatar } from "./photos";
 import { useIbanga } from "@/lib/store";
 import type { Role } from "@/lib/types";
@@ -180,21 +179,48 @@ export function DashboardShell({
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [logoutConfirmationOpen, setLogoutConfirmationOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
   const items = nav[role];
   const firstName = (currentUser?.name ?? "").split(" ")[0] || "there";
   const profilePath = role === "TRUCK_OWNER"
     ? "/dashboard/owner/profile"
     : role === "ADMIN" ? "/dashboard/admin/profile" : "/dashboard/importer/profile";
 
-  function handleLogout() {
-    setLogoutConfirmationOpen(true);
-  }
+  useEffect(() => {
+    if (!showLogoutConfirmation && !profileMenuOpen) return;
 
-  function confirmLogout() {
-    setLogoutConfirmationOpen(false);
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setShowLogoutConfirmation(false);
+        setProfileMenuOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [profileMenuOpen, showLogoutConfirmation]);
+
+  useEffect(() => {
+    if (!profileMenuOpen) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      if (
+        event.target instanceof Node &&
+        !profileMenuRef.current?.contains(event.target)
+      ) {
+        setProfileMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [profileMenuOpen]);
+
+  function handleLogout() {
+    setProfileMenuOpen(false);
+    setShowLogoutConfirmation(false);
     setOpen(false);
     setProfileOpen(false);
     logout();
@@ -268,27 +294,8 @@ export function DashboardShell({
             </p>
           </div> : null}
 
-          <div className={`mt-auto border-t border-line p-3 ${collapsed ? "px-2" : ""}`}>
-            <Link
-              href="/"
-              title={collapsed ? "Home" : undefined}
-              className={`flex items-center rounded-xl py-2.5 text-sm font-medium text-muted transition hover:bg-background hover:text-navy ${collapsed ? "justify-center px-2" : "gap-3 px-3.5"}`}
-            >
-              <NavIcon name="home" />
-              {!collapsed ? "Home" : null}
-            </Link>
-            <button
-              type="button"
-              title={collapsed ? "Log out" : undefined}
-              onClick={handleLogout}
-              className={`mt-1 flex w-full items-center rounded-xl py-2.5 text-left text-sm font-medium text-bad transition hover:bg-bad-soft ${collapsed ? "justify-center px-2" : "gap-3 px-3.5"}`}
-            >
-              <NavIcon name="logout" />
-              {!collapsed ? "Log out" : null}
-            </button>
-            <div className={`mt-2 px-1 pt-2 text-xs text-muted/70 ${collapsed ? "text-center" : ""}`}>
-              {collapsed ? "iB" : "iBanga"}
-            </div>
+          <div className="m-3 flex items-center justify-end border-t border-line pt-4 px-1">
+            <span className="text-xs text-muted/70">v1 · iBanga</span>
           </div>
         </aside>
 
@@ -321,34 +328,75 @@ export function DashboardShell({
               <span className="font-medium text-navy">Good {morning()}, {firstName}.</span>
             </div>
 
-            <div className="relative">
-              <button
-                type="button"
-                aria-expanded={profileOpen}
-                onClick={() => setProfileOpen((value) => !value)}
-                className="flex items-center gap-3 rounded-xl border border-line bg-white px-2.5 py-2 text-left shadow-soft transition hover:border-brand/30"
+            <div className="flex items-center gap-2.5">
+              <Link
+                href="/"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-3.5 py-2 text-sm font-semibold text-navy shadow-soft transition hover:-translate-y-0.5 hover:border-navy/20"
               >
-                <Avatar src={currentUser?.photo} name={currentUser?.name ?? "User"} size="sm" />
-                <span className="block min-w-0 max-w-[112px] sm:max-w-40">
-                  <span className="block max-w-40 truncate text-sm font-semibold leading-5 text-navy">{currentUser?.name}</span>
-                  <span className="block text-xs text-muted">{roleLabel(role)}</span>
-                </span>
-                <NavIcon name="chevron" className={`h-4 w-4 transition ${profileOpen ? "rotate-180" : ""}`} />
-              </button>
-              {profileOpen ? (
-                <div className="absolute right-0 top-full z-30 mt-2 w-52 rounded-xl border border-line bg-white p-1.5 shadow-card">
-                  <Link href={profilePath} onClick={() => setProfileOpen(false)} className="block rounded-lg px-3 py-2.5 text-sm font-medium text-navy hover:bg-brand-soft">
-                    Profile
-                  </Link>
-                  <Link href="/dashboard/settings" onClick={() => setProfileOpen(false)} className="block rounded-lg px-3 py-2.5 text-sm font-medium text-navy hover:bg-brand-soft">
-                    Settings
-                  </Link>
-                  <button type="button" onClick={handleLogout} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-bad hover:bg-bad-soft">
-                    <NavIcon name="logout" />
-                    Log out
-                  </button>
-                </div>
-              ) : null}
+                <NavIcon name="home" className="h-4 w-4" />
+                <span className="hidden sm:inline">Home</span>
+              </Link>
+              <div className="relative" ref={profileMenuRef}>
+                <button
+                  type="button"
+                  aria-label="Open profile menu"
+                  aria-haspopup="menu"
+                  aria-expanded={profileMenuOpen}
+                  onClick={() => setProfileMenuOpen((value) => !value)}
+                  className="inline-flex items-center gap-2 rounded-full border border-line bg-white py-1.5 pl-1.5 pr-2.5 shadow-soft transition hover:border-brand/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:pr-3.5"
+                >
+                  <Avatar
+                    src={currentUser?.photo}
+                    name={currentUser?.name ?? "User"}
+                    size="sm"
+                  />
+                  <span className="hidden max-w-28 truncate text-sm font-semibold text-navy sm:inline">
+                    {currentUser?.name}
+                  </span>
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                    className={`text-muted transition-transform ${profileMenuOpen ? "rotate-180" : ""}`}
+                  >
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
+                {profileMenuOpen ? (
+                  <div
+                    role="menu"
+                    aria-label="Profile options"
+                    className="absolute right-0 top-full z-30 mt-2 w-64 overflow-hidden rounded-2xl border border-line bg-white p-2 shadow-card"
+                  >
+                    <div className="border-b border-line px-3 py-2.5">
+                      <p className="truncate text-sm font-semibold text-navy">
+                        {currentUser?.name}
+                      </p>
+                      <p className="truncate text-xs text-muted">
+                        {currentUser?.email}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setProfileMenuOpen(false);
+                        setShowLogoutConfirmation(true);
+                      }}
+                      className="mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-bad transition hover:bg-bad-soft focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-bad"
+                    >
+                      <NavIcon name="logout" className="h-4 w-4" />
+                      Log out
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </header>
 
@@ -405,24 +453,6 @@ export function DashboardShell({
                     );
                   })}
                 </nav>
-                <div className="space-y-1 border-t border-line px-3 py-4">
-                  <Link
-                    href="/"
-                    onClick={() => setOpen(false)}
-                    className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium text-navy hover:bg-background"
-                  >
-                    <NavIcon name="home" />
-                    Home
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-medium text-bad hover:bg-bad-soft"
-                  >
-                    <NavIcon name="logout" />
-                    Log out
-                  </button>
-                </div>
               </div>
             </div>
           ) : null}
@@ -430,12 +460,52 @@ export function DashboardShell({
           <main className="mx-0 w-full px-4 py-6 sm:px-5 lg:px-6 lg:py-7">{children}</main>
         </div>
       </div>
-      {logoutConfirmationOpen ? (
-        <LogoutConfirmationDialog
-          userName={currentUser?.name}
-          onCancel={() => setLogoutConfirmationOpen(false)}
-          onConfirm={confirmLogout}
-        />
+      {showLogoutConfirmation ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Cancel logout"
+            className="absolute inset-0 bg-navy/50 backdrop-blur-sm"
+            onClick={() => setShowLogoutConfirmation(false)}
+          />
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="logout-dialog-title"
+            aria-describedby="logout-dialog-description"
+            className="relative z-10 w-full max-w-sm rounded-3xl border border-line bg-card p-6 shadow-card"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-bad-soft text-bad">
+              <NavIcon name="logout" className="h-5 w-5" />
+            </div>
+            <h2
+              id="logout-dialog-title"
+              className="mt-4 font-display text-xl text-navy"
+            >
+              Log out of iBanga?
+            </h2>
+            <p id="logout-dialog-description" className="mt-2 text-sm leading-relaxed text-muted">
+              Are you sure you want to log out? You can sign back in at any time.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setShowLogoutConfirmation(false)}
+                className="rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-semibold text-navy transition hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="rounded-xl bg-bad px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bad"
+              >
+                Log out
+              </button>
+            </div>
+          </section>
+        </div>
       ) : null}
     </div>
   );
