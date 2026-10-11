@@ -14,6 +14,7 @@ export type User = {
   id: string;
   name: string;
   email: string;
+  createdAt?: string;
   phone: string;
   role: Role;
   location: string;
@@ -77,6 +78,7 @@ export type BookingPayment = {
 
 export type WalletTransaction = {
   id: string;
+  userId?: string;
   type: "DEPOSIT" | "BOOKING_PAYMENT" | "BOOKING_EARNING" | "PLATFORM_COMMISSION" | "WITHDRAWAL" | "REFUND";
   status: "PENDING" | "SUCCEEDED" | "FAILED";
   direction: "CREDIT" | "DEBIT";

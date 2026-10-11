@@ -1,22 +1,39 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { TruckBadge } from "@/components/status-badge";
-import { PageHeader } from "@/components/ui";
-import { TruckThumb } from "@/components/photos";
+import { DataTable, PageHeader, StatCard } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
+import { ACTIVE_BOOKING_STATUSES } from "@/lib/types";
+import { useState } from "react";
 
 export default function AdminTrucksPage() {
-  const { trucks, refreshTrucks } = useIbanga();
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    refreshTrucks().then((message) => setError(message));
-  }, [refreshTrucks]);
+  const { trucks, bookings, setAvailability, deleteTruck } = useIbanga();
+  const [busyTruckId, setBusyTruckId] = useState<string | null>(null);
 
   const available = trucks.filter((t) => t.status === "AVAILABLE").length;
+  const heldTruckIds = new Set(
+    bookings
+      .filter((booking) => ACTIVE_BOOKING_STATUSES.includes(booking.status))
+      .map((booking) => booking.truckId),
+  );
+  const truckIdsWithHistory = new Set(bookings.map((booking) => booking.truckId));
+
+  async function toggleAvailability(id: string, status: "AVAILABLE" | "UNAVAILABLE") {
+    setBusyTruckId(id);
+    const error = await setAvailability(id, status === "AVAILABLE" ? "UNAVAILABLE" : "AVAILABLE");
+    setBusyTruckId(null);
+    if (error) window.alert(error);
+  }
+
+  async function removeTruck(id: string, plateNumber: string) {
+    if (!window.confirm(`Remove truck ${plateNumber}? This cannot be undone.`)) return;
+    setBusyTruckId(id);
+    const error = await deleteTruck(id);
+    setBusyTruckId(null);
+    if (error) window.alert(error);
+  }
 
   return (
     <RequireAuth role="ADMIN">
@@ -34,56 +51,48 @@ export default function AdminTrucksPage() {
           }
         />
 
-        {error ? (
-          <p className="mt-4 flex items-center gap-2 rounded-xl border border-bad/20 bg-bad-soft px-3.5 py-2.5 text-sm text-bad">
-            {error}
-          </p>
-        ) : null}
-
-        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {trucks.map((truck) => (
-            <article
-              key={truck.id}
-              className="flex flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-soft transition hover:-translate-y-0.5 hover:shadow-card"
-            >
-              <div className="relative">
-                <TruckThumb photos={truck.photos} alt={truck.plateNumber} className="aspect-4/3" />
-                <div className="absolute left-3 top-3">
-                  <TruckBadge status={truck.status} />
-                </div>
-              </div>
-              <div className="flex flex-1 flex-col p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-display text-lg leading-tight text-navy">
-                      {truck.plateNumber}
-                    </p>
-                    <p className="text-sm text-muted">
-                      {truck.truckType} · {truck.capacity} tons
-                    </p>
-                  </div>
-                </div>
-                <dl className="mt-4 space-y-1.5 text-sm">
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-muted">Owner</dt>
-                    <dd className="truncate font-medium text-navy">
-                      {truck.owner?.name ?? "—"}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-muted">Location</dt>
-                    <dd className="font-medium text-navy">{truck.currentLocation}</dd>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-muted">Route</dt>
-                    <dd className="text-right font-medium text-navy">
-                      {truck.preferredRoute}
-                    </dd>
-                  </div>
-                </dl>
-              </div>
-            </article>
-          ))}
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          <StatCard label="Fleet size" value={trucks.length} hint="Registered vehicles" />
+          <StatCard label="Available" value={available} hint="Ready for bookings" accent="good" />
+          <StatCard label="Owners" value={new Set(trucks.map((truck) => truck.ownerId)).size} hint="Active fleet partners" accent="accent" />
+        </div>
+        <div className="mt-5">
+          <DataTable
+            columns={[{ label: "Vehicle" }, { label: "Owner" }, { label: "Capacity" }, { label: "Location" }, { label: "Route" }, { label: "Status" }, { label: "Actions", className: "text-right" }]}
+            filterLabel="All availability"
+            rows={trucks.map((truck) => ({
+              id: truck.id,
+              searchText: `${truck.plateNumber} ${truck.truckType} ${truck.owner?.name ?? ""} ${truck.currentLocation} ${truck.preferredRoute}`,
+              filterValue: truck.status,
+              exportValues: [truck.plateNumber, truck.owner?.name ?? "", `${truck.capacity} tons`, truck.currentLocation, truck.preferredRoute, truck.status, ""],
+              cells: [
+                <span key={`${truck.id}-vehicle`}><strong className="block">{truck.plateNumber}</strong><span className="text-xs text-muted">{truck.truckType}</span></span>,
+                truck.owner?.name ?? "—",
+                `${truck.capacity} tons`,
+                truck.currentLocation,
+                truck.preferredRoute,
+                <span key={`${truck.id}-status`}><TruckBadge status={truck.status} /></span>,
+                <div key={`${truck.id}-actions`} className="flex min-w-44 justify-end gap-2">
+                  <button
+                    type="button"
+                    disabled={busyTruckId === truck.id || (truck.status === "UNAVAILABLE" && heldTruckIds.has(truck.id))}
+                    onClick={() => void toggleAvailability(truck.id, truck.status)}
+                    className="rounded-lg border border-line px-2.5 py-1.5 text-xs font-semibold text-navy hover:bg-background disabled:opacity-60"
+                  >
+                    {truck.status === "AVAILABLE" ? "Disable" : heldTruckIds.has(truck.id) ? "On booking" : "Enable"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busyTruckId === truck.id || truckIdsWithHistory.has(truck.id)}
+                    onClick={() => void removeTruck(truck.id, truck.plateNumber)}
+                    className="rounded-lg border border-bad/20 px-2.5 py-1.5 text-xs font-semibold text-bad hover:bg-bad-soft disabled:opacity-60"
+                  >
+                    {truckIdsWithHistory.has(truck.id) ? "Has bookings" : "Remove"}
+                  </button>
+                </div>,
+              ],
+            }))}
+          />
         </div>
       </DashboardShell>
     </RequireAuth>

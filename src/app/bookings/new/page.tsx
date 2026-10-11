@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useEffect, useState } from "react";
-import { BrandLink } from "@/components/brand";
+import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { TruckThumb } from "@/components/photos";
 import { Field, inputClass, PrimaryButton } from "@/components/ui";
@@ -218,30 +218,31 @@ function BookingForm() {
 export default function NewBookingPage() {
   return (
     <RequireAuth role="IMPORTER">
-      <div className="min-h-screen bg-background">
-        <header className="border-b border-line bg-card">
-          <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-            <BrandLink />
-            <Link href="/trucks" className="text-sm font-semibold text-brand">
-              Cancel
-            </Link>
+      <DashboardShell role="IMPORTER">
+        <div className="min-h-screen bg-background">
+          <div className="border-b border-line bg-card">
+            <div className="mx-auto flex max-w-5xl justify-end px-4 py-3">
+              <Link href="/trucks" className="text-sm font-semibold text-brand">
+                Cancel
+              </Link>
+            </div>
           </div>
-        </header>
-        <main className="mx-auto max-w-5xl px-4 py-8 sm:py-10">
-          <div className="mx-auto mb-7 max-w-3xl">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-600">Booking request</p>
-            <h1 className="mt-2 font-display text-3xl text-slate-900 sm:text-4xl">Request a freight booking</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-              Share your shipment details and route requirements. We will forward the request to the truck owner for approval.
-            </p>
-          </div>
-          <div className="mx-auto max-w-3xl rounded-[26px] border border-slate-200 bg-white/90 px-5 py-6 shadow-[0_20px_50px_-30px_rgba(15,23,42,0.28)] sm:px-8 sm:py-8">
-            <Suspense>
-              <BookingForm />
-            </Suspense>
-          </div>
-        </main>
-      </div>
+          <main className="mx-auto max-w-5xl px-4 py-8 sm:py-10">
+            <div className="mx-auto mb-7 max-w-3xl">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-600">Booking request</p>
+              <h1 className="mt-2 font-display text-3xl text-slate-900 sm:text-4xl">Request a freight booking</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
+                Share your shipment details and route requirements. We will forward the request to the truck owner for approval.
+              </p>
+            </div>
+            <div className="mx-auto max-w-3xl rounded-[26px] border border-slate-200 bg-white/90 px-5 py-6 shadow-[0_20px_50px_-30px_rgba(15,23,42,0.28)] sm:px-8 sm:py-8">
+              <Suspense>
+                <BookingForm />
+              </Suspense>
+            </div>
+          </main>
+        </div>
+      </DashboardShell>
     </RequireAuth>
   );
 }

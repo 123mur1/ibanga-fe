@@ -1,24 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { TruckBadge } from "@/components/status-badge";
-import { EmptyState, PageHeader } from "@/components/ui";
-import { TruckThumb } from "@/components/photos";
+import { DataTable, PageHeader, StatCard } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
 
 export default function OwnerTrucksPage() {
-  const { currentUser, trucks, trucksLoading, refreshTrucks, deleteTruck, setAvailability } =
+  const { trucks, trucksLoading, deleteTruck, setAvailability } =
     useIbanga();
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (currentUser) refreshTrucks({ mine: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser?.id]);
 
   async function onDelete(id: string) {
     setError(null);
@@ -69,95 +63,35 @@ export default function OwnerTrucksPage() {
           </p>
         ) : null}
 
-        <div className="mt-6 space-y-4">
-          {trucksLoading ? (
-            <p className="text-muted">Loading your fleet…</p>
-          ) : trucks.length ? (
-            trucks.map((truck) => (
-              <div
-                key={truck.id}
-                className="group overflow-hidden rounded-2xl border border-line bg-card shadow-soft transition hover:border-brand/25 hover:shadow-card"
-              >
-                <div className="flex flex-col gap-4 p-5 sm:flex-row">
-                  <TruckThumb
-                    photos={truck.photos}
-                    alt={truck.plateNumber}
-                    className="aspect-4/3 sm:w-44 sm:shrink-0"
-                  />
-                  <div className="flex flex-1 flex-col">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="font-display text-xl tracking-tight text-navy">
-                          {truck.plateNumber}
-                        </p>
-                        <p className="text-sm text-muted">
-                          {truck.truckType} · {truck.capacity} tons ·{" "}
-                          {truck.currentLocation}
-                        </p>
-                        <p className="mt-1.5 inline-flex items-center gap-1.5 text-sm font-medium text-navy/80">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                            <circle cx="6" cy="19" r="2.5" />
-                            <circle cx="18" cy="5" r="2.5" />
-                            <path d="M8.5 19H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.5" />
-                          </svg>
-                          {truck.preferredRoute}
-                        </p>
-                      </div>
-                      <TruckBadge status={truck.status} />
-                    </div>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <Link
-                        href={`/dashboard/owner/trucks/${truck.id}/edit`}
-                        className="rounded-xl border border-line bg-white px-3 py-2 text-sm font-semibold text-navy shadow-soft transition hover:-translate-y-0.5 hover:border-navy/20"
-                      >
-                        Edit
-                      </Link>
-                      <button
-                        type="button"
-                        disabled={busyId === truck.id}
-                        onClick={() => onToggleAvailability(truck.id, truck.status)}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-3 py-2 text-sm font-semibold text-navy shadow-soft transition hover:-translate-y-0.5 hover:border-navy/20 disabled:opacity-60"
-                      >
-                        {busyId === truck.id ? (
-                          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-muted border-t-transparent" />
-                        ) : truck.status === "AVAILABLE" ? (
-                          <span className="h-2 w-2 rounded-full bg-warn" />
-                        ) : (
-                          <span className="h-2 w-2 rounded-full bg-good" />
-                        )}
-                        {busyId === truck.id
-                          ? "Updating…"
-                          : truck.status === "AVAILABLE"
-                          ? "Make unavailable"
-                          : "Make available"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onDelete(truck.id)}
-                        className="rounded-xl border border-line bg-white px-3 py-2 text-sm font-semibold text-bad shadow-soft transition hover:-translate-y-0.5 hover:border-bad/30 hover:bg-bad-soft"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))
-          ) : (
-            <EmptyState
-              title="No trucks listed"
-              text="Add a truck with plate, type, capacity, location and route, then it appears in importer search."
-              action={
-                <Link
-                  href="/dashboard/owner/trucks/new"
-                  className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-brand-dark hover:shadow-card"
-                >
-                  Add your first truck
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M5 12h14M13 6l6 6-6 6" />
-                  </svg>
-                </Link>
-              }
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          <StatCard label="Fleet vehicles" value={trucks.length} hint="In your account" />
+          <StatCard label="Available" value={availableCount} hint="Ready to book" accent="good" />
+          <StatCard label="Unavailable" value={trucks.length - availableCount} hint="On a trip or paused" accent="warn" />
+        </div>
+        <div className="mt-5">
+          {trucksLoading ? <p className="text-muted">Loading your fleet…</p> : (
+            <DataTable
+              columns={[{ label: "Vehicle" }, { label: "Capacity" }, { label: "Location" }, { label: "Route" }, { label: "Price" }, { label: "Availability" }, { label: "Actions" }]}
+              filterLabel="All availability"
+              rows={trucks.map((truck) => ({
+                id: truck.id,
+                searchText: `${truck.plateNumber} ${truck.truckType} ${truck.currentLocation} ${truck.preferredRoute}`,
+                filterValue: truck.status,
+                exportValues: [truck.plateNumber, truck.truckType, `${truck.capacity} tons`, truck.currentLocation, truck.preferredRoute, truck.priceRwf == null ? "" : `RWF ${truck.priceRwf.toLocaleString()}`, truck.status],
+                cells: [
+                  <span key={`${truck.id}-vehicle`}><strong className="block">{truck.plateNumber}</strong><span className="text-xs text-muted">{truck.truckType}</span></span>,
+                  `${truck.capacity} tons`,
+                  truck.currentLocation,
+                  truck.preferredRoute,
+                  truck.priceRwf == null ? "Price not set" : `RWF ${truck.priceRwf.toLocaleString()}`,
+                  <span key={`${truck.id}-status`}><TruckBadge status={truck.status} /></span>,
+                  <div key={`${truck.id}-actions`} className="flex flex-wrap gap-1.5">
+                    <Link href={`/dashboard/owner/trucks/${truck.id}/edit`} className="rounded-lg border border-line px-2 py-1 text-xs font-semibold text-navy">Edit</Link>
+                    <button type="button" disabled={busyId === truck.id} onClick={() => void onToggleAvailability(truck.id, truck.status)} className="rounded-lg border border-line px-2 py-1 text-xs font-semibold text-navy disabled:opacity-50">{truck.status === "AVAILABLE" ? "Pause" : "Activate"}</button>
+                    <button type="button" onClick={() => void onDelete(truck.id)} className="rounded-lg border border-bad/20 px-2 py-1 text-xs font-semibold text-bad">Delete</button>
+                  </div>,
+                ],
+              }))}
             />
           )}
         </div>

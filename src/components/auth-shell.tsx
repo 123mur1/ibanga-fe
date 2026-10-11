@@ -1,27 +1,20 @@
-import Link from "next/link";
-import { BrandLink } from "./brand";
+import { PublicNavbar } from "./public-navbar";
 
 export function AuthShell({
   children,
   image,
+  showImage = true,
 }: {
   children: React.ReactNode;
-  image: string;
+  image?: string;
+  showImage?: boolean;
 }) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="flex items-center justify-between px-5 py-4 lg:hidden">
-        <BrandLink />
-        <Link href="/" className="text-sm font-semibold text-brand">
-          Home
-        </Link>
-      </header>
+      <PublicNavbar />
 
       <div className="flex flex-1">
-        <main className="flex w-full flex-col items-center justify-center gap-6 px-5 pb-12 pt-4 lg:w-1/2 lg:px-10 lg:pb-0">
-          <div className="hidden w-full max-w-xl lg:block">
-            <BrandLink />
-          </div>
+        <main className={`flex w-full flex-col items-center justify-center gap-6 px-5 pb-12 pt-4 ${showImage ? "lg:w-1/2 lg:px-10 lg:pb-0" : "lg:px-8 lg:py-10"}`}>
           {children}
         </main>
 

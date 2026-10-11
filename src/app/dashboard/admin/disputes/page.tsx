@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
-import { EmptyState, PageHeader, Field, inputClass, PrimaryButton } from "@/components/ui";
+import { DataTable, PageHeader, StatCard, inputClass, PrimaryButton } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
 
 export default function AdminDisputesPage() {
@@ -25,105 +25,40 @@ export default function AdminDisputesPage() {
             </svg>
           }
         />
-        <p className="mt-4 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold bg-bad-soft text-bad">
-          <span className="h-1.5 w-1.5 rounded-full bg-bad" />
-          {open.length} open, {disputes.length - open.length} resolved
-        </p>
-
-        <div className="mt-4 space-y-4">
-          {disputes.length ? (
-            disputes.map((dispute) => {
-              const booking = bookings.find((b) => b.id === dispute.bookingId);
-              const importer = users.find((u) => u.id === dispute.raisedBy);
-              const truck = booking
-                ? trucks.find((t) => t.id === booking.truckId)
-                : undefined;
-              const isOpen = dispute.status === "OPEN";
-              return (
-                <article
-                  key={dispute.id}
-                  className={`overflow-hidden rounded-2xl border bg-card shadow-soft transition ${
-                    isOpen ? "border-bad/25" : "border-line opacity-80"
-                  }`}
-                >
-                  <div
-                    className={`border-b border-line px-5 py-4 ${
-                      isOpen ? "bg-gradient-to-r from-bad-soft/60 to-transparent" : "bg-background/60"
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <h2 className="font-display text-lg tracking-tight text-navy">
-                        {booking
-                          ? `${booking.pickupLocation} → ${booking.destination}`
-                          : dispute.bookingId}
-                      </h2>
-                      <span
-                        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ring-1 ${
-                          isOpen
-                            ? "bg-white text-bad ring-bad/20"
-                            : "bg-good-soft text-good ring-good/10"
-                        }`}
-                      >
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            isOpen ? "bg-bad" : "bg-good"
-                          }`}
-                        />
-                        {dispute.status}
-                      </span>
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          <StatCard label="Total disputes" value={disputes.length} hint="Marketplace cases" />
+          <StatCard label="Open cases" value={open.length} hint="Require review" accent="bad" />
+          <StatCard label="Resolved" value={disputes.length - open.length} hint="Closed with notes" accent="good" />
+        </div>
+        <div className="mt-5">
+          <DataTable
+            columns={[{ label: "Route" }, { label: "Reported by" }, { label: "Issue" }, { label: "Status" }, { label: "Resolution" }]}
+            filterLabel="All case statuses"
+            rows={disputes.map((dispute) => {
+              const booking = bookings.find((item) => item.id === dispute.bookingId);
+              const importer = users.find((item) => item.id === dispute.raisedBy);
+              const truck = booking ? trucks.find((item) => item.id === booking.truckId) : undefined;
+              const route = booking ? `${booking.pickupLocation} to ${booking.destination}` : dispute.bookingId;
+              return {
+                id: dispute.id,
+                searchText: `${route} ${importer?.name ?? ""} ${truck?.plateNumber ?? ""} ${dispute.reason}`,
+                filterValue: dispute.status,
+                exportValues: [route, importer?.name ?? "", dispute.reason, dispute.status, dispute.resolutionNotes],
+                cells: [
+                  <span key={`${dispute.id}-route`}><strong className="block">{route}</strong><span className="text-xs text-muted">{truck?.plateNumber ?? "Truck details unavailable"}</span></span>,
+                  importer?.name ?? "—",
+                  <span key={`${dispute.id}-reason`} className="max-w-sm whitespace-normal">{dispute.reason}</span>,
+                  <span key={`${dispute.id}-status`} className={`rounded-full px-2.5 py-1 text-xs font-semibold ${dispute.status === "OPEN" ? "bg-bad-soft text-bad" : "bg-good-soft text-good"}`}>{dispute.status.replace("_", " ")}</span>,
+                  dispute.status === "OPEN" ? (
+                    <div key={`${dispute.id}-action`} className="flex min-w-56 items-center gap-2">
+                      <input aria-label={`Resolution notes for ${dispute.id}`} placeholder="Resolution notes" value={notes[dispute.id] ?? ""} onChange={(event) => setNotes((current) => ({ ...current, [dispute.id]: event.target.value }))} className={`${inputClass} min-w-28 py-2`} />
+                      <PrimaryButton type="button" className="shrink-0 px-3 py-2 text-xs" onClick={() => void resolveDispute(dispute.id, notes[dispute.id] || "Resolved by admin")}>Resolve</PrimaryButton>
                     </div>
-                    <p className="mt-1.5 text-sm text-muted">
-                      Raised by {importer?.name} · truck {truck?.plateNumber}
-                    </p>
-                  </div>
-                  <div className="px-5 py-4">
-                    <p className="rounded-xl bg-background px-3.5 py-2.5 text-sm text-navy">
-                      “{dispute.reason}”
-                    </p>
-                    {isOpen ? (
-                      <div className="mt-4 space-y-3 border-t border-line pt-4">
-                        <Field label="Resolution notes">
-                          <textarea
-                            className={`${inputClass} min-h-20`}
-                            value={notes[dispute.id] ?? ""}
-                            onChange={(e) =>
-                              setNotes((n) => ({
-                                ...n,
-                                [dispute.id]: e.target.value,
-                              }))
-                            }
-                          />
-                        </Field>
-                        <PrimaryButton
-                          type="button"
-                          onClick={async () =>
-                            await resolveDispute(
-                              dispute.id,
-                              notes[dispute.id] || "Resolved by admin",
-                            )
-                          }
-                        >
-                          Resolve and free truck
-                        </PrimaryButton>
-                      </div>
-                    ) : (
-                      <p className="mt-3 flex items-start gap-2 text-sm text-muted">
-                        <svg className="mt-0.5 shrink-0 text-good" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <path d="M20 6 9 17l-5-5" />
-                        </svg>
-                        Notes: {dispute.resolutionNotes}
-                      </p>
-                    )}
-                  </div>
-                </article>
-              );
-            })
-          ) : (
-            <EmptyState
-              title="No disputes"
-              text="Importer problem reports will appear here for you to resolve."
-            />
-          )}
+                  ) : dispute.resolutionNotes || "Closed",
+                ],
+              };
+            })}
+          />
         </div>
       </DashboardShell>
     </RequireAuth>

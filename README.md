@@ -1,40 +1,43 @@
-<<<<<<< HEAD
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# iBanga
 
-## Getting Started
+iBanga is a freight marketplace for importers, truck owners, and marketplace administrators. The current application stores marketplace records in the browser and does not process external payments.
 
-First, run the development server:
+## Run locally
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Administrator access
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Role | Email | Password |
+| --- | --- | --- |
+| Administrator | `admin@ibanga.com` | `admin123` |
 
-## Learn More
+All importer and truck-owner test accounts use `ibanga123`. Example logins:
 
-To learn more about Next.js, take a look at the following resources:
+| Role | Email | Password |
+| --- | --- | --- |
+| Importer | `maya@greenroute.rw` | `ibanga123` |
+| Importer | `chantal@kivucollective.ibanga.test` | `ibanga123` |
+| Truck owner | `patrick@pnt-logistics.rw` | `ibanga123` |
+| Truck owner | `beatrice@akellofreight.ibanga.test` | `ibanga123` |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The preloaded test workspace contains 27 accounts, 162 trucks, 915 bookings, 61 disputes, and 324 wallet transactions. Use **Restore initial data** in the admin dashboard to reload the preloaded records after testing.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Marketplace capabilities
 
-## Deploy on Vercel
+- Importers can search trucks, request bookings, follow trip progress, raise disputes, and manage their wallet.
+- Truck owners can list and manage vehicles, respond to requests, track trips, and manage payouts.
+- Administrators can review marketplace activity, manage accounts and trucks, update booking statuses, resolve disputes, review wallet records, and export reports.
+- Account records and preferences are stored in browser local storage. Wallet activity is recorded locally and does not charge or transfer real funds.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Checks
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-=======
-# ibanga-fe
->>>>>>> 986b7617145369e391499f2fa7e95f4246db93ac
+```bash
+npx eslint src
+npm run build
+```

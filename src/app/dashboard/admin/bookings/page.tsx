@@ -6,9 +6,11 @@ import { RequireAuth } from "@/components/require-auth";
 import { LiveTripTracking } from "@/components/live-trip-tracking";
 import { EmptyState, PageHeader, formatDate } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
+import type { BookingStatus } from "@/lib/types";
 
 export default function AdminBookingsPage() {
-  const { bookings, trucks, users } = useIbanga();
+  const { bookings, trucks, users, setBookingStatus } = useIbanga();
+  const statuses: BookingStatus[] = ["PENDING", "ACCEPTED", "IN_PROGRESS", "DELIVERED", "COMPLETED", "DISPUTED", "REJECTED"];
 
   return (
     <RequireAuth role="ADMIN">

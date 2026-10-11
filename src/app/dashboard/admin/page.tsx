@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
-import { GhostButton, PageHeader, StatCard } from "@/components/ui";
-import { api } from "@/lib/api";
+import { DataTable, GhostButton, PageHeader, StatCard, formatDate } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
 import type { Booking, BookingStatus, Role } from "@/lib/types";
 import Link from "next/link";
@@ -152,15 +151,26 @@ function downloadCsv(
 }
 
 export default function AdminHome() {
-  const { trucks, bookings, disputes, resetDemo, refreshTrucks } = useIbanga();
-  const [userCount, setUserCount] = useState<number | null>(null);
-  const [users, setUsers] = useState<AdminReportUser[]>([]);
+  const { trucks, bookings, disputes, users: accountUsers, resetWorkspace } = useIbanga();
+  const users: AdminReportUser[] = accountUsers.map((user) => ({
+    ...user,
+    phone: user.phone || null,
+    location: user.location || null,
+    company: user.company || null,
+    createdAt: user.createdAt ?? new Date(0).toISOString(),
+  }));
+  const userCount = users.length;
   const [reportKind, setReportKind] = useState<ReportKind>("overview");
-  const [commission, setCommission] = useState<{
-    availableRwf: number;
-    totalEarnedRwf: number;
-  } | null>(null);
-  const [userCountError, setUserCountError] = useState(false);
+  const commission = bookings.reduce(
+    (totals, booking) => {
+      const payment = booking.payment;
+      if (payment?.status === "FUNDED") totals.availableRwf += payment.commissionRwf;
+      if (payment?.status === "RELEASED") totals.totalEarnedRwf += payment.commissionRwf;
+      return totals;
+    },
+    { availableRwf: 0, totalEarnedRwf: 0 },
+  );
+  const userCountError = false;
   const [resetting, setResetting] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
   const openDisputes = disputes.filter((d) => d.status === "OPEN").length;
@@ -189,33 +199,11 @@ export default function AdminHome() {
     .join(" ");
   const bookingAreaPath = `${bookingLinePath} L596,166 L44,166 Z`;
 
-  useEffect(() => {
-    let active = true;
-    void refreshTrucks();
-    api<AdminReportUser[]>("/users")
-      .then((allUsers) => {
-        if (active) {
-          setUsers(allUsers);
-          setUserCount(allUsers.length);
-        }
-      })
-      .catch(() => {
-        if (active) setUserCountError(true);
-      });
-    api<{ availableRwf: number; totalEarnedRwf: number }>("/wallet/admin/commission")
-      .then((summary) => {
-        if (active) setCommission(summary);
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, [refreshTrucks]);
-
   async function handleReset() {
+    if (!window.confirm("Restore marketplace records and balances to their initial values? This will discard current changes.")) return;
     setResetting(true);
     setResetError(null);
-    const error = await resetDemo();
+    const error = await resetWorkspace();
     if (error) setResetError(error);
     setResetting(false);
   }
@@ -405,7 +393,7 @@ export default function AdminHome() {
                 disabled={resetting}
                 onClick={() => void handleReset()}
               >
-                {resetting ? "Resetting…" : "Reset demo data"}
+                {resetting ? "Restoring…" : "Restore initial data"}
               </GhostButton>
             </>
           }
@@ -478,6 +466,36 @@ export default function AdminHome() {
             accent="bad"
           />
         </div>
+
+        <section className="mt-8">
+          <div className="mb-4">
+            <h2 className="font-display text-xl text-navy">Booking register</h2>
+            <p className="mt-1 text-sm text-muted">Filter, select, and export marketplace booking records.</p>
+          </div>
+          <DataTable
+            columns={[{ label: "Route" }, { label: "Importer" }, { label: "Truck" }, { label: "Created" }, { label: "Cargo" }, { label: "Status" }]}
+            filterLabel="All booking statuses"
+            rows={bookings.map((booking) => {
+              const truck = trucks.find((item) => item.id === booking.truckId);
+              const importer = users.find((user) => user.id === booking.importerId);
+              const route = `${booking.pickupLocation} to ${booking.destination}`;
+              return {
+                id: booking.id,
+                searchText: `${route} ${importer?.name ?? ""} ${truck?.plateNumber ?? ""} ${booking.cargoType}`,
+                filterValue: booking.status,
+                exportValues: [route, importer?.name ?? "", truck?.plateNumber ?? "", formatDate(booking.createdAt), booking.cargoType, booking.status],
+                cells: [
+                  <span key={`${booking.id}-route`} className="font-semibold">{route}</span>,
+                  importer?.name ?? "—",
+                  truck?.plateNumber ?? "—",
+                  formatDate(booking.createdAt),
+                  `${booking.cargoType} · ${booking.cargoWeight}`,
+                  <span key={`${booking.id}-status`} className="rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand-dark">{booking.status.replace("_", " ")}</span>,
+                ],
+              };
+            })}
+          />
+        </section>
 
         <section className="mt-10">
           <div className="flex flex-wrap items-end justify-between gap-3">

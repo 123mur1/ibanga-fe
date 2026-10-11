@@ -1,24 +1,24 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f5f7ff;
-  --foreground: #0f172a;
-  --navy: #0f172a;
-  --navy-soft: #1e293b;
-  --brand: #2563eb;
-  --brand-dark: #1d4ed8;
-  --brand-soft: #eaf3ff;
-  --accent: #f59e0b;
-  --accent-dark: #d97706;
-  --accent-soft: #fff4dc;
+  --background: #f4f8fa;
+  --foreground: #16313e;
+  --navy: #00628b;
+  --navy-soft: #084d68;
+  --brand: #00628b;
+  --brand-dark: #004d6e;
+  --brand-soft: #e8f3f7;
+  --accent: #2487a8;
+  --accent-dark: #005a7c;
+  --accent-soft: #e8f3f7;
   --good: #059669;
   --good-soft: #eafaf4;
   --warn: #ea580c;
   --warn-soft: #fff1e6;
   --bad: #dc2626;
   --bad-soft: #fef2f2;
-  --ink: #0f172a;
-  --muted: #5f6f87;
+  --ink: #16313e;
+  --muted: #647784;
   --card: #ffffff;
   --line: #e5e7eb;
 }
@@ -50,7 +50,7 @@
   --color-card: var(--card);
   --color-line: var(--line);
   --font-sans: var(--font-ibanga-sans);
-  --font-display: var(--font-ibanga-display);
+  --font-display: var(--font-ibanga-sans);
 }
 
 html {
@@ -58,19 +58,13 @@ html {
 }
 
 body {
-  background:
-    radial-gradient(
-      900px 480px at 30% -160px,
-      #ffffff 0%,
-      rgba(255, 255, 255, 0) 60%
-    ),
-    var(--background);
+  background: var(--background);
   color: var(--ink);
   font-family: var(--font-ibanga-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
 .font-display {
-  font-family: var(--font-ibanga-display), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-ibanga-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
 .paper-grid {
@@ -103,6 +97,45 @@ body {
 
 .float-slow {
   animation: float 7s ease-in-out infinite;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 550ms ease-out both;
+}
+
+.animate-slide-progress {
+  animation: slide-progress 5.5s linear both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 .shine {
