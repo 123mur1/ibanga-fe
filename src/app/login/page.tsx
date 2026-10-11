@@ -6,6 +6,24 @@ import { FormEvent, Suspense, useEffect, useState } from "react";
 import { AuthShell } from "@/components/auth-shell";
 import { Field, inputClass, PrimaryButton } from "@/components/ui";
 import { dashboardPath, useIbanga } from "@/lib/store";
+import type { Role } from "@/lib/types";
+
+function getPostLoginPath(role: Role, requestedPath: string | null) {
+  const roleHome = dashboardPath(role);
+  if (requestedPath === roleHome || requestedPath?.startsWith(`${roleHome}/`)) {
+    return requestedPath;
+  }
+  if (requestedPath === "/dashboard/wallet" || requestedPath === "/trucks") {
+    return requestedPath;
+  }
+  if (role === "IMPORTER" && requestedPath && /^\/trucks\/[^/]+$/.test(requestedPath)) {
+    return requestedPath;
+  }
+  if (role === "IMPORTER" && requestedPath === "/bookings/new") {
+    return requestedPath;
+  }
+  return roleHome;
+}
 
 function LoginForm() {
   const { login, currentUser } = useIbanga();
@@ -23,7 +41,7 @@ function LoginForm() {
 
   useEffect(() => {
     if (currentUser) {
-      router.replace(next || dashboardPath(currentUser.role));
+      router.replace(getPostLoginPath(currentUser.role, params.get("next")));
     }
   }, [currentUser, params, router]);
 
@@ -37,11 +55,11 @@ function LoginForm() {
       setError(err);
       return;
     }
-    router.push(next || "/dashboard");
+    router.push("/dashboard");
   }
 
   return (
-    <div className="relative mx-auto w-full max-w-md">
+    <div className="relative mx-auto w-full max-w-2xl">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -inset-6 -z-10 rounded-full bg-linear-to-tr from-brand/25 via-accent/15 to-transparent blur-2xl"
@@ -185,12 +203,17 @@ function LoginForm() {
             <div className="flex items-center justify-between gap-3 pt-1 text-sm">
               <span className="flex items-center gap-2 text-muted">
                 <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-                Secured sign-in
+                Secure account sign-in
               </span>
               <Link href="/forgot-password" className="text-sm font-medium text-brand hover:text-brand-dark">
                 Forgot password?
               </Link>
             </div>
+
+            <section className="rounded-2xl border border-brand/15 bg-brand-soft/45 p-4">
+              <p className="text-sm font-semibold text-navy">Administrator access</p>
+              <p className="mt-1 text-sm text-muted">Sign in with your administrator account to manage the marketplace.</p>
+            </section>
 
             {error ? (
               <p className="flex items-center gap-2 rounded-xl border border-bad/20 bg-bad-soft px-3.5 py-2.5 text-sm text-bad">
@@ -270,7 +293,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <AuthShell image="/photos/ibanga-container-highway.png">
+    <AuthShell showImage={false}>
       <Suspense>
         <LoginForm />
       </Suspense>

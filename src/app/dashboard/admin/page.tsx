@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
-import { GhostButton, PageHeader, StatCard } from "@/components/ui";
-import { api } from "@/lib/api";
+import { DataTable, GhostButton, PageHeader, StatCard, formatDate } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
 import type { Booking, BookingStatus, Role } from "@/lib/types";
 import Link from "next/link";
@@ -152,17 +151,29 @@ function downloadCsv(
 }
 
 export default function AdminHome() {
-  const { trucks, bookings, disputes, resetDemo, refreshTrucks } = useIbanga();
-  const [userCount, setUserCount] = useState<number | null>(null);
-  const [users, setUsers] = useState<AdminReportUser[]>([]);
+  const {
+    trucks,
+    bookings,
+    disputes,
+    users: accountUsers,
+    usersLoadError,
+    commissionLoadError,
+    commissionAvailableRwf,
+    commissionTotalEarnedRwf,
+  } = useIbanga();
+  const users: AdminReportUser[] = accountUsers.map((user) => ({
+    ...user,
+    phone: user.phone || null,
+    location: user.location || null,
+    company: user.company || null,
+    createdAt: user.createdAt ?? new Date(0).toISOString(),
+  }));
+  const userCount = usersLoadError ? null : users.length;
   const [reportKind, setReportKind] = useState<ReportKind>("overview");
-  const [commission, setCommission] = useState<{
-    availableRwf: number;
-    totalEarnedRwf: number;
-  } | null>(null);
-  const [userCountError, setUserCountError] = useState(false);
-  const [resetting, setResetting] = useState(false);
-  const [resetError, setResetError] = useState<string | null>(null);
+  const commission = {
+    availableRwf: commissionAvailableRwf,
+    totalEarnedRwf: commissionTotalEarnedRwf,
+  };
   const openDisputes = disputes.filter((d) => d.status === "OPEN").length;
   const availableTrucks = trucks.filter((truck) => truck.status === "AVAILABLE").length;
   const monthlyBookings = getMonthlyBookingCounts(bookings);
@@ -188,37 +199,6 @@ export default function AdminHome() {
     .map((point, index) => `${index === 0 ? "M" : "L"}${point.x},${point.y}`)
     .join(" ");
   const bookingAreaPath = `${bookingLinePath} L596,166 L44,166 Z`;
-
-  useEffect(() => {
-    let active = true;
-    void refreshTrucks();
-    api<AdminReportUser[]>("/users")
-      .then((allUsers) => {
-        if (active) {
-          setUsers(allUsers);
-          setUserCount(allUsers.length);
-        }
-      })
-      .catch(() => {
-        if (active) setUserCountError(true);
-      });
-    api<{ availableRwf: number; totalEarnedRwf: number }>("/wallet/admin/commission")
-      .then((summary) => {
-        if (active) setCommission(summary);
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, [refreshTrucks]);
-
-  async function handleReset() {
-    setResetting(true);
-    setResetError(null);
-    const error = await resetDemo();
-    if (error) setResetError(error);
-    setResetting(false);
-  }
 
   function handleGenerateReport(format: "csv" | "pdf") {
     const generatedAt = new Date().toISOString();
@@ -400,27 +380,15 @@ export default function AdminHome() {
                   </span>
                 ) : null}
               </Link>
-              <GhostButton
-                type="button"
-                disabled={resetting}
-                onClick={() => void handleReset()}
-              >
-                {resetting ? "Resetting…" : "Reset demo data"}
-              </GhostButton>
             </>
           }
         />
-        {resetError ? (
-          <p className="mt-4 flex items-center gap-2 rounded-xl border border-bad/20 bg-bad-soft px-3.5 py-2.5 text-sm text-bad">
-            {resetError}
-          </p>
-        ) : null}
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
-            label="Commission available"
-            value={commission ? `RWF ${commission.availableRwf.toLocaleString("en-RW")}` : "—"}
-            hint={commission ? `Earned RWF ${commission.totalEarnedRwf.toLocaleString("en-RW")}` : "Loading"}
+            label="Commission fees earned"
+            value={commissionLoadError ? "—" : `RWF ${commission.totalEarnedRwf.toLocaleString("en-RW")}`}
+            hint={commissionLoadError ?? `Available to withdraw RWF ${commission.availableRwf.toLocaleString("en-RW")}`}
             icon={
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M12 2v20M17 5.5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
@@ -431,7 +399,7 @@ export default function AdminHome() {
           <StatCard
             label="Users"
             value={userCount ?? "—"}
-            hint={userCountError ? "Could not load" : userCount === null ? "Loading" : "All accounts"}
+            hint={usersLoadError ?? "All accounts"}
             icon={
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <circle cx="9" cy="8" r="3.5" />
@@ -478,6 +446,36 @@ export default function AdminHome() {
             accent="bad"
           />
         </div>
+
+        <section className="mt-8">
+          <div className="mb-4">
+            <h2 className="font-display text-xl text-navy">Booking register</h2>
+            <p className="mt-1 text-sm text-muted">Filter, select, and export marketplace booking records.</p>
+          </div>
+          <DataTable
+            columns={[{ label: "Route" }, { label: "Importer" }, { label: "Truck" }, { label: "Created" }, { label: "Cargo" }, { label: "Status" }]}
+            filterLabel="All booking statuses"
+            rows={bookings.map((booking) => {
+              const truck = trucks.find((item) => item.id === booking.truckId);
+              const importer = users.find((user) => user.id === booking.importerId);
+              const route = `${booking.pickupLocation} to ${booking.destination}`;
+              return {
+                id: booking.id,
+                searchText: `${route} ${importer?.name ?? ""} ${truck?.plateNumber ?? ""} ${booking.cargoType}`,
+                filterValue: booking.status,
+                exportValues: [route, importer?.name ?? "", truck?.plateNumber ?? "", formatDate(booking.createdAt), booking.cargoType, booking.status],
+                cells: [
+                  <span key={`${booking.id}-route`} className="font-semibold">{route}</span>,
+                  importer?.name ?? "—",
+                  truck?.plateNumber ?? "—",
+                  formatDate(booking.createdAt),
+                  `${booking.cargoType} · ${booking.cargoWeight}`,
+                  <span key={`${booking.id}-status`} className="rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand-dark">{booking.status.replace("_", " ")}</span>,
+                ],
+              };
+            })}
+          />
+        </section>
 
         <section className="mt-10">
           <div className="flex flex-wrap items-end justify-between gap-3">
@@ -697,7 +695,7 @@ export default function AdminHome() {
               </div>
               {!users.length ? (
                 <p className="mt-4 text-sm text-muted">
-                  {userCountError
+                  {usersLoadError
                     ? "User registration data could not be loaded."
                     : userCount === null
                       ? "Loading registration data…"
@@ -731,7 +729,7 @@ export default function AdminHome() {
               </select>
               <GhostButton
                 type="button"
-                disabled={reportKind === "users" && (userCount === null || userCountError)}
+                disabled={reportKind === "users" && (userCount === null || !!usersLoadError)}
                 onClick={() => handleGenerateReport("csv")}
                 className="min-h-11"
               >
@@ -742,7 +740,7 @@ export default function AdminHome() {
               </GhostButton>
               <GhostButton
                 type="button"
-                disabled={reportKind === "users" && (userCount === null || userCountError)}
+                disabled={reportKind === "users" && (userCount === null || !!usersLoadError)}
                 onClick={() => handleGenerateReport("pdf")}
                 className="min-h-11"
               >
@@ -754,7 +752,7 @@ export default function AdminHome() {
               </GhostButton>
             </div>
           </div>
-          {reportKind === "users" && userCountError ? (
+          {reportKind === "users" && usersLoadError ? (
             <p role="alert" className="mt-3 text-sm text-bad">
               User data could not be loaded, so this report is unavailable.
             </p>

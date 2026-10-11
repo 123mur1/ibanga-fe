@@ -8,32 +8,28 @@ import {
   useMemo,
   useState,
 } from "react";
-import { api, getToken, setToken } from "./api";
-import {
-  type Booking,
-  type BookingStatus,
-  type Dispute,
-  type Role,
-  type Truck,
-  type TruckStatus,
-  type User,
+import { api, clearAuthToken, readAuthToken, saveAuthToken } from "./api";
+import type {
+  Booking,
+  BookingStatus,
+  Dispute,
+  Role,
+  Truck,
+  TruckStatus,
+  User,
+  WalletTransaction,
 } from "./types";
 
-type State = {
-  users: User[];
-  bookings: Booking[];
-  disputes: Dispute[];
-  currentUserId: string | null;
-};
-
 type NewBookingInput = Omit<Booking, "id" | "status" | "createdAt">;
-
-export type TruckSearchParams = {
-  mine?: boolean;
-  location?: string;
-  truckType?: string;
-  route?: string;
-  minCapacity?: number;
+type UserProfilePatch = Partial<Pick<User, "name" | "phone" | "location" | "company" | "photo">>;
+type WithdrawalInput = {
+  amountRwf: number;
+  method: "MOBILE_MONEY" | "BANK";
+  beneficiaryName: string;
+  phoneNumber?: string;
+  bankCode?: string;
+  branchCode?: string;
+  accountNumber?: string;
 };
 
 export type NewTruckInput = {
@@ -47,49 +43,21 @@ export type NewTruckInput = {
   photos?: string[];
 };
 
-function buildTruckQuery(params?: TruckSearchParams) {
-  if (!params) return "";
-  const search = new URLSearchParams();
-  if (params.mine) search.set("mine", "true");
-  if (params.location) search.set("location", params.location);
-  if (params.truckType) search.set("truckType", params.truckType);
-  if (params.route) search.set("route", params.route);
-  if (params.minCapacity) search.set("minCapacity", String(params.minCapacity));
-  const qs = search.toString();
-  return qs ? `?${qs}` : "";
-}
-
-type AuthPayload = {
-  token: string;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    phone: string | null;
-    role: Role;
-    location: string | null;
-    company: string | null;
-    photo: string | null;
-  };
-};
-
-function toUser(u: AuthPayload["user"]): User {
-  return {
-    id: u.id,
-    name: u.name,
-    email: u.email,
-    phone: u.phone ?? "",
-    role: u.role,
-    location: u.location ?? "",
-    company: u.company ?? "",
-    photo: u.photo ?? undefined,
-    active: true,
-  };
-}
-
-type Store = State & {
+type Store = {
   ready: boolean;
+  loadError: string | null;
+  usersLoadError: string | null;
+  commissionLoadError: string | null;
   currentUser: User | null;
+  users: User[];
+  bookings: Booking[];
+  disputes: Dispute[];
+  trucks: Truck[];
+  trucksLoading: boolean;
+  walletBalance: number;
+  transactions: WalletTransaction[];
+  commissionAvailableRwf: number;
+  commissionTotalEarnedRwf: number;
   login: (email: string, password: string) => Promise<string | null>;
   requestPasswordReset: (email: string) => Promise<{ message: string; error?: string } | null>;
   resetPassword: (token: string, password: string) => Promise<string | null>;
@@ -98,15 +66,11 @@ type Store = State & {
     email: string;
     phone: string;
     location: string;
-    company: string;
     password: string;
     role: Exclude<Role, "ADMIN">;
   }) => Promise<string | null>;
   logout: () => void;
-  updateProfile: (patch: Partial<Pick<User, "name" | "phone" | "location" | "company" | "photo">>) => Promise<string | null>;
-  trucks: Truck[];
-  trucksLoading: boolean;
-  refreshTrucks: (params?: TruckSearchParams) => Promise<string | null>;
+  updateProfile: (patch: UserProfilePatch) => Promise<string | null>;
   fetchTruck: (id: string) => Promise<Truck>;
   addTruck: (input: NewTruckInput) => Promise<string | null>;
   updateTruck: (
@@ -119,134 +83,340 @@ type Store = State & {
   setBookingStatus: (id: string, status: BookingStatus) => Promise<string | null>;
   reportProblem: (bookingId: string, reason: string) => Promise<string | null>;
   resolveDispute: (disputeId: string, notes: string) => Promise<string | null>;
-  setUserActive: (userId: string, active: boolean) => void;
-  resetDemo: () => Promise<string | null>;
+  deleteUser: (userId: string) => Promise<string | null>;
+  depositFunds: (amount: number, phoneNumber: string) => Promise<string | null>;
+  withdrawFunds: (input: WithdrawalInput) => Promise<string | null>;
+  payBooking: (bookingId: string) => Promise<string | null>;
+  getBanks: () => Promise<{ id?: string; code?: string; name?: string }[]>;
+  getBankBranches: (bankCode: string) => Promise<{ id?: string; code?: string; name?: string }[]>;
 };
+
+type AppState = {
+  currentUser: User | null;
+  users: User[];
+  usersLoadError: string | null;
+  commissionLoadError: string | null;
+  bookings: Booking[];
+  disputes: Dispute[];
+  trucks: Truck[];
+  walletBalance: number;
+  transactions: WalletTransaction[];
+  commissionAvailableRwf: number;
+  commissionTotalEarnedRwf: number;
+};
+
+type RawUser = {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string | null;
+  role?: Role;
+  location?: string | null;
+  company?: string | null;
+  photo?: string | null;
+  createdAt?: string;
+};
+
+type RawTruck = Omit<Truck, "currentLocation" | "preferredRoute" | "description" | "owner"> & {
+  currentLocation?: string | null;
+  preferredRoute?: string | null;
+  description?: string | null;
+  owner?: RawUser | null;
+};
+
+type RawBooking = Omit<
+  Booking,
+  "cargoWeight" | "cargoDescription" | "additionalInstructions" | "agreedPrice" |
+    "pickupDate" | "expectedDeliveryDate" | "payment" | "dispute" | "importer" | "truck"
+> & {
+  cargoWeight: number;
+  cargoDescription?: string | null;
+  additionalInstructions?: string | null;
+  agreedPrice?: string | null;
+  agreedPriceRwf?: number | null;
+  pickupDate: string;
+  expectedDeliveryDate: string;
+  importer?: RawUser;
+  truck?: RawTruck;
+  payment?: Booking["payment"];
+  dispute?: RawDispute | null;
+};
+
+type RawDispute = Omit<Dispute, "resolutionNotes" | "resolvedAt"> & {
+  resolutionNotes?: string | null;
+  resolvedAt?: string | null;
+  booking?: RawBooking;
+};
+
+type AuthPayload = { token: string; user: RawUser };
+type RawWallet = {
+  balanceRwf: number;
+  transactions: WalletTransaction[];
+};
+type RawCommission = { availableRwf: number; totalEarnedRwf: number };
+type RawBank = { id?: string; code?: string; name?: string };
 
 const StoreContext = createContext<Store | null>(null);
 
-function seed(): State {
+function emptyState(currentUser: User | null = null): AppState {
   return {
+    currentUser,
     users: [],
+    usersLoadError: null,
+    commissionLoadError: null,
     bookings: [],
     disputes: [],
-    currentUserId: null,
+    trucks: [],
+    walletBalance: 0,
+    transactions: [],
+    commissionAvailableRwf: 0,
+    commissionTotalEarnedRwf: 0,
   };
 }
 
-type ApiBooking = Omit<Booking, "cargoWeight"> & {
-  cargoWeight: number;
-  importer?: AuthPayload["user"];
-  truck?: Truck;
-};
+function messageFrom(error: unknown) {
+  return error instanceof Error ? error.message : "The API request failed.";
+}
 
-function toBooking(booking: ApiBooking): Booking {
-  return { ...booking, cargoWeight: String(booking.cargoWeight) };
+function toUser(user: RawUser, roleFallback?: Role): User {
+  const role = user.role ?? roleFallback;
+  if (!role) {
+    throw new Error(`User ${user.id} returned by the API is missing a role.`);
+  }
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone ?? "",
+    role,
+    location: user.location ?? "",
+    company: user.company ?? undefined,
+    photo: user.photo ?? undefined,
+    createdAt: user.createdAt,
+  };
+}
+
+function toTruck(truck: RawTruck): Truck {
+  return {
+    ...truck,
+    currentLocation: truck.currentLocation ?? "",
+    preferredRoute: truck.preferredRoute ?? "",
+    description: truck.description ?? "",
+    photos: truck.photos ?? [],
+    owner: truck.owner ? toUser(truck.owner, "TRUCK_OWNER") : undefined,
+  };
+}
+
+function toDateInput(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toISOString().slice(0, 10);
+}
+
+function toBooking(booking: RawBooking): Booking {
+  const price = booking.agreedPriceRwf;
+  const relatedDispute = booking.dispute
+    ? toDispute(booking.dispute)
+    : undefined;
+  return {
+    id: booking.id,
+    truckId: booking.truckId,
+    importerId: booking.importerId,
+    cargoType: booking.cargoType,
+    cargoDescription: booking.cargoDescription ?? "",
+    cargoWeight: `${booking.cargoWeight} tons`,
+    pickupLocation: booking.pickupLocation,
+    destination: booking.destination,
+    pickupDate: toDateInput(booking.pickupDate),
+    expectedDeliveryDate: toDateInput(booking.expectedDeliveryDate),
+    additionalInstructions: booking.additionalInstructions ?? "",
+    agreedPrice: booking.agreedPrice ?? (price == null ? "" : `RWF ${price.toLocaleString("en-RW")}`),
+    agreedPriceRwf: price,
+    payment: booking.payment ?? null,
+    dispute: relatedDispute,
+    status: booking.status,
+    createdAt: booking.createdAt,
+    importer: booking.importer ? toUser(booking.importer, "IMPORTER") : undefined,
+    truck: booking.truck ? toTruck(booking.truck) : undefined,
+  };
+}
+
+function toDispute(dispute: RawDispute): Dispute {
+  return {
+    id: dispute.id,
+    bookingId: dispute.bookingId,
+    raisedBy: dispute.raisedBy,
+    reason: dispute.reason,
+    status: dispute.status,
+    resolutionNotes: dispute.resolutionNotes ?? "",
+    createdAt: dispute.createdAt,
+    resolvedAt: dispute.resolvedAt ?? undefined,
+  };
+}
+
+function toTransaction(entry: WalletTransaction, userId: string): WalletTransaction {
+  return { ...entry, userId };
+}
+
+function mergeUsers(...groups: (User | undefined)[][]): User[] {
+  const users = new Map<string, User>();
+  for (const group of groups) {
+    for (const user of group) {
+      if (user) users.set(user.id, { ...users.get(user.id), ...user });
+    }
+  }
+  return [...users.values()];
 }
 
 export function IbangaProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<State>(seed);
-  const [trucks, setTrucks] = useState<Truck[]>([]);
-  const [trucksLoading, setTrucksLoading] = useState(false);
-  const [authUser, setAuthUser] = useState<User | null>(null);
+  const [state, setState] = useState<AppState>(() => emptyState());
   const [ready, setReady] = useState(false);
+  const [trucksLoading, setTrucksLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const refreshBookings = useCallback(async (): Promise<string | null> => {
-    if (!getToken()) return null;
+  const refreshMarketplace = useCallback(async (user: User | null) => {
+    setTrucksLoading(true);
+    const isAdmin = user?.role === "ADMIN";
+    const truckPath = user?.role === "TRUCK_OWNER" ? "/trucks?mine=true" : "/trucks";
     try {
-      const [bookingData, disputeData] = await Promise.all([
-        api<ApiBooking[]>("/bookings"),
-        api<Dispute[]>("/disputes"),
-      ]);
-      const bookings = bookingData.map(toBooking);
-      const relatedUsers: User[] = bookingData.flatMap((booking) => [
-        ...(booking.importer ? [toUser(booking.importer)] : []),
-        ...(booking.truck?.owner
-          ? [{
-              ...booking.truck.owner,
-              role: "TRUCK_OWNER" as const,
-              active: true,
-              phone: booking.truck.owner.phone ?? "",
-              location: booking.truck.owner.location ?? "",
-              photo: booking.truck.owner.photo ?? undefined,
-            }]
-          : []),
-      ]);
+      const [rawTrucks, rawBookings, rawDisputes, usersResult, wallet, commissionResult] =
+        await Promise.all([
+          api<RawTruck[]>(truckPath),
+          user ? api<RawBooking[]>("/bookings") : Promise.resolve([]),
+          user ? api<RawDispute[]>("/disputes") : Promise.resolve([]),
+          isAdmin
+            ? api<RawUser[]>("/users").then(
+                (users) => ({ users, error: null }),
+                (error: unknown) => ({ users: [], error: messageFrom(error) }),
+              )
+            : Promise.resolve({ users: [], error: null }),
+          user ? api<RawWallet>("/wallet") : Promise.resolve(null),
+          isAdmin
+            ? api<RawCommission>("/wallet/admin/commission").then(
+                (commission) => ({ commission, error: null }),
+                (error: unknown) => ({ commission: null, error: messageFrom(error) }),
+              )
+            : Promise.resolve({ commission: null, error: null }),
+        ]);
+
+      const rawUsers = usersResult.users;
+      const trucks = rawTrucks.map(toTruck);
+      const bookings = rawBookings.map(toBooking);
+      const disputes = rawDisputes.map(toDispute);
+      const users = mergeUsers(
+        [user ?? undefined],
+        rawTrucks.map((truck) =>
+          truck.owner ? toUser(truck.owner, "TRUCK_OWNER") : undefined,
+        ),
+        rawBookings.map((booking) =>
+          booking.importer ? toUser(booking.importer, "IMPORTER") : undefined,
+        ),
+        rawUsers.map((rawUser) => toUser(rawUser)),
+      );
+      const transactions = wallet && user
+        ? wallet.transactions.map((entry) => toTransaction(entry, user.id))
+        : [];
+
       setState((current) => ({
         ...current,
+        users,
+        usersLoadError: usersResult.error,
+        commissionLoadError: commissionResult.error,
         bookings,
-        disputes: disputeData,
-        users: Array.from(new Map(relatedUsers.map((user) => [user.id, user])).values()),
+        disputes,
+        trucks,
+        walletBalance: wallet?.balanceRwf ?? 0,
+        transactions,
+        commissionAvailableRwf: commissionResult.commission?.availableRwf ?? 0,
+        commissionTotalEarnedRwf: commissionResult.commission?.totalEarnedRwf ?? 0,
       }));
-      return null;
-    } catch (err) {
-      return err instanceof Error ? err.message : "Could not load bookings.";
+      setLoadError(null);
+    } catch (error) {
+      const message = messageFrom(error);
+      setLoadError(message);
+      throw error;
+    } finally {
+      setTrucksLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) {
-      queueMicrotask(() => setReady(true));
-      return;
+    let cancelled = false;
+    async function initialize() {
+      let user: User | null = null;
+      const token = readAuthToken();
+      if (token) {
+        try {
+          user = toUser(await api<RawUser>("/auth/me"));
+        } catch (error) {
+          if (error instanceof Error && "status" in error && error.status === 401) {
+            clearAuthToken();
+          } else {
+            setLoadError(messageFrom(error));
+          }
+        }
+      }
+      if (!cancelled) setState((current) => ({ ...current, currentUser: user }));
+      try {
+        await refreshMarketplace(user);
+      } catch {
+        // The error is exposed through loadError for the page to display.
+      } finally {
+        if (!cancelled) setReady(true);
+      }
     }
-
-    api<AuthPayload["user"]>("/auth/me")
-      .then((user) => {
-        setAuthUser(toUser(user));
-        void refreshBookings();
-      })
-      .catch(() => setToken(null))
-      .finally(() => setReady(true));
-  }, [refreshBookings]);
-
-  const currentUser = authUser;
+    void initialize();
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshMarketplace]);
 
   const login = useCallback(async (email: string, password: string) => {
     try {
-      const data = await api<AuthPayload>("/auth/login", {
+      const result = await api<AuthPayload>("/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
-      setToken(data.token);
-      setAuthUser(toUser(data.user));
-      void refreshBookings();
+      saveAuthToken(result.token);
+      const user = toUser(result.user);
+      setState(emptyState(user));
+      setReady(true);
+      try {
+        await refreshMarketplace(user);
+      } catch {
+        // Authentication succeeded; refreshMarketplace exposes the load error.
+      }
       return null;
-    } catch (err) {
-      return err instanceof Error ? err.message : "Login failed.";
+    } catch (error) {
+      return messageFrom(error);
     }
-  }, [refreshBookings]);
+  }, [refreshMarketplace]);
 
-  const requestPasswordReset = useCallback<Store["requestPasswordReset"]>(async (email) => {
+  const requestPasswordReset = useCallback(async (email: string) => {
     try {
       return await api<{ message: string }>("/auth/password-reset/request", {
         method: "POST",
         body: JSON.stringify({ email }),
       });
-    } catch (err) {
-      return {
-        message: "",
-        error:
-          err instanceof Error ? err.message : "Could not request a password reset.",
-      };
+    } catch (error) {
+      return { message: "", error: messageFrom(error) };
     }
   }, []);
 
-  const resetPassword = useCallback<Store["resetPassword"]>(async (token, password) => {
+  const resetPassword = useCallback(async (token: string, password: string) => {
     try {
-      const data = await api<{ message: string }>("/auth/password-reset/reset", {
+      await api("/auth/password-reset/reset", {
         method: "POST",
         body: JSON.stringify({ token, password }),
       });
-      return data.message;
-    } catch (err) {
-      return err instanceof Error ? err.message : "Could not reset password.";
+      return null;
+    } catch (error) {
+      return messageFrom(error);
     }
   }, []);
 
   const register = useCallback<Store["register"]>(async (input) => {
     try {
-      const data = await api<AuthPayload>("/auth/register", {
+      const result = await api<AuthPayload>("/auth/register", {
         method: "POST",
         body: JSON.stringify({
           name: input.name,
@@ -254,219 +424,230 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
           password: input.password,
           phone: input.phone,
           location: input.location,
-          company: input.company,
           role: input.role,
         }),
       });
-      setToken(data.token);
-      setAuthUser(toUser(data.user));
-      void refreshBookings();
+      saveAuthToken(result.token);
+      const user = toUser(result.user);
+      setState(emptyState(user));
+      setReady(true);
+      try {
+        await refreshMarketplace(user);
+      } catch {
+        // Authentication succeeded; refreshMarketplace exposes the load error.
+      }
       return null;
-    } catch (err) {
-      return err instanceof Error ? err.message : "Registration failed.";
+    } catch (error) {
+      return messageFrom(error);
     }
-  }, [refreshBookings]);
+  }, [refreshMarketplace]);
 
   const logout = useCallback(() => {
-    setToken(null);
-    setAuthUser(null);
-  }, []);
+    clearAuthToken();
+    setState(emptyState());
+    void refreshMarketplace(null).catch(() => undefined);
+  }, [refreshMarketplace]);
 
   const updateProfile = useCallback<Store["updateProfile"]>(async (patch) => {
     try {
-      const user = await api<AuthPayload["user"]>("/auth/me", {
+      const user = toUser(await api<RawUser>("/auth/me", {
         method: "PATCH",
         body: JSON.stringify(patch),
+      }));
+      setState((current) => ({
+        ...current,
+        currentUser: user,
+        users: current.users.map((entry) => entry.id === user.id ? user : entry),
+      }));
+      return null;
+    } catch (error) {
+      return messageFrom(error);
+    }
+  }, []);
+
+  const fetchTruck = useCallback(async (id: string) => {
+    return toTruck(await api<RawTruck>(`/trucks/${encodeURIComponent(id)}`));
+  }, []);
+
+  const runMutation = useCallback(async (
+    request: () => Promise<unknown>,
+  ) => {
+    try {
+      await request();
+      await refreshMarketplace(state.currentUser);
+      return null;
+    } catch (error) {
+      return messageFrom(error);
+    }
+  }, [refreshMarketplace, state.currentUser]);
+
+  const addTruck = useCallback<Store["addTruck"]>(async (input) =>
+    runMutation(() => api("/trucks", {
+      method: "POST",
+      body: JSON.stringify(input),
+    })), [runMutation]);
+
+  const updateTruck = useCallback<Store["updateTruck"]>(async (id, patch) =>
+    runMutation(() => api(`/trucks/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    })), [runMutation]);
+
+  const deleteTruck = useCallback<Store["deleteTruck"]>(async (id) =>
+    runMutation(() => api(`/trucks/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    })), [runMutation]);
+
+  const setAvailability = useCallback<Store["setAvailability"]>(async (id, status) =>
+    runMutation(() => api(`/trucks/${encodeURIComponent(id)}/availability`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    })), [runMutation]);
+
+  const createBooking = useCallback<Store["createBooking"]>(async (truck, input) =>
+    runMutation(() => api("/bookings", {
+      method: "POST",
+      body: JSON.stringify({
+        truckId: truck.id,
+        cargoType: input.cargoType,
+        cargoDescription: input.cargoDescription,
+        cargoWeight: Number.parseFloat(input.cargoWeight),
+        pickupLocation: input.pickupLocation,
+        destination: input.destination,
+        pickupDate: input.pickupDate,
+        expectedDeliveryDate: input.expectedDeliveryDate,
+        additionalInstructions: input.additionalInstructions,
+      }),
+    })), [runMutation]);
+
+  const setBookingStatus = useCallback<Store["setBookingStatus"]>(async (id, status) =>
+    runMutation(() => api(`/bookings/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    })), [runMutation]);
+
+  const reportProblem = useCallback<Store["reportProblem"]>(async (bookingId, reason) =>
+    runMutation(() => api("/disputes", {
+      method: "POST",
+      body: JSON.stringify({ bookingId, reason }),
+    })), [runMutation]);
+
+  const resolveDispute = useCallback<Store["resolveDispute"]>(async (disputeId, resolutionNotes) =>
+    runMutation(() => api(`/disputes/${encodeURIComponent(disputeId)}/resolve`, {
+      method: "PATCH",
+      body: JSON.stringify({ resolutionNotes }),
+    })), [runMutation]);
+
+  const deleteUser = useCallback<Store["deleteUser"]>(async (userId) =>
+    runMutation(() => api(`/users/${encodeURIComponent(userId)}`, {
+      method: "DELETE",
+    })), [runMutation]);
+
+  const refreshWallet = useCallback(async () => {
+    const [wallet, commission] = await Promise.all([
+      api<RawWallet>("/wallet"),
+      state.currentUser?.role === "ADMIN"
+        ? api<RawCommission>("/wallet/admin/commission")
+        : Promise.resolve(null),
+    ]);
+    const transactions = wallet.transactions.map((entry) =>
+      toTransaction(entry, state.currentUser?.id ?? ""),
+    );
+    setState((current) => ({
+      ...current,
+      walletBalance: wallet.balanceRwf,
+      transactions,
+      commissionAvailableRwf: commission?.availableRwf ?? current.commissionAvailableRwf,
+      commissionTotalEarnedRwf: commission?.totalEarnedRwf ?? current.commissionTotalEarnedRwf,
+    }));
+  }, [state.currentUser]);
+
+  const depositFunds = useCallback<Store["depositFunds"]>(async (amount, phoneNumber) => {
+    try {
+      await api("/wallet/deposits", {
+        method: "POST",
+        body: JSON.stringify({ amountRwf: amount, phoneNumber }),
       });
-      setAuthUser(toUser(user));
+      await refreshWallet();
       return null;
-    } catch (err) {
-      return err instanceof Error ? err.message : "Could not update profile.";
+    } catch (error) {
+      return messageFrom(error);
     }
-  }, []);
+  }, [refreshWallet]);
 
-  const refreshTrucks = useCallback<Store["refreshTrucks"]>(async (params) => {
-    setTrucksLoading(true);
+  const withdrawFunds = useCallback<Store["withdrawFunds"]>(async (input) => {
     try {
-      const data = await api<Truck[]>(`/trucks${buildTruckQuery(params)}`);
-      setTrucks(data);
-      return null;
-    } catch (err) {
-      return err instanceof Error ? err.message : "Could not load trucks.";
-    } finally {
-      setTrucksLoading(false);
-    }
-  }, []);
-
-  const fetchTruck = useCallback<Store["fetchTruck"]>(
-    (id) => api<Truck>(`/trucks/${id}`),
-    [],
-  );
-
-  const addTruck = useCallback<Store["addTruck"]>(async (input) => {
-    try {
-      const truck = await api<Truck>("/trucks", {
+      await api("/wallet/withdrawals", {
         method: "POST",
         body: JSON.stringify(input),
       });
-      setTrucks((prev) => [truck, ...prev]);
+      await refreshWallet();
       return null;
-    } catch (err) {
-      return err instanceof Error ? err.message : "Could not add truck.";
+    } catch (error) {
+      return messageFrom(error);
     }
-  }, []);
+  }, [refreshWallet]);
 
-  const updateTruck = useCallback<Store["updateTruck"]>(async (id, patch) => {
-    try {
-      const truck = await api<Truck>(`/trucks/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify(patch),
-      });
-      setTrucks((prev) => prev.map((t) => (t.id === id ? truck : t)));
-      return null;
-    } catch (err) {
-      return err instanceof Error ? err.message : "Could not update truck.";
-    }
-  }, []);
+  const payBooking = useCallback<Store["payBooking"]>(async (bookingId) =>
+    runMutation(() => api(`/wallet/bookings/${encodeURIComponent(bookingId)}/pay`, {
+      method: "POST",
+    })), [runMutation]);
 
-  const deleteTruck = useCallback<Store["deleteTruck"]>(async (id) => {
-    try {
-      await api(`/trucks/${id}`, { method: "DELETE" });
-      setTrucks((prev) => prev.filter((t) => t.id !== id));
-      return null;
-    } catch (err) {
-      return err instanceof Error ? err.message : "Could not delete truck.";
-    }
-  }, []);
+  const getBanks = useCallback(() => api<RawBank[]>("/wallet/banks"), []);
+  const getBankBranches = useCallback((bankCode: string) =>
+    api<RawBank[]>(`/wallet/banks/${encodeURIComponent(bankCode)}/branches`), []);
 
-  const setAvailability = useCallback<Store["setAvailability"]>(async (id, status) => {
-    try {
-      const truck = await api<Truck>(`/trucks/${id}/availability`, {
-        method: "PATCH",
-        body: JSON.stringify({ status }),
-      });
-      setTrucks((prev) => prev.map((t) => (t.id === id ? truck : t)));
-      return null;
-    } catch (err) {
-      return err instanceof Error ? err.message : "Could not update availability.";
-    }
-  }, []);
-
-  const createBooking = useCallback<Store["createBooking"]>(async (truck, input) => {
-    try {
-      const created = await api<ApiBooking>("/bookings", {
-        method: "POST",
-        body: JSON.stringify({ ...input, truckId: truck.id, cargoWeight: input.cargoWeight }),
-      });
-      const booking = toBooking(created);
-      setState((s) => ({ ...s, bookings: [booking, ...s.bookings] }));
-      setTrucks((prev) => prev.map((item) => item.id === truck.id ? { ...item, status: "UNAVAILABLE" } : item));
-      return null;
-    } catch (err) {
-      return err instanceof Error ? err.message : "Could not create booking.";
-    }
-  }, []);
-
-  const setBookingStatus = useCallback<Store["setBookingStatus"]>(async (id, status) => {
-    try {
-      const updated = toBooking(await api<ApiBooking>(`/bookings/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }));
-      setState((s) => ({ ...s, bookings: s.bookings.map((b) => b.id === id ? updated : b) }));
-      if (status === "REJECTED" || status === "COMPLETED") setTrucks((items) => items.map((item) => item.id === updated.truckId ? { ...item, status: "AVAILABLE" } : item));
-      return null;
-    } catch (err) { return err instanceof Error ? err.message : "Could not update booking."; }
-  }, []);
-
-  const reportProblem = useCallback<Store["reportProblem"]>(async (bookingId, reason) => {
-    try {
-      await api<Dispute>("/disputes", { method: "POST", body: JSON.stringify({ bookingId, reason }) });
-      return refreshBookings();
-    } catch (err) { return err instanceof Error ? err.message : "Could not report problem."; }
-  }, [refreshBookings]);
-
-  const resolveDispute = useCallback<Store["resolveDispute"]>(async (disputeId, notes) => {
-    try {
-      await api(`/disputes/${disputeId}/resolve`, { method: "PATCH", body: JSON.stringify({ resolutionNotes: notes }) });
-      return refreshBookings();
-    } catch (err) { return err instanceof Error ? err.message : "Could not resolve dispute."; }
-  }, [refreshBookings]);
-
-  const setUserActive = useCallback((userId: string, active: boolean) => {
-    setState((s) => ({
-      ...s,
-      users: s.users.map((u) => (u.id === userId ? { ...u, active } : u)),
-    }));
-  }, []);
-
-  const resetDemo = useCallback(async (): Promise<string | null> => {
-    try {
-      await api("/demo/reset", { method: "POST" });
-    } catch (err) {
-      return err instanceof Error ? err.message : "Could not reset demo data.";
-    }
-    await refreshBookings();
-    return refreshTrucks();
-  }, [refreshBookings, refreshTrucks]);
-
-  const value = useMemo<Store>(
-    () => ({
-      ...state,
-      ready,
-      currentUser,
-      login,
-      requestPasswordReset,
-      resetPassword,
-      register,
-      logout,
-      updateProfile,
-      trucks,
-      trucksLoading,
-      refreshTrucks,
-      fetchTruck,
-      addTruck,
-      updateTruck,
-      deleteTruck,
-      setAvailability,
-      createBooking,
-      setBookingStatus,
-      reportProblem,
-      resolveDispute,
-      setUserActive,
-      resetDemo,
-    }),
-    [
-      state,
-      ready,
-      currentUser,
-      login,
-      requestPasswordReset,
-      resetPassword,
-      register,
-      logout,
-      updateProfile,
-      trucks,
-      trucksLoading,
-      refreshTrucks,
-      fetchTruck,
-      addTruck,
-      updateTruck,
-      deleteTruck,
-      setAvailability,
-      createBooking,
-      setBookingStatus,
-      reportProblem,
-      resolveDispute,
-      setUserActive,
-      resetDemo,
-    ],
-  );
+  const value = useMemo<Store>(() => ({
+    ready,
+    loadError,
+    usersLoadError: state.usersLoadError,
+    commissionLoadError: state.commissionLoadError,
+    currentUser: state.currentUser,
+    users: state.users,
+    bookings: state.bookings,
+    disputes: state.disputes,
+    trucks: state.trucks,
+    trucksLoading,
+    walletBalance: state.walletBalance,
+    transactions: state.transactions,
+    commissionAvailableRwf: state.commissionAvailableRwf,
+    commissionTotalEarnedRwf: state.commissionTotalEarnedRwf,
+    login,
+    requestPasswordReset,
+    resetPassword,
+    register,
+    logout,
+    updateProfile,
+    fetchTruck,
+    addTruck,
+    updateTruck,
+    deleteTruck,
+    setAvailability,
+    createBooking,
+    setBookingStatus,
+    reportProblem,
+    resolveDispute,
+    deleteUser,
+    depositFunds,
+    withdrawFunds,
+    payBooking,
+    getBanks,
+    getBankBranches,
+  }), [
+    ready, loadError, state, trucksLoading, login, requestPasswordReset,
+    resetPassword, register, logout, updateProfile, fetchTruck, addTruck,
+    updateTruck, deleteTruck, setAvailability, createBooking, setBookingStatus,
+    reportProblem, resolveDispute, deleteUser, depositFunds, withdrawFunds,
+    payBooking, getBanks, getBankBranches,
+  ]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
 
 export function useIbanga() {
-  const ctx = useContext(StoreContext);
-  if (!ctx) throw new Error("useIbanga must be used inside IbangaProvider");
-  return ctx;
+  const context = useContext(StoreContext);
+  if (!context) throw new Error("useIbanga must be used inside IbangaProvider");
+  return context;
 }
 
 export function dashboardPath(role: Role) {

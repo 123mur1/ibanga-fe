@@ -14,10 +14,10 @@ export type User = {
   id: string;
   name: string;
   email: string;
+  createdAt?: string;
   phone: string;
   role: Role;
   location: string;
-  active: boolean;
   company?: string;
   photo?: string;
 };
@@ -64,6 +64,8 @@ export type Booking = {
   dispute?: Dispute | null;
   status: BookingStatus;
   createdAt: string;
+  importer?: User;
+  truck?: Truck;
 };
 
 export type BookingPayment = {
@@ -77,6 +79,7 @@ export type BookingPayment = {
 
 export type WalletTransaction = {
   id: string;
+  userId?: string;
   type: "DEPOSIT" | "BOOKING_PAYMENT" | "BOOKING_EARNING" | "PLATFORM_COMMISSION" | "WITHDRAWAL" | "REFUND";
   status: "PENDING" | "SUCCEEDED" | "FAILED";
   direction: "CREDIT" | "DEBIT";

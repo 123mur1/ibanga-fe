@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DM_Sans, Outfit } from "next/font/google";
+import { DM_Sans } from "next/font/google";
 import { IbangaProvider } from "@/lib/store";
 import { PersistentDashboardShell } from "@/components/persistent-dashboard-shell";
 import { SiteFooter } from "@/components/site-footer";
@@ -10,15 +10,10 @@ const sans = DM_Sans({
   subsets: ["latin"],
 });
 
-const display = Outfit({
-  variable: "--font-ibanga-display",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "iBanga — Direct cargo–truck marketplace",
+  title: "iBanga — Freight marketplace",
   description:
-    "Book a truck at its listed RWF price, pay after the owner accepts, then confirm delivery to release the held payment.",
+    "A freight marketplace connecting importers, truck owners, and administrators.",
 };
 
 export default function RootLayout({
@@ -29,7 +24,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${sans.variable} ${display.variable} h-full antialiased`}
+      className={`${sans.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-ink">
         <IbangaProvider>

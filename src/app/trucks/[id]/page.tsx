@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { PayNotice, TruckBadge } from "@/components/status-badge";
 import { Avatar, TruckGallery } from "@/components/photos";
@@ -55,7 +56,8 @@ function TruckDetailsContent() {
     (!currentUser || currentUser.role === "IMPORTER");
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
+    <div className="min-h-screen bg-background">
+      <main className="mx-auto max-w-4xl px-4 py-8">
         <div className="rounded-3xl border border-line bg-card p-6 sm:p-8">
           <TruckGallery
             photos={truck.photos}
@@ -134,6 +136,7 @@ function TruckDetailsContent() {
             </p>
           )}
         </div>
+      </main>
     </div>
   );
 }
@@ -141,7 +144,18 @@ function TruckDetailsContent() {
 export default function TruckDetailsPage() {
   return (
     <RequireAuth>
-      <TruckDetailsContent />
+      <AuthenticatedTruckDetails />
     </RequireAuth>
+  );
+}
+
+function AuthenticatedTruckDetails() {
+  const { currentUser } = useIbanga();
+  if (!currentUser) return null;
+
+  return (
+    <DashboardShell role={currentUser.role}>
+      <TruckDetailsContent />
+    </DashboardShell>
   );
 }

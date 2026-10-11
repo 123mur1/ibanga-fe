@@ -17,6 +17,19 @@ type LiveTripTrackingProps = {
   canShare: boolean;
 };
 
+function isLiveLocation(value: unknown): value is LiveLocation {
+  if (typeof value !== "object" || value === null) return false;
+  const location = value as Record<string, unknown>;
+  return (
+    typeof location.latitude === "number" &&
+    Number.isFinite(location.latitude) &&
+    typeof location.longitude === "number" &&
+    Number.isFinite(location.longitude) &&
+    (typeof location.accuracy === "number" || location.accuracy === null) &&
+    typeof location.updatedAt === "string"
+  );
+}
+
 function openStreetMapEmbedUrl(location: LiveLocation) {
   const latitudeOffset = 0.012;
   const longitudeOffset =
@@ -39,45 +52,42 @@ export function LiveTripTracking({
   const [sharing, setSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [clock, setClock] = useState(0);
-  const latestPosition = useRef<GeolocationPosition | null>(null);
   const watchId = useRef<number | null>(null);
-  const publishTimer = useRef<number | null>(null);
-  const publishing = useRef(false);
+  const lastUpdateSentAt = useRef(0);
 
   useEffect(() => {
     if (status !== "IN_PROGRESS") return;
 
-    let cancelled = false;
     async function loadLocation() {
       try {
-        const latest = await api<LiveLocation | null>(
-          `/bookings/${bookingId}/location`,
-        );
-        if (!cancelled) {
-          setLocation(latest);
+        const saved = await api<LiveLocation | null>(`/bookings/${encodeURIComponent(bookingId)}/location`);
+        if (saved === null) {
+          setLocation(null);
+          setClock(0);
+        } else {
+          if (!isLiveLocation(saved)) {
+            throw new Error("The API returned invalid truck location data.");
+          }
+          setLocation(saved);
           setClock(Date.now());
         }
+        setError(null);
       } catch (loadError) {
-        if (!cancelled) {
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Could not load the truck’s location.",
-          );
-        }
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Could not load the truck’s current location.",
+        );
       }
     }
 
     void loadLocation();
-    const refreshTimer = canShare
-      ? null
-      : window.setInterval(() => void loadLocation(), 15_000);
+    const refreshTimer = window.setInterval(() => void loadLocation(), 15_000);
 
     return () => {
-      cancelled = true;
-      if (refreshTimer !== null) window.clearInterval(refreshTimer);
+      window.clearInterval(refreshTimer);
     };
-  }, [bookingId, canShare, status]);
+  }, [bookingId, status]);
 
   useEffect(() => {
     if (status !== "IN_PROGRESS") return;
@@ -89,40 +99,11 @@ export function LiveTripTracking({
     () => () => {
       if (watchId.current !== null) {
         navigator.geolocation.clearWatch(watchId.current);
-      }
-      if (publishTimer.current !== null) {
-        window.clearInterval(publishTimer.current);
+        watchId.current = null;
       }
     },
     [],
   );
-
-  async function publishLatestPosition() {
-    const position = latestPosition.current;
-    if (!position || publishing.current) return;
-
-    publishing.current = true;
-    try {
-      const saved = await api<LiveLocation>(`/bookings/${bookingId}/location`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-        }),
-      });
-      setLocation(saved);
-      setError(null);
-    } catch (publishError) {
-      setError(
-        publishError instanceof Error
-          ? publishError.message
-          : "Could not share the latest location.",
-      );
-    } finally {
-      publishing.current = false;
-    }
-  }
 
   function startSharing() {
     if (!navigator.geolocation) {
@@ -134,30 +115,42 @@ export function LiveTripTracking({
     setSharing(true);
     watchId.current = navigator.geolocation.watchPosition(
       (position) => {
-        latestPosition.current = position;
-        setLocation({
+        const nextLocation = {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
           accuracy: position.coords.accuracy,
           updatedAt: new Date().toISOString(),
-        });
+        };
+        setLocation(nextLocation);
         setClock(Date.now());
-        void publishLatestPosition();
-        if (publishTimer.current === null) {
-          publishTimer.current = window.setInterval(
-            () => void publishLatestPosition(),
-            15_000,
+        if (Date.now() - lastUpdateSentAt.current < 10_000) return;
+        lastUpdateSentAt.current = Date.now();
+        void api<LiveLocation>(`/bookings/${encodeURIComponent(bookingId)}/location`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            latitude: nextLocation.latitude,
+            longitude: nextLocation.longitude,
+            accuracy: nextLocation.accuracy ?? 0,
+          }),
+        }).then((saved) => {
+          if (!isLiveLocation(saved)) {
+            throw new Error("The API returned invalid truck location data.");
+          }
+          setLocation(saved);
+          setClock(Date.now());
+          setError(null);
+        }).catch((updateError: unknown) => {
+          setError(
+            updateError instanceof Error
+              ? updateError.message
+              : "Could not update the truck’s location.",
           );
-        }
+        });
       },
       (geoError) => {
         if (watchId.current !== null) {
           navigator.geolocation.clearWatch(watchId.current);
           watchId.current = null;
-        }
-        if (publishTimer.current !== null) {
-          window.clearInterval(publishTimer.current);
-          publishTimer.current = null;
         }
         setSharing(false);
         setError(
@@ -177,22 +170,20 @@ export function LiveTripTracking({
       navigator.geolocation.clearWatch(watchId.current);
       watchId.current = null;
     }
-    if (publishTimer.current !== null) {
-      window.clearInterval(publishTimer.current);
-      publishTimer.current = null;
-    }
-    latestPosition.current = null;
     setSharing(false);
     setError(null);
 
     try {
-      await api(`/bookings/${bookingId}/location`, { method: "DELETE" });
+      await api(`/bookings/${encodeURIComponent(bookingId)}/location`, {
+        method: "DELETE",
+      });
       setLocation(null);
+      setClock(0);
     } catch (clearError) {
       setError(
         clearError instanceof Error
           ? clearError.message
-          : "Could not stop sharing the saved location.",
+          : "Could not clear the shared truck location.",
       );
     }
   }
@@ -270,8 +261,8 @@ export function LiveTripTracking({
       <div className="p-4 sm:p-5">
         {canShare ? (
           <p className="mb-3 text-sm leading-relaxed text-muted">
-            Your device location is shared with the importer only while this
-            trip is active. Keep this page open for updates every 15 seconds.
+            Your location is shared with the booking participants through iBanga
+            while this trip is active. Keep this page open while sharing.
           </p>
         ) : null}
 

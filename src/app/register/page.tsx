@@ -21,7 +21,6 @@ function RegisterForm() {
     email: "",
     phone: "",
     location: "",
-    company: "",
     password: "",
   });
   const [busy, setBusy] = useState(false);
@@ -40,7 +39,7 @@ function RegisterForm() {
   }
 
   return (
-    <div className="relative mx-auto w-full max-w-lg">
+    <div className="relative mx-auto w-full max-w-2xl">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -inset-6 -z-10 rounded-full bg-linear-to-tr from-accent/20 via-brand/15 to-transparent blur-2xl"
@@ -175,7 +174,7 @@ function RegisterForm() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-4">
               <Field label="Full name">
                 <div className="relative">
                   <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-muted">
@@ -199,31 +198,6 @@ function RegisterForm() {
                     required
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  />
-                </div>
-              </Field>
-              <Field label="Company (optional)">
-                <div className="relative">
-                  <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-muted">
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <rect x="4" y="2" width="16" height="20" rx="2" />
-                      <path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M8 10h.01M16 10h.01M12 10h.01M8 14h.01M16 14h.01M12 14h.01" />
-                    </svg>
-                  </span>
-                  <input
-                    className={`${inputClass} pl-11`}
-                    value={form.company}
-                    onChange={(e) => setForm({ ...form, company: e.target.value })}
                   />
                 </div>
               </Field>
@@ -463,7 +437,7 @@ function RegisterForm() {
 
 export default function RegisterPage() {
   return (
-    <AuthShell image="/photos/ibanga-semi.png">
+    <AuthShell showImage={false}>
       <Suspense>
         <RegisterForm />
       </Suspense>

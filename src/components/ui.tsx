@@ -1,3 +1,7 @@
+"use client";
+
+import { useMemo, useState } from "react";
+
 export function Field({
   label,
   children,
@@ -24,7 +28,7 @@ export function PrimaryButton({
   return (
     <button
       {...props}
-      className={`inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-brand-dark hover:shadow-card disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-soft ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-brand-dark hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-soft ${className}`}
     >
       {children}
     </button>
@@ -39,10 +43,135 @@ export function GhostButton({
   return (
     <button
       {...props}
-      className={`inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-semibold text-navy shadow-soft transition hover:-translate-y-0.5 hover:border-navy/20 hover:bg-background disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-soft ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-semibold text-navy shadow-soft transition hover:-translate-y-0.5 hover:border-navy/20 hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-soft ${className}`}
     >
       {children}
     </button>
+  );
+}
+
+export type DataTableRow = {
+  id: string;
+  cells: React.ReactNode[];
+  searchText: string;
+  filterValue?: string;
+  exportValues: string[];
+};
+
+export function DataTable({
+  columns,
+  rows,
+  emptyMessage = "There are no records to display.",
+  filterLabel = "All statuses",
+}: {
+  columns: { label: string; className?: string }[];
+  rows: DataTableRow[];
+  emptyMessage?: string;
+  filterLabel?: string;
+}) {
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const filterOptions = useMemo(
+    () => [...new Set(rows.map((row) => row.filterValue).filter((value): value is string => Boolean(value)))].sort(),
+    [rows],
+  );
+  const visibleRows = useMemo(() => rows.filter((row) =>
+    row.searchText.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())
+    && (!filter || row.filterValue === filter),
+  ), [filter, rows, search]);
+  const allVisibleSelected = visibleRows.length > 0 && visibleRows.every((row) => selected.has(row.id));
+
+  const exportRows = (data: DataTableRow[]) => {
+    const escape = (value: string) => {
+      const safeValue = /^[=+\-@]/.test(value) ? `'${value}` : value;
+      return `"${safeValue.replaceAll('"', '""')}"`;
+    };
+    const csv = [
+      columns.map((column) => escape(column.label)).join(","),
+      ...data.map((row) => row.exportValues.map(escape).join(",")),
+    ].join("\r\n");
+    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "ibanga-export.csv";
+    anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-line bg-white shadow-soft">
+      <div className="flex flex-col gap-3 border-b border-line p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-1 flex-col gap-2 sm:flex-row">
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search records..."
+            aria-label="Search records"
+            className="w-full rounded-lg border border-line px-3 py-2 text-sm text-navy outline-none focus:border-brand sm:max-w-sm"
+          />
+          {filterOptions.length > 0 ? (
+            <select aria-label={filterLabel} value={filter} onChange={(event) => setFilter(event.target.value)} className="rounded-lg border border-line bg-white px-3 py-2 text-sm text-navy outline-none focus:border-brand">
+              <option value="">{filterLabel}</option>
+              {filterOptions.map((option) => <option key={option} value={option}>{option.replaceAll("_", " ")}</option>)}
+            </select>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-xs text-muted">{selected.size} selected</span>
+          <button type="button" disabled={!selected.size} onClick={() => exportRows(rows.filter((row) => selected.has(row.id)))} className="rounded-lg border border-line px-3 py-2 text-xs font-semibold text-navy transition hover:border-brand disabled:cursor-not-allowed disabled:opacity-50">Export selected</button>
+          <button type="button" onClick={() => exportRows(rows)} className="rounded-lg bg-brand px-3 py-2 text-xs font-semibold text-white transition hover:bg-brand-dark">Export all</button>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+          <thead className="bg-background text-xs uppercase tracking-wide text-muted">
+            <tr>
+              <th scope="col" className="w-12 px-4 py-3.5">
+                <input
+                  type="checkbox"
+                  aria-label="Select all visible rows"
+                  checked={allVisibleSelected}
+                  onChange={() => setSelected((current) => {
+                    const next = new Set(current);
+                    visibleRows.forEach((row) => allVisibleSelected ? next.delete(row.id) : next.add(row.id));
+                    return next;
+                  })}
+                  className="accent-brand"
+                />
+              </th>
+              {columns.map((column) => (
+                <th key={column.label} scope="col" className={`px-5 py-3.5 font-semibold ${column.className ?? ""}`}>
+                  {column.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {visibleRows.map((row) => (
+              <tr key={row.id} className={`transition hover:bg-background/70 ${selected.has(row.id) ? "bg-brand-soft/40" : ""}`}>
+                <td className="px-4 py-4">
+                  <input type="checkbox" aria-label={`Select row ${row.id}`} checked={selected.has(row.id)} onChange={() => setSelected((current) => {
+                    const next = new Set(current);
+                    if (next.has(row.id)) next.delete(row.id);
+                    else next.add(row.id);
+                    return next;
+                  })} className="accent-brand" />
+                </td>
+                {row.cells.map((cell, cellIndex) => (
+                  <td key={`${row.id}-${cellIndex}`} className={`px-5 py-4 text-navy ${columns[cellIndex]?.className ?? ""}`}>
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {visibleRows.length === 0 ? (
+        <p className="px-5 py-12 text-center text-sm text-muted">{emptyMessage}</p>
+      ) : null}
+    </div>
   );
 }
 
@@ -161,6 +290,50 @@ export function PageHeader({
         <div className="flex flex-wrap gap-3">{actions}</div>
       ) : null}
     </div>
+  );
+}
+
+export function DashboardWelcomeCard({
+  title,
+  description,
+  actions,
+  metric,
+  metricLabel,
+  metricIcon,
+}: {
+  title: string;
+  description: string;
+  actions: React.ReactNode;
+  metric?: string;
+  metricLabel?: string;
+  metricIcon?: React.ReactNode;
+}) {
+  return (
+    <section className="relative overflow-hidden rounded-3xl bg-linear-to-br from-brand to-brand-dark p-5 text-white shadow-card sm:p-6">
+      <div className="paper-grid absolute inset-0 opacity-20" />
+      <div aria-hidden="true" className="absolute -right-16 -top-24 h-64 w-64 rounded-full border-24 border-white/10" />
+      <div className="relative flex flex-wrap items-center justify-between gap-5">
+        <div className="max-w-2xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/70">Workspace</p>
+          <h1 className="mt-2 font-display text-2xl leading-tight sm:text-3xl">{title}</h1>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-white/80">{description}</p>
+          <div className="mt-4 flex flex-wrap gap-3">{actions}</div>
+        </div>
+        {metric !== undefined && metricLabel ? (
+          <div className="flex items-center gap-3 rounded-2xl bg-white/10 px-5 py-4 ring-1 ring-white/20 backdrop-blur-sm">
+            {metricIcon ? (
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15 text-white [&_svg]:h-5 [&_svg]:w-5">
+                {metricIcon}
+              </span>
+            ) : null}
+            <div>
+              <p className="font-display text-2xl leading-none">{metric}</p>
+              <p className="mt-1 text-xs text-white/70">{metricLabel}</p>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </section>
   );
 }
 

@@ -1,13 +1,13 @@
 "use client";
 
-import { BookingRow } from "@/components/booking-row";
+import { BookingManagementTable } from "@/components/booking-management-table";
 import { DashboardShell } from "@/components/dashboard-shell";
-import { EmptyState, PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
 import { RequireAuth } from "@/components/require-auth";
 import { useIbanga } from "@/lib/store";
 
 export default function OwnerHistoryPage() {
-  const { currentUser, trucks, bookings } = useIbanga();
+  const { currentUser, trucks, bookings, users } = useIbanga();
   const mine = trucks.filter((t) => t.ownerId === currentUser?.id);
   const history = bookings.filter(
     (b) =>
@@ -30,26 +30,7 @@ export default function OwnerHistoryPage() {
             </svg>
           }
         />
-        <p className="mt-4 inline-flex items-center gap-2 rounded-full bg-line px-3 py-1 text-xs font-semibold text-muted">
-          {history.length} recorded trips
-        </p>
-        <div className="mt-4 space-y-3">
-          {history.length ? (
-            history.map((booking) => (
-              <BookingRow
-                key={booking.id}
-                booking={booking}
-                truck={mine.find((t) => t.id === booking.truckId)}
-                href={`/dashboard/owner/trips/${booking.id}`}
-              />
-            ))
-          ) : (
-            <EmptyState
-              title="No completed trips yet"
-              text="Finished and rejected bookings will collect here."
-            />
-          )}
-        </div>
+        <BookingManagementTable bookings={history} trucks={mine} users={users} counterparty="TRUCK_OWNER" detailPath={(booking) => `/dashboard/owner/trips/${booking.id}`} />
       </DashboardShell>
     </RequireAuth>
   );

@@ -1,8 +1,8 @@
 "use client";
 
-import { BookingRow } from "@/components/booking-row";
+import { BookingManagementTable } from "@/components/booking-management-table";
 import { DashboardShell } from "@/components/dashboard-shell";
-import { EmptyState, PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
 import { RequireAuth } from "@/components/require-auth";
 import { useIbanga } from "@/lib/store";
 import type { BookingStatus } from "@/lib/types";
@@ -15,7 +15,7 @@ const TRIP_STATUSES: BookingStatus[] = [
 ];
 
 export default function OwnerTripsPage() {
-  const { currentUser, trucks, bookings } = useIbanga();
+  const { currentUser, trucks, bookings, users } = useIbanga();
   const mine = trucks.filter((t) => t.ownerId === currentUser?.id);
   const trips = bookings.filter(
     (b) =>
@@ -38,27 +38,7 @@ export default function OwnerTripsPage() {
             </svg>
           }
         />
-        <p className="mt-4 inline-flex items-center gap-2 rounded-full bg-brand-soft px-3 py-1 text-xs font-semibold text-brand-dark">
-          <span className="h-1.5 w-1.5 rounded-full bg-brand" />
-          {trips.length} trips in progress
-        </p>
-        <div className="mt-4 space-y-3">
-          {trips.length ? (
-            trips.map((booking) => (
-              <BookingRow
-                key={booking.id}
-                booking={booking}
-                truck={mine.find((t) => t.id === booking.truckId)}
-                href={`/dashboard/owner/trips/${booking.id}`}
-              />
-            ))
-          ) : (
-            <EmptyState
-              title="No active trips"
-              text="Accepted bookings will show here until they are completed or disputed."
-            />
-          )}
-        </div>
+        <BookingManagementTable bookings={trips} trucks={mine} users={users} counterparty="TRUCK_OWNER" detailPath={(booking) => `/dashboard/owner/trips/${booking.id}`} />
       </DashboardShell>
     </RequireAuth>
   );
