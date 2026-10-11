@@ -151,7 +151,16 @@ function downloadCsv(
 }
 
 export default function AdminHome() {
-  const { trucks, bookings, disputes, users: accountUsers, resetWorkspace } = useIbanga();
+  const {
+    trucks,
+    bookings,
+    disputes,
+    users: accountUsers,
+    usersLoadError,
+    commissionLoadError,
+    commissionAvailableRwf,
+    commissionTotalEarnedRwf,
+  } = useIbanga();
   const users: AdminReportUser[] = accountUsers.map((user) => ({
     ...user,
     phone: user.phone || null,
@@ -159,20 +168,12 @@ export default function AdminHome() {
     company: user.company || null,
     createdAt: user.createdAt ?? new Date(0).toISOString(),
   }));
-  const userCount = users.length;
+  const userCount = usersLoadError ? null : users.length;
   const [reportKind, setReportKind] = useState<ReportKind>("overview");
-  const commission = bookings.reduce(
-    (totals, booking) => {
-      const payment = booking.payment;
-      if (payment?.status === "FUNDED") totals.availableRwf += payment.commissionRwf;
-      if (payment?.status === "RELEASED") totals.totalEarnedRwf += payment.commissionRwf;
-      return totals;
-    },
-    { availableRwf: 0, totalEarnedRwf: 0 },
-  );
-  const userCountError = false;
-  const [resetting, setResetting] = useState(false);
-  const [resetError, setResetError] = useState<string | null>(null);
+  const commission = {
+    availableRwf: commissionAvailableRwf,
+    totalEarnedRwf: commissionTotalEarnedRwf,
+  };
   const openDisputes = disputes.filter((d) => d.status === "OPEN").length;
   const availableTrucks = trucks.filter((truck) => truck.status === "AVAILABLE").length;
   const monthlyBookings = getMonthlyBookingCounts(bookings);
@@ -198,15 +199,6 @@ export default function AdminHome() {
     .map((point, index) => `${index === 0 ? "M" : "L"}${point.x},${point.y}`)
     .join(" ");
   const bookingAreaPath = `${bookingLinePath} L596,166 L44,166 Z`;
-
-  async function handleReset() {
-    if (!window.confirm("Restore marketplace records and balances to their initial values? This will discard current changes.")) return;
-    setResetting(true);
-    setResetError(null);
-    const error = await resetWorkspace();
-    if (error) setResetError(error);
-    setResetting(false);
-  }
 
   function handleGenerateReport(format: "csv" | "pdf") {
     const generatedAt = new Date().toISOString();
@@ -388,27 +380,15 @@ export default function AdminHome() {
                   </span>
                 ) : null}
               </Link>
-              <GhostButton
-                type="button"
-                disabled={resetting}
-                onClick={() => void handleReset()}
-              >
-                {resetting ? "Restoring…" : "Restore initial data"}
-              </GhostButton>
             </>
           }
         />
-        {resetError ? (
-          <p className="mt-4 flex items-center gap-2 rounded-xl border border-bad/20 bg-bad-soft px-3.5 py-2.5 text-sm text-bad">
-            {resetError}
-          </p>
-        ) : null}
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
-            label="Commission available"
-            value={commission ? `RWF ${commission.availableRwf.toLocaleString("en-RW")}` : "—"}
-            hint={commission ? `Earned RWF ${commission.totalEarnedRwf.toLocaleString("en-RW")}` : "Loading"}
+            label="Commission fees earned"
+            value={commissionLoadError ? "—" : `RWF ${commission.totalEarnedRwf.toLocaleString("en-RW")}`}
+            hint={commissionLoadError ?? `Available to withdraw RWF ${commission.availableRwf.toLocaleString("en-RW")}`}
             icon={
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M12 2v20M17 5.5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
@@ -419,7 +399,7 @@ export default function AdminHome() {
           <StatCard
             label="Users"
             value={userCount ?? "—"}
-            hint={userCountError ? "Could not load" : userCount === null ? "Loading" : "All accounts"}
+            hint={usersLoadError ?? "All accounts"}
             icon={
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <circle cx="9" cy="8" r="3.5" />
@@ -715,7 +695,7 @@ export default function AdminHome() {
               </div>
               {!users.length ? (
                 <p className="mt-4 text-sm text-muted">
-                  {userCountError
+                  {usersLoadError
                     ? "User registration data could not be loaded."
                     : userCount === null
                       ? "Loading registration data…"
@@ -749,7 +729,7 @@ export default function AdminHome() {
               </select>
               <GhostButton
                 type="button"
-                disabled={reportKind === "users" && (userCount === null || userCountError)}
+                disabled={reportKind === "users" && (userCount === null || !!usersLoadError)}
                 onClick={() => handleGenerateReport("csv")}
                 className="min-h-11"
               >
@@ -760,7 +740,7 @@ export default function AdminHome() {
               </GhostButton>
               <GhostButton
                 type="button"
-                disabled={reportKind === "users" && (userCount === null || userCountError)}
+                disabled={reportKind === "users" && (userCount === null || !!usersLoadError)}
                 onClick={() => handleGenerateReport("pdf")}
                 className="min-h-11"
               >
@@ -772,7 +752,7 @@ export default function AdminHome() {
               </GhostButton>
             </div>
           </div>
-          {reportKind === "users" && userCountError ? (
+          {reportKind === "users" && usersLoadError ? (
             <p role="alert" className="mt-3 text-sm text-bad">
               User data could not be loaded, so this report is unavailable.
             </p>

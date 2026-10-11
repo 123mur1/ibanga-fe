@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { BrandLink } from "./brand";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { BrandLink, LogoMark } from "./brand";
 import { Avatar } from "./photos";
 import { useIbanga } from "@/lib/store";
 import type { Role } from "@/lib/types";
 
 type NavItem = { href: string; label: string; icon: string };
+const DashboardShellContext = createContext(false);
 
 const nav: Record<Role, NavItem[]> = {
   IMPORTER: [
@@ -175,10 +176,24 @@ export function DashboardShell({
   role: Role;
   children: React.ReactNode;
 }) {
+  const insideDashboardLayout = useContext(DashboardShellContext);
+  if (insideDashboardLayout) return <>{children}</>;
+
+  return <DashboardFrame role={role}>{children}</DashboardFrame>;
+}
+
+function DashboardFrame({
+  role,
+  children,
+}: {
+  role: Role;
+  children: React.ReactNode;
+}) {
   const { currentUser, logout } = useIbanga();
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -222,13 +237,13 @@ export function DashboardShell({
     setProfileMenuOpen(false);
     setShowLogoutConfirmation(false);
     setOpen(false);
-    setProfileOpen(false);
     logout();
     router.push("/");
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <DashboardShellContext.Provider value>
+    <div className="dashboard-theme min-h-screen bg-background">
       <div className="flex">
         <aside className={`sticky top-0 hidden h-screen min-h-0 shrink-0 self-start flex-col overflow-y-auto border-r border-line bg-white transition-[width] duration-200 lg:flex ${collapsed ? "w-[76px]" : "w-[264px]"}`}>
           <div className={`flex items-center ${collapsed ? "justify-center px-2" : "justify-between px-5"} pb-5 pt-6`}>
@@ -382,6 +397,15 @@ export function DashboardShell({
                         {currentUser?.email}
                       </p>
                     </div>
+                    <Link
+                      href={profilePath}
+                      role="menuitem"
+                      onClick={() => setProfileMenuOpen(false)}
+                      className="mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-navy transition hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand"
+                    >
+                      <NavIcon name="user" className="h-4 w-4" />
+                      Profile
+                    </Link>
                     <button
                       type="button"
                       role="menuitem"
@@ -427,6 +451,21 @@ export function DashboardShell({
                       <path d="M6 6l12 12M18 6 6 18" />
                     </svg>
                   </button>
+                </div>
+                <div className="mx-4 mb-4 flex min-h-20 items-center rounded-2xl bg-brand p-4">
+                  <div className="flex items-center gap-3">
+                    <span className="shrink-0">
+                      <Avatar src={currentUser?.photo} name={currentUser?.name ?? "User"} size="md" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-white">
+                        {currentUser?.name}
+                      </p>
+                      <p className="truncate text-xs text-white/70">
+                        {roleLabel(role)}
+                      </p>
+                    </div>
+                  </div>
                 </div>
                 <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3">
                   {items.map((item) => {
@@ -508,6 +547,7 @@ export function DashboardShell({
         </div>
       ) : null}
     </div>
+    </DashboardShellContext.Provider>
   );
 }
 

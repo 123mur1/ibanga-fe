@@ -15,22 +15,16 @@ const roleChip: Record<Role, string> = {
 };
 
 export default function AdminUsersPage() {
-  const { users, currentUser, deleteUser, setUserActive } = useIbanga();
+  const { users, currentUser, deleteUser, usersLoadError } = useIbanga();
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  function removeUser(user: User) {
+  async function removeUser(user: User) {
     if (!window.confirm(`Delete ${user.name}'s account, unbooked trucks and wallet history? This cannot be undone.`)) return;
 
     setDeletingId(user.id);
-    const error = deleteUser(user.id);
+    const error = await deleteUser(user.id);
     setDeletingId(null);
     if (error) window.alert(error);
-  }
-
-  async function toggleUser(user: User) {
-    const nextActive = !user.active;
-    if (!window.confirm(`${nextActive ? "Activate" : "Deactivate"} ${user.name}'s account?`)) return;
-    setUserActive(user.id, nextActive);
   }
 
   return (
@@ -50,10 +44,15 @@ export default function AdminUsersPage() {
         />
 
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          <StatCard label="Total users" value={users.length} hint="All accounts" />
-          <StatCard label="Importers" value={users.filter((user) => user.role === "IMPORTER").length} hint="Cargo customers" accent="accent" />
-          <StatCard label="Truck owners" value={users.filter((user) => user.role === "TRUCK_OWNER").length} hint="Fleet partners" accent="good" />
+          <StatCard label="Total users" value={usersLoadError ? "—" : users.length} hint={usersLoadError ?? "All accounts"} />
+          <StatCard label="Importers" value={usersLoadError ? "—" : users.filter((user) => user.role === "IMPORTER").length} hint="Cargo customers" accent="accent" />
+          <StatCard label="Truck owners" value={usersLoadError ? "—" : users.filter((user) => user.role === "TRUCK_OWNER").length} hint="Fleet partners" accent="good" />
         </div>
+        {usersLoadError ? (
+          <p role="alert" className="mt-4 rounded-lg border border-bad/20 bg-bad-soft px-4 py-3 text-sm text-bad">
+            Could not load the complete user directory: {usersLoadError}
+          </p>
+        ) : null}
         <div className="mt-5">
           <DataTable
             columns={[
@@ -61,16 +60,14 @@ export default function AdminUsersPage() {
               { label: "Role" },
               { label: "Contact" },
               { label: "Location" },
-              { label: "Status" },
               { label: "Actions", className: "text-right" },
             ]}
-            emptyMessage="No accounts are available."
             filterLabel="All roles"
-            rows={users.map((user) => ({
+            rows={usersLoadError ? [] : users.map((user) => ({
               id: user.id,
               searchText: `${user.name} ${user.email} ${user.company ?? ""} ${user.location ?? ""}`,
               filterValue: user.role,
-              exportValues: [user.name, user.role, user.email, user.location || "", user.active ? "Active" : "Inactive", ""],
+              exportValues: [user.name, user.role, user.email, user.location || "", ""],
               cells: [
               <div key={`${user.id}-user`} className="flex min-w-52 items-center gap-3">
                 <Avatar src={user.photo} name={user.name} size="sm" />
@@ -87,34 +84,21 @@ export default function AdminUsersPage() {
                 <p className="text-xs text-muted">{user.phone || "No phone listed"}</p>
               </div>,
               user.location || "—",
-              <span key={`${user.id}-status`} className={`inline-flex items-center gap-2 text-xs font-semibold ${user.active ? "text-good" : "text-muted"}`}>
-                <span className={`h-2 w-2 rounded-full ${user.active ? "bg-good" : "bg-muted"}`} />
-                {user.active ? "Active" : "Inactive"}
-              </span>,
               <div key={`${user.id}-actions`} className="flex justify-end">
                 {user.role !== "ADMIN" ? (
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      disabled={currentUser?.id === user.id}
-                      className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition disabled:opacity-60 ${user.active ? "border-warn/20 text-warn hover:bg-warn-soft" : "border-good/20 text-good hover:bg-good-soft"}`}
-                      onClick={() => void toggleUser(user)}
-                    >
-                      {user.active ? "Deactivate" : "Activate"}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={deletingId === user.id || currentUser?.id === user.id}
-                      className="rounded-lg border border-bad/20 px-2.5 py-1.5 text-xs font-semibold text-bad transition hover:bg-bad-soft disabled:opacity-60"
-                      onClick={() => void removeUser(user)}
-                    >
-                      {deletingId === user.id ? "Removing…" : "Remove"}
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    disabled={deletingId === user.id || currentUser?.id === user.id}
+                    className="rounded-lg border border-bad/20 px-2.5 py-1.5 text-xs font-semibold text-bad transition hover:bg-bad-soft disabled:opacity-60"
+                    onClick={() => void removeUser(user)}
+                  >
+                    {deletingId === user.id ? "Removing…" : "Remove"}
+                  </button>
                 ) : <span className="text-xs text-muted">Protected</span>}
               </div>,
               ],
             }))}
+            emptyMessage={usersLoadError ? "The user directory could not be loaded." : "No accounts are available."}
           />
         </div>
       </DashboardShell>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Sans } from "next/font/google";
 import { IbangaProvider } from "@/lib/store";
+import { PersistentDashboardShell } from "@/components/persistent-dashboard-shell";
 import { SiteFooter } from "@/components/site-footer";
 import "./globals.css";
 
@@ -28,7 +29,9 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-background text-ink">
         <IbangaProvider>
           <div className="flex min-h-screen flex-col">
-            <div className="flex-1">{children}</div>
+            <div className="flex-1">
+              <PersistentDashboardShell>{children}</PersistentDashboardShell>
+            </div>
           </div>
           <SiteFooter />
         </IbangaProvider>

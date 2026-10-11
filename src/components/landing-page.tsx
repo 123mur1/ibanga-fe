@@ -134,7 +134,7 @@ export function LandingPage() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-200">Why teams switch</p>
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-soft">Why teams switch</p>
                 <h2 className="mt-2 font-display text-3xl sm:text-4xl">The direct path beats broker chaos</h2>
               </div>
               <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-200">
@@ -152,9 +152,9 @@ export function LandingPage() {
                 </ul>
               </div>
 
-              <div className="rounded-[28px] border border-brand/30 bg-linear-to-br from-brand/20 via-blue-500/10 to-white/5 p-6">
+              <div className="rounded-[28px] border border-white/15 bg-white/8 p-6">
                 <h3 className="font-display text-2xl text-white">iBanga experience</h3>
-                <ul className="mt-6 space-y-4 text-sm text-blue-50">
+                <ul className="mt-6 space-y-4 text-sm text-white/85">
                   <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-400" />One clean booking flow with live truck availability.</li>
                   <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-400" />Direct RWF pricing visibility before anyone commits.</li>
                   <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-400" />Trip status, confirmations, and dispute tracking in one place.</li>

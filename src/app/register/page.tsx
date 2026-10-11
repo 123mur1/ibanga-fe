@@ -21,7 +21,6 @@ function RegisterForm() {
     email: "",
     phone: "",
     location: "",
-    company: "",
     password: "",
   });
   const [busy, setBusy] = useState(false);
@@ -36,7 +35,7 @@ function RegisterForm() {
       setError(err);
       return;
     }
-    router.push(dashboardPath(role));
+    router.push(params.get("next") || dashboardPath(role));
   }
 
   return (
@@ -46,7 +45,7 @@ function RegisterForm() {
         className="pointer-events-none absolute -inset-6 -z-10 rounded-full bg-linear-to-tr from-accent/20 via-brand/15 to-transparent blur-2xl"
       />
       <div className="overflow-hidden rounded-3xl border border-line bg-card shadow-card">
-        <div className="relative h-40 overflow-hidden bg-linear-to-br from-accent via-brand to-navy">
+        <div className="relative h-40 overflow-hidden bg-brand">
           <div className="paper-grid absolute inset-0 opacity-40" />
           <div
             aria-hidden="true"
@@ -199,31 +198,6 @@ function RegisterForm() {
                     required
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  />
-                </div>
-              </Field>
-              <Field label="Company (optional)">
-                <div className="relative">
-                  <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-muted">
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <rect x="4" y="2" width="16" height="20" rx="2" />
-                      <path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M8 10h.01M16 10h.01M12 10h.01M8 14h.01M16 14h.01M12 14h.01" />
-                    </svg>
-                  </span>
-                  <input
-                    className={`${inputClass} pl-11`}
-                    value={form.company}
-                    onChange={(e) => setForm({ ...form, company: e.target.value })}
                   />
                 </div>
               </Field>
@@ -446,7 +420,11 @@ function RegisterForm() {
             <span className="h-px flex-1 bg-line" />
           </div>
           <Link
-            href="/login"
+            href={
+              params.get("next")
+                ? `/login?next=${encodeURIComponent(params.get("next")!)}`
+                : "/login"
+            }
             className="mt-4 block w-full rounded-xl border border-brand/25 bg-brand-soft/60 px-4 py-2.5 text-center text-sm font-semibold text-brand-dark transition hover:-translate-y-0.5 hover:border-brand/40 hover:bg-brand-soft"
           >
             Log in instead
