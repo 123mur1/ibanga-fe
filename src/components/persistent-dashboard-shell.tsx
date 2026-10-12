@@ -6,8 +6,10 @@ import { useIbanga } from "@/lib/store";
 
 export function PersistentDashboardShell({
   children,
+  footer,
 }: {
   children: React.ReactNode;
+  footer: React.ReactNode;
 }) {
   const pathname = usePathname();
   const { currentUser } = useIbanga();
@@ -18,11 +20,17 @@ export function PersistentDashboardShell({
     pathname.startsWith("/trucks/") ||
     pathname === "/bookings/new";
 
-  if (!currentUser || (!isDashboardRoute && !isTruckBookingRoute)) {
-    return <>{children}</>;
-  }
+  const content =
+    !currentUser || (!isDashboardRoute && !isTruckBookingRoute) ? (
+      children
+    ) : (
+      <DashboardShell role={currentUser.role}>{children}</DashboardShell>
+    );
 
   return (
-    <DashboardShell role={currentUser.role}>{children}</DashboardShell>
+    <>
+      {content}
+      {!isDashboardRoute && footer}
+    </>
   );
 }

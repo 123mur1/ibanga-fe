@@ -30,10 +30,11 @@ export default function RootLayout({
         <IbangaProvider>
           <div className="flex min-h-screen flex-col">
             <div className="flex-1">
-              <PersistentDashboardShell>{children}</PersistentDashboardShell>
+              <PersistentDashboardShell footer={<SiteFooter />}>
+                {children}
+              </PersistentDashboardShell>
             </div>
           </div>
-          <SiteFooter />
         </IbangaProvider>
       </body>
     </html>

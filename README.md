@@ -20,9 +20,10 @@ access is not preconfigured.
 ## API integration
 
 Run the backend separately and make sure it is reachable from the frontend.
-Set `NEXT_PUBLIC_API_URL` in `.env.local` to the backend origin (the local
-configuration uses `http://localhost:3001`). The frontend is served at
-`http://localhost:3000` by default.
+By default, the frontend uses `http://localhost:3001` in development and
+`https://ibanga-be-1.onrender.com` in production. Set `NEXT_PUBLIC_API_URL` in
+`.env.local` or the deployment environment to override the backend origin; the
+frontend is served at `http://localhost:3000` by default.
 
 Authentication tokens are stored in the browser; marketplace records are
 loaded from the API. Account preferences remain browser-local.

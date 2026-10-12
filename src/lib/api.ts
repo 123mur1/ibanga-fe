@@ -1,4 +1,8 @@
 const TOKEN_KEY = "ibanga-auth-token";
+const DEFAULT_API_URL =
+  process.env.NODE_ENV === "production"
+    ? "https://ibanga-be-1.onrender.com"
+    : "http://localhost:3001";
 
 export class ApiError extends Error {
   constructor(
@@ -26,10 +30,9 @@ export async function api<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/+$/, "");
-  if (!baseUrl) {
-    throw new Error("NEXT_PUBLIC_API_URL is not configured for the frontend.");
-  }
+  const baseUrl = (
+    process.env.NEXT_PUBLIC_API_URL?.trim() || DEFAULT_API_URL
+  ).replace(/\/+$/, "");
 
   const headers = new Headers(init.headers);
   if (init.body !== undefined && !headers.has("Content-Type")) {
