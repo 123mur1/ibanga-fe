@@ -7,7 +7,6 @@ import { RequireAuth } from "@/components/require-auth";
 import { BookingBadge } from "@/components/status-badge";
 import { Avatar } from "@/components/photos";
 import { GhostButton, PrimaryButton, formatDate } from "@/components/ui";
-import { LiveTripTracking } from "@/components/live-trip-tracking";
 import { useIbanga } from "@/lib/store";
 import type { BookingStatus } from "@/lib/types";
 import { useState } from "react";
@@ -62,7 +61,7 @@ export default function OwnerTripDetail() {
               Requests
             </Link>
 
-            <div className="relative mt-4 overflow-hidden rounded-3xl bg-brand p-6 shadow-card sm:p-8">
+            <div className="relative mt-4 overflow-hidden rounded-3xl bg-gradient-to-br from-navy via-brand-dark to-brand p-6 shadow-card sm:p-8">
               <div className="paper-grid absolute inset-0 opacity-30" />
               <div
                 aria-hidden="true"
@@ -93,12 +92,6 @@ export default function OwnerTripDetail() {
                 </div>
               </div>
             </div>
-
-            <LiveTripTracking
-              bookingId={booking.id}
-              status={booking.status}
-              canShare
-            />
 
             <section className="mt-4 overflow-hidden rounded-2xl border border-line bg-card shadow-soft">
               <div className="group flex items-center gap-2.5 border-b border-line bg-background/60 px-5 py-3.5">

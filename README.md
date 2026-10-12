@@ -1,6 +1,6 @@
 # iBanga
 
-iBanga is a freight marketplace for importers, truck owners, and marketplace administrators. The frontend reads and updates marketplace data through the iBanga API. Wallet operations use the backend's simulated payment flow and do not transfer real funds.
+iBanga is a freight marketplace for importers, truck owners, and marketplace administrators. The current application stores marketplace records in the browser and does not process external payments.
 
 ## Run locally
 
@@ -11,28 +11,29 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Getting started
+## Administrator access
 
-There are no preloaded demo accounts or frontend marketplace records. Register
-an importer or truck-owner account to begin using the marketplace. Administrator
-access is not preconfigured.
+| Role | Email | Password |
+| --- | --- | --- |
+| Administrator | `admin@ibanga.com` | `admin123` |
 
-## API integration
+All importer and truck-owner test accounts use `ibanga123`. Example logins:
 
-Run the backend separately and make sure it is reachable from the frontend.
-Set `NEXT_PUBLIC_API_URL` in `.env.local` to the backend origin (the local
-configuration uses `http://localhost:3001`). The frontend is served at
-`http://localhost:3000` by default.
+| Role | Email | Password |
+| --- | --- | --- |
+| Importer | `maya@greenroute.rw` | `ibanga123` |
+| Importer | `chantal@kivucollective.ibanga.test` | `ibanga123` |
+| Truck owner | `patrick@pnt-logistics.rw` | `ibanga123` |
+| Truck owner | `beatrice@akellofreight.ibanga.test` | `ibanga123` |
 
-Authentication tokens are stored in the browser; marketplace records are
-loaded from the API. Account preferences remain browser-local.
+The preloaded test workspace contains 27 accounts, 162 trucks, 915 bookings, 61 disputes, and 324 wallet transactions. Use **Restore initial data** in the admin dashboard to reload the preloaded records after testing.
 
 ## Marketplace capabilities
 
 - Importers can search trucks, request bookings, follow trip progress, raise disputes, and manage their wallet.
 - Truck owners can list and manage vehicles, respond to requests, track trips, and manage payouts.
-- Administrator tools are available to administrator accounts; no demo administrator account is included.
-- Wallet activity is recorded by the API's simulated payment flow; no external charge or payout is made.
+- Administrators can review marketplace activity, manage accounts and trucks, update booking statuses, resolve disputes, review wallet records, and export reports.
+- Account records and preferences are stored in browser local storage. Wallet activity is recorded locally and does not charge or transfer real funds.
 
 ## Checks
 

@@ -26,7 +26,7 @@ function getPostLoginPath(role: Role, requestedPath: string | null) {
 }
 
 function LoginForm() {
-  const { login, currentUser } = useIbanga();
+  const { login, currentUser, users } = useIbanga();
   const router = useRouter();
   const params = useSearchParams();
   const [email, setEmail] = useState("");
@@ -34,10 +34,6 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const next = params.get("next");
-  const registerHref = next
-    ? `/register?next=${encodeURIComponent(next)}`
-    : "/register";
 
   useEffect(() => {
     if (currentUser) {
@@ -55,7 +51,14 @@ function LoginForm() {
       setError(err);
       return;
     }
-    router.push("/dashboard");
+    const authenticatedUser = users.find(
+      (user) => user.email.toLowerCase() === email.trim().toLowerCase(),
+    );
+    router.push(
+      authenticatedUser
+        ? getPostLoginPath(authenticatedUser.role, params.get("next"))
+        : "/dashboard",
+    );
   }
 
   return (
@@ -65,7 +68,7 @@ function LoginForm() {
         className="pointer-events-none absolute -inset-6 -z-10 rounded-full bg-linear-to-tr from-brand/25 via-accent/15 to-transparent blur-2xl"
       />
       <div className="overflow-hidden rounded-3xl border border-line bg-card shadow-card">
-        <div className="relative h-36 overflow-hidden bg-brand">
+        <div className="relative h-36 overflow-hidden bg-linear-to-br from-brand via-brand-dark to-navy">
           <div className="paper-grid absolute inset-0 opacity-40" />
           <div
             aria-hidden="true"
@@ -280,7 +283,7 @@ function LoginForm() {
             <span className="h-px flex-1 bg-line" />
           </div>
           <Link
-            href={registerHref}
+            href="/register"
             className="mt-4 block w-full rounded-xl border border-brand/25 bg-brand-soft/60 px-4 py-2.5 text-center text-sm font-semibold text-brand-dark transition hover:-translate-y-0.5 hover:border-brand/40 hover:bg-brand-soft"
           >
             Create an account

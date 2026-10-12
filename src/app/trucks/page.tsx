@@ -9,7 +9,7 @@ import { useIbanga } from "@/lib/store";
 import { LOCATIONS, TRUCK_TYPES } from "@/lib/types";
 
 function TrucksPageContent() {
-  const { trucks, currentUser, trucksLoading, loadError } = useIbanga();
+  const { trucks, currentUser } = useIbanga();
   const [location, setLocation] = useState("");
   const [type, setType] = useState("");
   const [route, setRoute] = useState("");
@@ -30,11 +30,6 @@ function TrucksPageContent() {
         Only trucks marked available appear here. A booking holds a truck
         until the owner rejects — or the trip is fully finished.
         </p>
-        {loadError ? (
-          <p role="alert" className="mt-4 rounded-lg border border-bad/20 bg-bad-soft px-4 py-3 text-sm text-bad">
-            {loadError}
-          </p>
-        ) : null}
 
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           <StatCard label="Available vehicles" value={trucks.filter((truck) => truck.status === "AVAILABLE").length} hint="Marketplace inventory" />
@@ -112,9 +107,7 @@ function TrucksPageContent() {
                 </Link>,
               ],
             }))}
-            emptyMessage={trucksLoading
-              ? "Loading available trucks…"
-              : "No available trucks match these filters. Try adjusting your search."}
+            emptyMessage="No available trucks match these filters. Try adjusting your search."
           />
         </div>
     </main>
