@@ -5,35 +5,11 @@ import { RequireAuth } from "@/components/require-auth";
 import { TruckBadge } from "@/components/status-badge";
 import { DataTable, PageHeader, StatCard } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
-import { ACTIVE_BOOKING_STATUSES } from "@/lib/types";
-import { useState } from "react";
 
 export default function AdminTrucksPage() {
-  const { trucks, bookings, setAvailability, deleteTruck } = useIbanga();
-  const [busyTruckId, setBusyTruckId] = useState<string | null>(null);
+  const { trucks } = useIbanga();
 
   const available = trucks.filter((t) => t.status === "AVAILABLE").length;
-  const heldTruckIds = new Set(
-    bookings
-      .filter((booking) => ACTIVE_BOOKING_STATUSES.includes(booking.status))
-      .map((booking) => booking.truckId),
-  );
-  const truckIdsWithHistory = new Set(bookings.map((booking) => booking.truckId));
-
-  async function toggleAvailability(id: string, status: "AVAILABLE" | "UNAVAILABLE") {
-    setBusyTruckId(id);
-    const error = await setAvailability(id, status === "AVAILABLE" ? "UNAVAILABLE" : "AVAILABLE");
-    setBusyTruckId(null);
-    if (error) window.alert(error);
-  }
-
-  async function removeTruck(id: string, plateNumber: string) {
-    if (!window.confirm(`Remove truck ${plateNumber}? This cannot be undone.`)) return;
-    setBusyTruckId(id);
-    const error = await deleteTruck(id);
-    setBusyTruckId(null);
-    if (error) window.alert(error);
-  }
 
   return (
     <RequireAuth role="ADMIN">
@@ -58,13 +34,13 @@ export default function AdminTrucksPage() {
         </div>
         <div className="mt-5">
           <DataTable
-            columns={[{ label: "Vehicle" }, { label: "Owner" }, { label: "Capacity" }, { label: "Location" }, { label: "Route" }, { label: "Status" }, { label: "Actions", className: "text-right" }]}
+            columns={[{ label: "Vehicle" }, { label: "Owner" }, { label: "Capacity" }, { label: "Location" }, { label: "Route" }, { label: "Status" }]}
             filterLabel="All availability"
             rows={trucks.map((truck) => ({
               id: truck.id,
               searchText: `${truck.plateNumber} ${truck.truckType} ${truck.owner?.name ?? ""} ${truck.currentLocation} ${truck.preferredRoute}`,
               filterValue: truck.status,
-              exportValues: [truck.plateNumber, truck.owner?.name ?? "", `${truck.capacity} tons`, truck.currentLocation, truck.preferredRoute, truck.status, ""],
+              exportValues: [truck.plateNumber, truck.owner?.name ?? "", `${truck.capacity} tons`, truck.currentLocation, truck.preferredRoute, truck.status],
               cells: [
                 <span key={`${truck.id}-vehicle`}><strong className="block">{truck.plateNumber}</strong><span className="text-xs text-muted">{truck.truckType}</span></span>,
                 truck.owner?.name ?? "—",
@@ -72,24 +48,6 @@ export default function AdminTrucksPage() {
                 truck.currentLocation,
                 truck.preferredRoute,
                 <span key={`${truck.id}-status`}><TruckBadge status={truck.status} /></span>,
-                <div key={`${truck.id}-actions`} className="flex min-w-44 justify-end gap-2">
-                  <button
-                    type="button"
-                    disabled={busyTruckId === truck.id || (truck.status === "UNAVAILABLE" && heldTruckIds.has(truck.id))}
-                    onClick={() => void toggleAvailability(truck.id, truck.status)}
-                    className="rounded-lg border border-line px-2.5 py-1.5 text-xs font-semibold text-navy hover:bg-background disabled:opacity-60"
-                  >
-                    {truck.status === "AVAILABLE" ? "Disable" : heldTruckIds.has(truck.id) ? "On booking" : "Enable"}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busyTruckId === truck.id || truckIdsWithHistory.has(truck.id)}
-                    onClick={() => void removeTruck(truck.id, truck.plateNumber)}
-                    className="rounded-lg border border-bad/20 px-2.5 py-1.5 text-xs font-semibold text-bad hover:bg-bad-soft disabled:opacity-60"
-                  >
-                    {truckIdsWithHistory.has(truck.id) ? "Has bookings" : "Remove"}
-                  </button>
-                </div>,
               ],
             }))}
           />

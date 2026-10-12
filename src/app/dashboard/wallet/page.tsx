@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { DataTable, Field, inputClass, PageHeader, PrimaryButton, StatCard } from "@/components/ui";
@@ -10,17 +10,6 @@ type BranchOption = { id?: string; code?: string; name?: string };
 type PaymentMode = "DEPOSIT" | "WITHDRAW";
 
 const AMOUNT_PRESETS = [10000, 25000, 50000, 100000];
-const banks: BankOption[] = [
-  { code: "BK", name: "Bank of Kigali" },
-  { code: "EQUITY", name: "Equity Bank Rwanda" },
-  { code: "I&M", name: "I&M Bank Rwanda" },
-];
-const branches: BranchOption[] = [
-  { code: "KGL", name: "Kigali Main Branch" },
-  { code: "NYA", name: "Nyarutarama Branch" },
-  { code: "REM", name: "Remera Branch" },
-];
-
 const formatRwf = (amount: number) =>
   new Intl.NumberFormat("en-RW", {
     style: "currency",
@@ -29,7 +18,15 @@ const formatRwf = (amount: number) =>
   }).format(amount);
 
 export default function WalletPage() {
-  const { currentUser, walletBalance, transactions, depositFunds, withdrawFunds } = useIbanga();
+  const {
+    currentUser,
+    walletBalance,
+    transactions,
+    depositFunds,
+    withdrawFunds,
+    getBanks,
+    getBankBranches,
+  } = useIbanga();
   const isAdmin = currentUser?.role === "ADMIN";
   const canDeposit = currentUser?.role === "IMPORTER";
   const [method, setMethod] = useState<"MOBILE_MONEY" | "BANK">("MOBILE_MONEY");
@@ -42,20 +39,55 @@ export default function WalletPage() {
   const [beneficiaryName, setBeneficiaryName] = useState("");
   const [withdrawPhone, setWithdrawPhone] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
+  const [banks, setBanks] = useState<BankOption[]>([]);
+  const [branches, setBranches] = useState<BranchOption[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getBanks()
+      .then((items) => {
+        if (!cancelled) setBanks(items);
+      })
+      .catch((loadError: unknown) => {
+        if (!cancelled) {
+          setError(loadError instanceof Error ? loadError.message : "Could not load banks.");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getBanks]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!bankCode) return;
+    getBankBranches(bankCode)
+      .then((items) => {
+        if (!cancelled) setBranches(items);
+      })
+      .catch((loadError: unknown) => {
+        if (!cancelled) {
+          setError(loadError instanceof Error ? loadError.message : "Could not load bank branches.");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [bankCode, getBankBranches]);
 
   async function deposit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
     setNotice(null);
-    const problem = depositFunds(Number(depositAmount));
+    const problem = await depositFunds(Number(depositAmount), depositPhone);
     if (problem) setError(problem);
     else {
       setDepositAmount("");
-      setNotice("Wallet balance updated. No payment was processed.");
+      setNotice("Simulated deposit recorded. No provider payment was requested.");
     }
     setSubmitting(false);
   }
@@ -65,11 +97,18 @@ export default function WalletPage() {
     setSubmitting(true);
     setError(null);
     setNotice(null);
-    const problem = withdrawFunds(Number(withdrawAmount));
+    const problem = await withdrawFunds({
+      amountRwf: Number(withdrawAmount),
+      method,
+      beneficiaryName,
+      ...(method === "MOBILE_MONEY"
+        ? { phoneNumber: withdrawPhone }
+        : { bankCode, branchCode, accountNumber }),
+    });
     if (problem) setError(problem);
     else {
       setWithdrawAmount("");
-      setNotice("Wallet balance updated. No payout was processed.");
+      setNotice("Simulated withdrawal recorded. No external payout was sent.");
     }
     setSubmitting(false);
   }
@@ -100,7 +139,7 @@ export default function WalletPage() {
           }
         />
 
-        <section className="mt-6 overflow-hidden rounded-2xl bg-linear-to-r from-navy via-navy to-accent-dark px-5 py-6 text-white shadow-card sm:px-8 sm:py-7">
+        <section className="mt-6 overflow-hidden rounded-2xl bg-brand px-5 py-6 text-white shadow-card sm:px-8 sm:py-7">
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div>
               <div className="flex items-center gap-2 text-sm font-medium text-white/75">
@@ -464,12 +503,12 @@ export default function WalletPage() {
               <ol className="mt-4 space-y-3">
                 {(activePaymentMode === "DEPOSIT"
                   ? [
-                      "Enter an amount and sample mobile number.",
+                      "Enter an amount and your mobile number.",
                       "Submit to add funds to this wallet.",
                       "Review the updated balance and activity.",
                     ]
                   : [
-                      "Choose a sample mobile or bank destination.",
+                      "Choose a mobile or bank destination.",
                       "Submit to deduct the amount from this wallet.",
                       "Review the transaction in recent activity.",
                     ]).map((step, index) => (
@@ -489,7 +528,7 @@ export default function WalletPage() {
           <div className="flex items-end justify-between gap-3">
             <div>
               <h2 className="font-display text-xl text-navy">Recent activity</h2>
-              <p className="mt-1 text-sm text-muted">Recent sample transactions for this account.</p>
+              <p className="mt-1 text-sm text-muted">Recent transactions returned by the API.</p>
             </div>
           </div>
           <div className="mt-4 grid gap-4 sm:grid-cols-3">

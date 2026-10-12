@@ -7,6 +7,7 @@ import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { BookingBadge } from "@/components/status-badge";
 import { Avatar } from "@/components/photos";
+import { LiveTripTracking } from "@/components/live-trip-tracking";
 import { Field, GhostButton, inputClass, PrimaryButton, formatDate } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
 
@@ -29,7 +30,7 @@ export default function ImporterBookingDetail() {
     if (!booking || paymentPending) return;
     setPaymentPending(true);
     setPaymentError(null);
-    const error = payBooking(booking.id);
+    const error = await payBooking(booking.id);
     if (error) setPaymentError(error);
     else setPaymentConfirmed(true);
     setPaymentPending(false);
@@ -66,7 +67,7 @@ export default function ImporterBookingDetail() {
               My bookings
             </Link>
 
-            <div className="relative mt-4 overflow-hidden rounded-3xl bg-gradient-to-br from-brand via-brand-dark to-navy p-6 shadow-card sm:p-8">
+            <div className="relative mt-4 overflow-hidden rounded-3xl bg-brand p-6 shadow-card sm:p-8">
               <div className="paper-grid absolute inset-0 opacity-30" />
               <div
                 aria-hidden="true"
@@ -97,6 +98,12 @@ export default function ImporterBookingDetail() {
               </div>
               <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
             </div>
+
+            <LiveTripTracking
+              bookingId={booking.id}
+              status={booking.status}
+              canShare={false}
+            />
 
             <section className="mt-4 overflow-hidden rounded-2xl border border-line bg-card shadow-soft">
               <div className="group flex items-center gap-2.5 border-b border-line bg-background/60 px-5 py-3.5">
