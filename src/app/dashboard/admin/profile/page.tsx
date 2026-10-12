@@ -19,7 +19,7 @@ export default function AdminProfilePage() {
         />
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           <StatCard label="Account role" value="Administrator" hint="Marketplace operations" />
-          <StatCard label="Account" value={currentUser?.email ?? "—"} hint="Signed-in administrator" accent="good" />
+          <StatCard label="Account status" value={currentUser?.active ? "Active" : "Inactive"} hint="Administrator account" accent="good" />
           <StatCard label="Workspace" value="iBanga" hint="Regional freight marketplace" accent="accent" />
         </div>
         <section className="mt-6 max-w-3xl rounded-2xl border border-line bg-white p-6 shadow-soft">

@@ -9,23 +9,7 @@ import { useIbanga } from "@/lib/store";
 export default function AdminDisputesPage() {
   const { disputes, bookings, users, trucks, resolveDispute } = useIbanga();
   const [notes, setNotes] = useState<Record<string, string>>({});
-  const [resolvingId, setResolvingId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const open = disputes.filter((d) => d.status === "OPEN");
-
-  async function onResolve(disputeId: string) {
-    setResolvingId(disputeId);
-    setError(null);
-    const problem = await resolveDispute(
-      disputeId,
-      notes[disputeId] || "Resolved by admin",
-    );
-    setResolvingId(null);
-    if (problem) setError(problem);
-    else {
-      setNotes((current) => ({ ...current, [disputeId]: "" }));
-    }
-  }
 
   return (
     <RequireAuth role="ADMIN">
@@ -46,11 +30,6 @@ export default function AdminDisputesPage() {
           <StatCard label="Open cases" value={open.length} hint="Require review" accent="bad" />
           <StatCard label="Resolved" value={disputes.length - open.length} hint="Closed with notes" accent="good" />
         </div>
-        {error ? (
-          <p role="alert" className="mt-4 rounded-lg border border-bad/20 bg-bad-soft px-4 py-3 text-sm text-bad">
-            {error}
-          </p>
-        ) : null}
         <div className="mt-5">
           <DataTable
             columns={[{ label: "Route" }, { label: "Reported by" }, { label: "Issue" }, { label: "Status" }, { label: "Resolution" }]}
@@ -73,7 +52,7 @@ export default function AdminDisputesPage() {
                   dispute.status === "OPEN" ? (
                     <div key={`${dispute.id}-action`} className="flex min-w-56 items-center gap-2">
                       <input aria-label={`Resolution notes for ${dispute.id}`} placeholder="Resolution notes" value={notes[dispute.id] ?? ""} onChange={(event) => setNotes((current) => ({ ...current, [dispute.id]: event.target.value }))} className={`${inputClass} min-w-28 py-2`} />
-                      <PrimaryButton type="button" disabled={resolvingId === dispute.id} className="shrink-0 px-3 py-2 text-xs" onClick={() => void onResolve(dispute.id)}>{resolvingId === dispute.id ? "Resolving…" : "Resolve"}</PrimaryButton>
+                      <PrimaryButton type="button" className="shrink-0 px-3 py-2 text-xs" onClick={() => void resolveDispute(dispute.id, notes[dispute.id] || "Resolved by admin")}>Resolve</PrimaryButton>
                     </div>
                   ) : dispute.resolutionNotes || "Closed",
                 ],
