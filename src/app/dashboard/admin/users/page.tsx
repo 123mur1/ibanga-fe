@@ -17,20 +17,30 @@ const roleChip: Record<Role, string> = {
 export default function AdminUsersPage() {
   const { users, currentUser, deleteUser, setUserActive } = useIbanga();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  function removeUser(user: User) {
-    if (!window.confirm(`Delete ${user.name}'s account, unbooked trucks and wallet history? This cannot be undone.`)) return;
+  async function removeUser(user: User) {
+    if (!window.confirm(`Delete ${user.name}'s account and wallet history? Accounts with booking or dispute history cannot be deleted and should be deactivated instead.`)) return;
 
     setDeletingId(user.id);
-    const error = deleteUser(user.id);
-    setDeletingId(null);
-    if (error) window.alert(error);
+    try {
+      const error = await deleteUser(user.id);
+      if (error) window.alert(error);
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   async function toggleUser(user: User) {
     const nextActive = !user.active;
     if (!window.confirm(`${nextActive ? "Activate" : "Deactivate"} ${user.name}'s account?`)) return;
-    setUserActive(user.id, nextActive);
+    setUpdatingId(user.id);
+    try {
+      const error = await setUserActive(user.id, nextActive);
+      if (error) window.alert(error);
+    } finally {
+      setUpdatingId(null);
+    }
   }
 
   return (
@@ -96,11 +106,13 @@ export default function AdminUsersPage() {
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      disabled={currentUser?.id === user.id}
+                      disabled={updatingId === user.id || currentUser?.id === user.id}
                       className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition disabled:opacity-60 ${user.active ? "border-warn/20 text-warn hover:bg-warn-soft" : "border-good/20 text-good hover:bg-good-soft"}`}
                       onClick={() => void toggleUser(user)}
                     >
-                      {user.active ? "Deactivate" : "Activate"}
+                      {updatingId === user.id
+                        ? user.active ? "Deactivating…" : "Activating…"
+                        : user.active ? "Deactivate" : "Activate"}
                     </button>
                     <button
                       type="button"

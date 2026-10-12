@@ -26,7 +26,7 @@ function getPostLoginPath(role: Role, requestedPath: string | null) {
 }
 
 function LoginForm() {
-  const { login, currentUser, users } = useIbanga();
+  const { login, currentUser } = useIbanga();
   const router = useRouter();
   const params = useSearchParams();
   const [email, setEmail] = useState("");
@@ -45,19 +45,14 @@ function LoginForm() {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const err = await login(email, password);
+    const result = await login(email, password);
     setBusy(false);
-    if (err) {
-      setError(err);
+    if (result.error || !result.user) {
+      setError(result.error ?? "Could not sign in.");
       return;
     }
-    const authenticatedUser = users.find(
-      (user) => user.email.toLowerCase() === email.trim().toLowerCase(),
-    );
     router.push(
-      authenticatedUser
-        ? getPostLoginPath(authenticatedUser.role, params.get("next"))
-        : "/dashboard",
+      getPostLoginPath(result.user.role, params.get("next")),
     );
   }
 

@@ -9,18 +9,15 @@ import {
   useState,
 } from "react";
 import {
-  accountPassword,
-  administratorPassword,
-  seedBookings,
-  seedDisputes,
-  seedTrucks,
-  seedUsers,
-  seedWalletTransactions,
-  seedVersion,
-} from "./mock-data";
-import { ACTIVE_BOOKING_STATUSES } from "./types";
+  api,
+  ApiError,
+  clearAuthToken,
+  readAuthToken,
+  saveAuthToken,
+} from "./api";
 import type {
   Booking,
+  BookingPayment,
   BookingStatus,
   Dispute,
   Role,
@@ -43,36 +40,82 @@ export type NewTruckInput = {
   photos?: string[];
 };
 
-type AppState = {
-  seedVersion: number;
-  users: User[];
-  bookings: Booking[];
-  disputes: Dispute[];
-  trucks: Truck[];
-  currentUserId: string | null;
-  balances: Record<string, number>;
-  transactions: WalletTransaction[];
-  credentials: Record<string, string>;
+type ApiRelatedUser = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  location: string | null;
+  role?: Role;
+  active?: boolean;
+  company?: string | null;
+  photo?: string | null;
+  createdAt?: string;
 };
 
-const STORAGE_KEY = "ibanga-app-state-v4";
-const initialState: AppState = {
-  seedVersion,
-  users: seedUsers,
-  bookings: seedBookings,
-  disputes: seedDisputes,
-  trucks: seedTrucks,
-  currentUserId: null,
-  balances: Object.fromEntries(seedUsers.map((user) => [user.id, 600000 + seedUsers.indexOf(user) * 175000])),
-  transactions: seedWalletTransactions,
-  credentials: Object.fromEntries(seedUsers.map((user) => [
-    user.email.toLowerCase(),
-    user.email.toLowerCase() === "admin@ibanga.com" ? administratorPassword : accountPassword,
-  ])),
+type ApiUser = ApiRelatedUser & { role: Role };
+type ApiOwner = ApiRelatedUser;
+
+type ApiTruck = Omit<Truck, "currentLocation" | "preferredRoute" | "description" | "photos" | "owner"> & {
+  currentLocation: string | null;
+  preferredRoute: string | null;
+  description: string | null;
+  photos: string[];
+  owner?: ApiOwner;
+};
+
+type ApiBooking = Omit<
+  Booking,
+  "cargoWeight" | "cargoDescription" | "additionalInstructions" | "agreedPrice" | "payment" | "dispute"
+> & {
+  cargoWeight: number;
+  cargoDescription: string | null;
+  additionalInstructions: string | null;
+  agreedPrice: string;
+  agreedPriceRwf: number | null;
+  payment: BookingPayment | null;
+  dispute: ApiDispute | null;
+  truck: ApiTruck;
+  importer: ApiRelatedUser;
+};
+
+type ApiDispute = Omit<Dispute, "resolutionNotes"> & {
+  resolutionNotes: string | null;
+};
+
+type ApiWallet = {
+  balanceRwf: number;
+  transactions: Omit<WalletTransaction, "userId">[];
+};
+
+type ApiAdminWalletAccount = {
+  userId: string;
+  name: string;
+  email: string;
+  role: Role;
+  balanceRwf: number;
+  transactions: Omit<WalletTransaction, "userId">[];
+};
+
+type WalletAccount = {
+  userId: string;
+  name: string;
+  email: string;
+  role: Role;
+  balance: number;
+  transactions: WalletTransaction[];
+};
+
+type AdminCommission = {
+  availableRwf: number;
+  totalEarnedRwf: number;
+  currency: string;
+  monthlyHistory: { month: string; totalRwf: number }[];
 };
 
 type Store = {
   ready: boolean;
+  connectionError: string | null;
   currentUser: User | null;
   users: User[];
   bookings: Booking[];
@@ -81,15 +124,9 @@ type Store = {
   trucksLoading: boolean;
   walletBalance: number;
   transactions: WalletTransaction[];
-  walletAccounts: {
-    userId: string;
-    name: string;
-    email: string;
-    role: Role;
-    balance: number;
-    transactions: WalletTransaction[];
-  }[];
-  login: (email: string, password: string) => Promise<string | null>;
+  walletAccounts: WalletAccount[];
+  adminCommission: AdminCommission | null;
+  login: (email: string, password: string) => Promise<{ user: User | null; error: string | null }>;
   requestPasswordReset: (email: string) => Promise<{ message: string; error?: string } | null>;
   resetPassword: (token: string, password: string) => Promise<string | null>;
   register: (input: {
@@ -115,414 +152,545 @@ type Store = {
   setBookingStatus: (id: string, status: BookingStatus) => Promise<string | null>;
   reportProblem: (bookingId: string, reason: string) => Promise<string | null>;
   resolveDispute: (disputeId: string, notes: string) => Promise<string | null>;
-  setUserActive: (userId: string, active: boolean) => void;
-  deleteUser: (userId: string) => string | null;
-  resetWorkspace: () => Promise<string | null>;
-  depositFunds: (amount: number) => string | null;
-  withdrawFunds: (amount: number) => string | null;
-  payBooking: (bookingId: string) => string | null;
+  setUserActive: (userId: string, active: boolean) => Promise<string | null>;
+  deleteUser: (userId: string) => Promise<string | null>;
+  depositFunds: (amount: number, phoneNumber: string) => Promise<string | null>;
+  withdrawFunds: (input: {
+    amountRwf: number;
+    method: "MOBILE_MONEY" | "BANK";
+    beneficiaryName: string;
+    phoneNumber?: string;
+    bankCode?: string;
+    branchCode?: string;
+    accountNumber?: string;
+  }) => Promise<string | null>;
+  payBooking: (bookingId: string) => Promise<string | null>;
 };
 
 const StoreContext = createContext<Store | null>(null);
 
-function freshWorkspace(): AppState {
+function mapUser(user: ApiRelatedUser, role: Role = user.role ?? "IMPORTER"): User {
   return {
-    ...initialState,
-    users: seedUsers.map((user) => ({ ...user })),
-    bookings: seedBookings.map((booking) => ({ ...booking })),
-    disputes: seedDisputes.map((dispute) => ({ ...dispute })),
-    trucks: seedTrucks.map((truck) => ({ ...truck, photos: [...truck.photos] })),
-    balances: { ...initialState.balances },
-    transactions: initialState.transactions.map((transaction) => ({ ...transaction })),
-    credentials: { ...initialState.credentials },
+    ...user,
+    phone: user.phone ?? "",
+    location: user.location ?? "",
+    company: user.company ?? undefined,
+    photo: user.photo ?? undefined,
+    role,
+    active: user.active ?? true,
   };
 }
 
-function mergeSeedRecords<T extends { id: string }>(
-  seeded: T[],
-  saved: T[] | undefined,
-  includeSeeds: boolean,
-): T[] {
-  if (!includeSeeds) return saved ?? seeded;
-  const records = new Map(seeded.map((record) => [record.id, record]));
-  saved?.forEach((record) => records.set(record.id, record));
-  return [...records.values()];
+function mapTruck(truck: ApiTruck): Truck {
+  return {
+    ...truck,
+    currentLocation: truck.currentLocation ?? "",
+    preferredRoute: truck.preferredRoute ?? "",
+    description: truck.description ?? "",
+    photos: truck.photos ?? [],
+    owner: truck.owner
+      ? {
+          id: truck.owner.id,
+          name: truck.owner.name,
+          email: truck.owner.email,
+          phone: truck.owner.phone,
+          location: truck.owner.location,
+          photo: truck.owner.photo,
+        }
+      : undefined,
+  };
 }
 
-function transaction(
-  userId: string,
-  type: WalletTransaction["type"],
-  direction: WalletTransaction["direction"],
-  amountRwf: number,
-  description: string,
-): WalletTransaction {
+function mapBooking(booking: ApiBooking): Booking {
   return {
-    id: `tx-${Date.now()}`,
-    userId,
-    type,
-    status: "SUCCEEDED",
-    direction,
-    amountRwf,
-    reference: `IB-${Math.floor(Math.random() * 90000) + 10000}`,
-    description,
-    createdAt: new Date().toISOString(),
+    ...booking,
+    cargoWeight: String(booking.cargoWeight),
+    cargoDescription: booking.cargoDescription ?? "",
+    additionalInstructions: booking.additionalInstructions ?? "",
+    agreedPrice: booking.agreedPrice ?? "",
+    payment: booking.payment ?? null,
+    dispute: booking.dispute ? mapDispute(booking.dispute) : null,
   };
+}
+
+function mapDispute(dispute: ApiDispute): Dispute {
+  return {
+    ...dispute,
+    resolutionNotes: dispute.resolutionNotes ?? "",
+  };
+}
+
+function uniqueById<T extends { id: string }>(records: T[]) {
+  return [...new Map(records.map((record) => [record.id, record])).values()];
+}
+
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }
 
 export function IbangaProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<AppState>(freshWorkspace);
   const [ready, setReady] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [disputes, setDisputes] = useState<Dispute[]>([]);
+  const [trucks, setTrucks] = useState<Truck[]>([]);
+  const [trucksLoading, setTrucksLoading] = useState(true);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
+  const [walletAccounts, setWalletAccounts] = useState<WalletAccount[]>([]);
+  const [adminCommission, setAdminCommission] =
+    useState<AdminCommission | null>(null);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved) as Partial<AppState>;
-          const includeNewSeeds = (parsed.seedVersion ?? 0) < seedVersion;
-          const credentials = { ...initialState.credentials, ...parsed.credentials };
-          for (const user of seedUsers) {
-            credentials[user.email.toLowerCase()] = user.email.toLowerCase() === "admin@ibanga.com"
-              ? administratorPassword
-              : accountPassword;
-          }
-          setState({
-            ...freshWorkspace(),
-            ...parsed,
-            seedVersion,
-            users: mergeSeedRecords(seedUsers, parsed.users, includeNewSeeds),
-            bookings: mergeSeedRecords(seedBookings, parsed.bookings, includeNewSeeds),
-            disputes: mergeSeedRecords(seedDisputes, parsed.disputes, includeNewSeeds),
-            trucks: mergeSeedRecords(seedTrucks, parsed.trucks, includeNewSeeds),
-            balances: { ...initialState.balances, ...parsed.balances },
-            transactions: mergeSeedRecords(
-              seedWalletTransactions,
-              parsed.transactions,
-              includeNewSeeds,
-            ),
-            credentials,
-          });
-        }
-      } catch (error) {
-        console.error("Could not restore marketplace state.", error);
-        localStorage.removeItem(STORAGE_KEY);
-      } finally {
-        setReady(true);
-      }
-    }, 0);
-    return () => window.clearTimeout(timer);
+  const loadPublicTrucks = useCallback(async () => {
+    setTrucksLoading(true);
+    try {
+      const records = await api<ApiTruck[]>("/trucks");
+      setTrucks(records.map(mapTruck));
+      setConnectionError(null);
+    } catch (error) {
+      const message = errorMessage(error, "Could not load available trucks.");
+      setConnectionError(message);
+      console.error("Could not load available trucks.", error);
+    } finally {
+      setTrucksLoading(false);
+    }
   }, []);
 
-  useEffect(() => {
-    if (ready) localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [ready, state]);
+  const loadMarketplace = useCallback(async (user: User) => {
+    setTrucksLoading(true);
+    try {
+      const truckPath = user.role === "TRUCK_OWNER" ? "/trucks?mine=true" : "/trucks";
+      const [truckRecords, bookingRecords, disputeRecords, wallet, adminUsers, adminWalletAccounts, commissionSummary] =
+        await Promise.all([
+          api<ApiTruck[]>(truckPath),
+          api<ApiBooking[]>("/bookings"),
+          api<ApiDispute[]>("/disputes"),
+          api<ApiWallet>("/wallet"),
+          user.role === "ADMIN" ? api<ApiUser[]>("/users") : Promise.resolve([]),
+          user.role === "ADMIN"
+            ? api<ApiAdminWalletAccount[]>("/wallet/admin/accounts")
+            : Promise.resolve([]),
+          user.role === "ADMIN"
+            ? api<AdminCommission>("/wallet/admin/commission")
+            : Promise.resolve(null),
+        ]);
 
-  const currentUser =
-    state.users.find((user) => user.id === state.currentUserId) ?? null;
-  const currentUserId = currentUser?.id ?? null;
+      const mappedBookings = bookingRecords.map(mapBooking);
+      const mappedTrucks = truckRecords.map(mapTruck);
+      const nestedTrucks = bookingRecords.map((booking) => mapTruck(booking.truck));
+      const allTrucks = uniqueById([...mappedTrucks, ...nestedTrucks]);
+      const mappedDisputes = disputeRecords.map(mapDispute);
+      const mappedUsers = adminUsers.map((user) => mapUser(user));
+      const relatedUsers = [
+        ...bookingRecords.flatMap((booking) => [
+          mapUser(booking.importer, "IMPORTER"),
+          ...(booking.truck.owner ? [mapUser(booking.truck.owner, "TRUCK_OWNER")] : []),
+        ]),
+        ...mappedTrucks.flatMap((truck) =>
+          truck.owner ? [mapUser(truck.owner, "TRUCK_OWNER")] : [],
+        ),
+      ];
+      const allUsers = uniqueById([
+        ...mappedUsers,
+        ...relatedUsers,
+        user,
+      ]);
+
+      setCurrentUser(user);
+      setUsers(allUsers);
+      setBookings(mappedBookings);
+      setDisputes(mappedDisputes);
+      setTrucks(allTrucks);
+      setWalletBalance(wallet.balanceRwf);
+      setTransactions(
+        wallet.transactions.map((transaction) => ({
+          ...transaction,
+          userId: user.id,
+        })),
+      );
+      setWalletAccounts(
+        adminWalletAccounts.map((account) => ({
+          userId: account.userId,
+          name: account.name,
+          email: account.email,
+          role: account.role,
+          balance: account.balanceRwf,
+          transactions: account.transactions.map((transaction) => ({
+            ...transaction,
+            userId: account.userId,
+          })),
+        })),
+      );
+      setAdminCommission(commissionSummary);
+      setConnectionError(null);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        clearAuthToken();
+        setCurrentUser(null);
+        setUsers([]);
+        setBookings([]);
+        setDisputes([]);
+        setTrucks([]);
+        setWalletBalance(0);
+        setTransactions([]);
+        setWalletAccounts([]);
+        setAdminCommission(null);
+        await loadPublicTrucks();
+        return;
+      }
+      setAdminCommission(null);
+      const message = errorMessage(error, "Could not load marketplace data.");
+      setConnectionError(message);
+      console.error("Could not load marketplace data.", error);
+    } finally {
+      setTrucksLoading(false);
+    }
+  }, [loadPublicTrucks]);
+
+  const refreshAfterMutation = useCallback(async () => {
+    if (currentUser) {
+      await loadMarketplace(currentUser);
+    } else {
+      await loadPublicTrucks();
+    }
+  }, [currentUser, loadMarketplace, loadPublicTrucks]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function initialize() {
+      try {
+        window.localStorage.removeItem("ibanga-app-state-v4");
+        if (readAuthToken()) {
+          try {
+            const user = mapUser(await api<ApiUser>("/auth/me"));
+            if (active) {
+              setCurrentUser(user);
+              await loadMarketplace(user);
+            }
+          } catch (error) {
+            if (error instanceof ApiError && error.status === 401) {
+              clearAuthToken();
+            } else {
+              throw error;
+            }
+          }
+        }
+        if (active && !readAuthToken()) await loadPublicTrucks();
+      } catch (error) {
+        const message = errorMessage(error, "Could not connect to the iBanga API.");
+        if (active) setConnectionError(message);
+        console.error("Could not initialize the marketplace.", error);
+      } finally {
+        if (active) setReady(true);
+      }
+    }
+
+    void initialize();
+    return () => {
+      active = false;
+    };
+  }, [loadMarketplace, loadPublicTrucks]);
 
   const login = useCallback(async (email: string, password: string) => {
-    const user = state.users.find(
-      (candidate) => candidate.email.toLowerCase() === email.trim().toLowerCase(),
-    );
-    if (!user || state.credentials[user.email.toLowerCase()] !== password) {
-      return "The email or password is incorrect.";
+    try {
+      const result = await api<{ token: string; user: ApiUser }>("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
+      saveAuthToken(result.token);
+      const user = mapUser(result.user);
+      setCurrentUser(user);
+      await loadMarketplace(user);
+      return { user, error: null };
+    } catch (error) {
+      return { user: null, error: errorMessage(error, "Could not sign in.") };
     }
-    if (!user.active) return "This account is currently inactive.";
-    setState((current) => ({ ...current, currentUserId: user.id }));
-    return null;
-  }, [state.credentials, state.users]);
+  }, [loadMarketplace]);
 
-  const requestPasswordReset = useCallback(async (email: string) => ({
-    message: state.users.some((user) => user.email.toLowerCase() === email.toLowerCase())
-      ? "Password recovery email is not available yet. Contact support for assistance."
-      : "No account was found for that email.",
-  }), [state.users]);
+  const requestPasswordReset = useCallback(async (email: string) => {
+    try {
+      return await api<{ message: string }>("/auth/password-reset/request", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      });
+    } catch (error) {
+      return { message: "", error: errorMessage(error, "Could not request a password reset.") };
+    }
+  }, []);
 
-  const resetPassword = useCallback(async () =>
-    "Password reset is not available yet. Contact support for assistance.", []);
+  const resetPassword = useCallback(async (token: string, password: string) => {
+    try {
+      await api("/auth/password-reset/reset", {
+        method: "POST",
+        body: JSON.stringify({ token, password }),
+      });
+      return null;
+    } catch (error) {
+      return errorMessage(error, "Could not reset the password.");
+    }
+  }, []);
 
   const register = useCallback<Store["register"]>(async (input) => {
-    if (state.users.some((user) => user.email.toLowerCase() === input.email.toLowerCase())) {
-      return "An account with this email already exists.";
+    try {
+      const result = await api<{ token: string; user: ApiUser }>("/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          name: input.name,
+          email: input.email,
+          phone: input.phone,
+          location: input.location,
+          password: input.password,
+          role: input.role,
+        }),
+      });
+      saveAuthToken(result.token);
+      let user = mapUser(result.user);
+      setCurrentUser(user);
+      if (input.company.trim()) {
+        try {
+          user = mapUser(await api<ApiUser>("/auth/me", {
+            method: "PATCH",
+            body: JSON.stringify({ company: input.company }),
+          }));
+        } catch (error) {
+          await loadMarketplace(user);
+          return `Your account was created, but the company profile could not be saved: ${errorMessage(error, "API request failed.")}`;
+        }
+      }
+      await loadMarketplace(user);
+      return null;
+    } catch (error) {
+      return errorMessage(error, "Could not create your account.");
     }
-    const user: User = {
-      id: `user-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      name: input.name,
-      email: input.email,
-      phone: input.phone,
-      role: input.role,
-      location: input.location,
-      company: input.company,
-      active: true,
-    };
-    setState((current) => ({
-      ...current,
-      users: [...current.users, user],
-      currentUserId: user.id,
-      balances: { ...current.balances, [user.id]: 0 },
-      credentials: { ...current.credentials, [input.email.toLowerCase()]: input.password },
-    }));
-    return null;
-  }, [state.users]);
+  }, [loadMarketplace]);
 
   const logout = useCallback(() => {
-    setState((current) => ({ ...current, currentUserId: null }));
-  }, []);
+    clearAuthToken();
+    setCurrentUser(null);
+    setUsers([]);
+    setBookings([]);
+    setDisputes([]);
+    setTrucks([]);
+    setWalletBalance(0);
+    setTransactions([]);
+    setWalletAccounts([]);
+    setAdminCommission(null);
+    void loadPublicTrucks();
+  }, [loadPublicTrucks]);
 
   const updateProfile = useCallback<Store["updateProfile"]>(async (patch) => {
-    if (!currentUserId) return "Sign in to update your profile.";
-    setState((current) => ({
-      ...current,
-      users: current.users.map((user) =>
-        user.id === currentUserId ? { ...user, ...patch } : user,
-      ),
-    }));
-    return null;
-  }, [currentUserId]);
+    if (!currentUser) return "Sign in to update your profile.";
+    try {
+      const user = mapUser(await api<ApiUser>("/auth/me", {
+        method: "PATCH",
+        body: JSON.stringify(patch),
+      }));
+      await loadMarketplace(user);
+      return null;
+    } catch (error) {
+      return errorMessage(error, "Could not update your profile.");
+    }
+  }, [currentUser, loadMarketplace]);
 
   const fetchTruck = useCallback<Store["fetchTruck"]>(async (id) => {
-    const truck = state.trucks.find((item) => item.id === id);
-    if (!truck) throw new Error("Truck not found in the marketplace.");
-    return truck;
-  }, [state.trucks]);
+    const truck = await api<ApiTruck>(`/trucks/${encodeURIComponent(id)}`);
+    return mapTruck(truck);
+  }, []);
 
   const addTruck = useCallback<Store["addTruck"]>(async (input) => {
-    if (!currentUserId) return "Sign in to list a truck.";
-    setState((current) => ({
-      ...current,
-      trucks: [{
-        ...input,
-        id: `truck-${Date.now()}`,
-        ownerId: currentUserId,
-        currentLocation: input.currentLocation ?? current.users.find((user) => user.id === currentUserId)?.location ?? "",
-        preferredRoute: input.preferredRoute ?? "",
-        description: input.description ?? "",
-        photos: input.photos ?? [],
-        status: "AVAILABLE",
-      }, ...current.trucks],
-    }));
-    return null;
-  }, [currentUserId]);
+    if (!currentUser) return "Sign in to list a truck.";
+    try {
+      await api("/trucks", {
+        method: "POST",
+        body: JSON.stringify(input),
+      });
+      await refreshAfterMutation();
+      return null;
+    } catch (error) {
+      return errorMessage(error, "Could not add the truck.");
+    }
+  }, [currentUser, refreshAfterMutation]);
 
   const updateTruck = useCallback<Store["updateTruck"]>(async (id, patch) => {
-    setState((current) => ({
-      ...current,
-      trucks: current.trucks.map((truck) => truck.id === id ? { ...truck, ...patch } : truck),
-    }));
-    return null;
-  }, []);
+    try {
+      await api(`/trucks/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        body: JSON.stringify(patch),
+      });
+      await refreshAfterMutation();
+      return null;
+    } catch (error) {
+      return errorMessage(error, "Could not update the truck.");
+    }
+  }, [refreshAfterMutation]);
 
   const deleteTruck = useCallback<Store["deleteTruck"]>(async (id) => {
-    if (state.bookings.some((booking) => booking.truckId === id)) {
-      return "This truck is linked to booking history and cannot be removed.";
+    try {
+      await api(`/trucks/${encodeURIComponent(id)}`, { method: "DELETE" });
+      await refreshAfterMutation();
+      return null;
+    } catch (error) {
+      return errorMessage(error, "Could not remove the truck.");
     }
-    setState((current) => ({
-      ...current,
-      trucks: current.trucks.filter((truck) => truck.id !== id),
-    }));
-    return null;
-  }, [state.bookings]);
+  }, [refreshAfterMutation]);
 
   const setAvailability = useCallback<Store["setAvailability"]>(async (id, status) => {
-    if (
-      status === "AVAILABLE" &&
-      state.bookings.some((booking) =>
-        booking.truckId === id &&
-        ACTIVE_BOOKING_STATUSES.includes(booking.status),
-      )
-    ) {
-      return "This truck has an active booking and cannot be made available yet.";
+    try {
+      await api(`/trucks/${encodeURIComponent(id)}/availability`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      });
+      await refreshAfterMutation();
+      return null;
+    } catch (error) {
+      return errorMessage(error, "Could not update truck availability.");
     }
-    setState((current) => ({
-      ...current,
-      trucks: current.trucks.map((truck) => truck.id === id ? { ...truck, status } : truck),
-    }));
-    return null;
-  }, [state.bookings]);
+  }, [refreshAfterMutation]);
 
   const createBooking = useCallback<Store["createBooking"]>(async (truck, input) => {
-    if (!currentUserId) return "Sign in to book a truck.";
-    const currentUser = state.users.find((user) => user.id === currentUserId);
-    if (currentUser?.role !== "IMPORTER") {
-      return "Only importer accounts can book trucks.";
+    if (!currentUser) return "Sign in to book a truck.";
+    try {
+      const cargoWeight = Number(input.cargoWeight);
+      if (!Number.isFinite(cargoWeight) || cargoWeight <= 0) {
+        return "Enter a valid cargo weight.";
+      }
+      await api("/bookings", {
+        method: "POST",
+        body: JSON.stringify({
+          truckId: truck.id,
+          cargoType: input.cargoType,
+          cargoDescription: input.cargoDescription,
+          cargoWeight,
+          pickupLocation: input.pickupLocation,
+          destination: input.destination,
+          pickupDate: input.pickupDate,
+          expectedDeliveryDate: input.expectedDeliveryDate,
+          additionalInstructions: input.additionalInstructions,
+        }),
+      });
+      await refreshAfterMutation();
+      return null;
+    } catch (error) {
+      return errorMessage(error, "Could not create the booking.");
     }
-    const booking: Booking = {
-      ...input,
-      id: `booking-${Date.now()}`,
-      importerId: currentUserId,
-      truckId: truck.id,
-      status: "PENDING",
-      createdAt: new Date().toISOString(),
-    };
-    setState((current) => ({
-      ...current,
-      bookings: [booking, ...current.bookings],
-      trucks: current.trucks.map((item) => item.id === truck.id ? { ...item, status: "UNAVAILABLE" } : item),
-    }));
-    return null;
-  }, [currentUserId, state.users]);
+  }, [currentUser, refreshAfterMutation]);
 
   const setBookingStatus = useCallback<Store["setBookingStatus"]>(async (id, status) => {
-    setState((current) => {
-      const booking = current.bookings.find((item) => item.id === id);
-      return {
-        ...current,
-        bookings: current.bookings.map((item) =>
-          item.id === id
-            ? { ...item, status, agreedPrice: item.agreedPrice || "RWF 850,000", agreedPriceRwf: item.agreedPriceRwf ?? 850000 }
-            : item,
-        ),
-        trucks: booking && (status === "REJECTED" || status === "COMPLETED")
-          ? current.trucks.map((item) => item.id === booking.truckId ? { ...item, status: "AVAILABLE" } : item)
-          : current.trucks,
-      };
-    });
-    return null;
-  }, []);
+    try {
+      await api(`/bookings/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      });
+      await refreshAfterMutation();
+      return null;
+    } catch (error) {
+      return errorMessage(error, "Could not update the booking.");
+    }
+  }, [refreshAfterMutation]);
 
   const reportProblem = useCallback<Store["reportProblem"]>(async (bookingId, reason) => {
-    if (!currentUserId) return "Sign in to report a booking issue.";
-    setState((current) => ({
-      ...current,
-      disputes: [{
-        id: `dispute-${Date.now()}`,
-        bookingId,
-        raisedBy: currentUserId,
-        reason,
-        status: "OPEN",
-        resolutionNotes: "",
-        createdAt: new Date().toISOString(),
-      }, ...current.disputes],
-      bookings: current.bookings.map((booking) =>
-        booking.id === bookingId ? { ...booking, status: "DISPUTED" } : booking,
-      ),
-    }));
-    return null;
-  }, [currentUserId]);
+    try {
+      await api("/disputes", {
+        method: "POST",
+        body: JSON.stringify({ bookingId, reason }),
+      });
+      await refreshAfterMutation();
+      return null;
+    } catch (error) {
+      return errorMessage(error, "Could not report the booking problem.");
+    }
+  }, [refreshAfterMutation]);
 
   const resolveDispute = useCallback<Store["resolveDispute"]>(async (disputeId, notes) => {
-    setState((current) => ({
-      ...current,
-      disputes: current.disputes.map((dispute) =>
-        dispute.id === disputeId
-          ? { ...dispute, status: "RESOLVED", resolutionNotes: notes, resolvedAt: new Date().toISOString() }
-          : dispute,
-      ),
-    }));
-    return null;
-  }, []);
-
-  const setUserActive = useCallback((userId: string, active: boolean) => {
-    setState((current) => ({
-      ...current,
-      users: current.users.map((user) => user.id === userId ? { ...user, active } : user),
-    }));
-  }, []);
-
-  const deleteUser = useCallback<Store["deleteUser"]>((userId) => {
-    const user = state.users.find((item) => item.id === userId);
-    if (!user) return "This account could not be found.";
-    if (user.role === "ADMIN" || userId === currentUserId) {
-      return "Administrator accounts and your active account cannot be removed.";
+    try {
+      await api(`/disputes/${encodeURIComponent(disputeId)}/resolve`, {
+        method: "PATCH",
+        body: JSON.stringify({ resolutionNotes: notes }),
+      });
+      await refreshAfterMutation();
+      return null;
+    } catch (error) {
+      return errorMessage(error, "Could not resolve the dispute.");
     }
-    const ownedTruckIds = new Set(
-      state.trucks.filter((truck) => truck.ownerId === userId).map((truck) => truck.id),
-    );
-    if (state.bookings.some((booking) =>
-      booking.importerId === userId || ownedTruckIds.has(booking.truckId),
-    )) {
-      return "This account is linked to booking history. Deactivate it instead to preserve marketplace records.";
+  }, [refreshAfterMutation]);
+
+  const setUserActive = useCallback<Store["setUserActive"]>(async (userId, active) => {
+    try {
+      await api(`/users/${encodeURIComponent(userId)}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ active }),
+      });
+      await refreshAfterMutation();
+      return null;
+    } catch (error) {
+      return errorMessage(error, "Could not update the account status.");
     }
-    const email = user.email.toLowerCase();
-    setState((current) => ({
-      ...current,
-      users: current.users.filter((user) => user.id !== userId),
-      trucks: current.trucks.filter((truck) => truck.ownerId !== userId),
-      balances: Object.fromEntries(Object.entries(current.balances).filter(([id]) => id !== userId)),
-      transactions: current.transactions.filter((entry) => entry.userId !== userId),
-      credentials: Object.fromEntries(Object.entries(current.credentials).filter(([key]) => key !== email)),
-    }));
-    return null;
-  }, [currentUserId, state.bookings, state.trucks, state.users]);
+  }, [refreshAfterMutation]);
 
-  const resetWorkspace = useCallback(async () => {
-    setState((current) => ({ ...freshWorkspace(), currentUserId: current.currentUserId }));
-    return null;
-  }, []);
-
-  const depositFunds = useCallback((amount: number) => {
-    if (!currentUserId || !Number.isFinite(amount) || amount < 1000) {
-      return "Enter a valid amount of at least RWF 1,000.";
+  const deleteUser = useCallback<Store["deleteUser"]>(async (userId) => {
+    try {
+      await api(`/users/${encodeURIComponent(userId)}`, { method: "DELETE" });
+      await refreshAfterMutation();
+      return null;
+    } catch (error) {
+      return errorMessage(error, "Could not remove the account.");
     }
-    const entry = transaction(currentUserId, "DEPOSIT", "CREDIT", amount, "Wallet top-up");
-    setState((current) => ({
-      ...current,
-      balances: { ...current.balances, [currentUserId]: (current.balances[currentUserId] ?? 0) + amount },
-      transactions: [entry, ...current.transactions],
-    }));
-    return null;
-  }, [currentUserId]);
+  }, [refreshAfterMutation]);
 
-  const withdrawFunds = useCallback((amount: number) => {
-    if (!currentUserId || !Number.isFinite(amount) || amount < 1000) {
-      return "Enter a valid amount of at least RWF 1,000.";
+  const depositFunds = useCallback<Store["depositFunds"]>(async (amount, phoneNumber) => {
+    try {
+      await api("/wallet/deposits", {
+        method: "POST",
+        body: JSON.stringify({ amountRwf: amount, phoneNumber }),
+      });
+      await refreshAfterMutation();
+      return null;
+    } catch (error) {
+      return errorMessage(error, "Could not deposit funds.");
     }
-    if ((state.balances[currentUserId] ?? 0) < amount) return "Insufficient wallet balance.";
-    const entry = transaction(currentUserId, "WITHDRAWAL", "DEBIT", amount, "Wallet withdrawal");
-    setState((current) => ({
-      ...current,
-      balances: { ...current.balances, [currentUserId]: (current.balances[currentUserId] ?? 0) - amount },
-      transactions: [entry, ...current.transactions],
-    }));
-    return null;
-  }, [currentUserId, state.balances]);
+  }, [refreshAfterMutation]);
 
-  const payBooking = useCallback((bookingId: string) => {
-    if (!currentUserId) return "Sign in to pay for a booking.";
-    const booking = state.bookings.find((item) => item.id === bookingId);
-    if (!booking || booking.importerId !== currentUserId) return "Booking not found.";
-    const amount = booking.agreedPriceRwf ?? 850000;
-    if ((state.balances[currentUserId] ?? 0) < amount) return "Insufficient wallet balance.";
-    const entry = transaction(currentUserId, "BOOKING_PAYMENT", "DEBIT", amount, `Payment for ${booking.id}`);
-    setState((current) => ({
-      ...current,
-      balances: { ...current.balances, [currentUserId]: (current.balances[currentUserId] ?? 0) - amount },
-      transactions: [entry, ...current.transactions],
-      bookings: current.bookings.map((item) =>
-        item.id === bookingId
-          ? { ...item, payment: { status: "FUNDED", amountRwf: amount, commissionRwf: Math.round(amount * 0.06), ownerAmountRwf: Math.round(amount * 0.94), fundedAt: new Date().toISOString() } }
-          : item,
-      ),
-    }));
-    return null;
-  }, [currentUserId, state.balances, state.bookings]);
+  const withdrawFunds = useCallback<Store["withdrawFunds"]>(async (input) => {
+    try {
+      await api("/wallet/withdrawals", {
+        method: "POST",
+        body: JSON.stringify(input),
+      });
+      await refreshAfterMutation();
+      return null;
+    } catch (error) {
+      return errorMessage(error, "Could not withdraw funds.");
+    }
+  }, [refreshAfterMutation]);
+
+  const payBooking = useCallback<Store["payBooking"]>(async (bookingId) => {
+    try {
+      await api(`/wallet/bookings/${encodeURIComponent(bookingId)}/pay`, {
+        method: "POST",
+      });
+      await refreshAfterMutation();
+      return null;
+    } catch (error) {
+      return errorMessage(error, "Could not pay for the booking.");
+    }
+  }, [refreshAfterMutation]);
 
   const value = useMemo<Store>(() => ({
     ready,
+    connectionError,
     currentUser,
-    users: state.users,
-    bookings: state.bookings,
-    disputes: state.disputes,
-    trucks: state.trucks.filter(
-      (truck) => currentUser?.role !== "TRUCK_OWNER" || truck.ownerId === currentUser.id,
-    ),
-    trucksLoading: false,
-    walletBalance: currentUserId ? state.balances[currentUserId] ?? 0 : 0,
-    transactions: state.transactions.filter(
-      (entry) => !entry.userId || entry.userId === currentUserId,
-    ),
-    walletAccounts: currentUser?.role === "ADMIN"
-    ? state.users.map((user) => ({
-      userId: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      balance: state.balances[user.id] ?? 0,
-      transactions: state.transactions.filter((entry) => entry.userId === user.id),
-    }))
-    : [],
+    users,
+    bookings,
+    disputes,
+    trucks,
+    trucksLoading,
+    walletBalance,
+    transactions,
+    walletAccounts,
+    adminCommission,
     login,
     requestPasswordReset,
     resetPassword,
@@ -540,19 +708,28 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     resolveDispute,
     setUserActive,
     deleteUser,
-    resetWorkspace,
     depositFunds,
     withdrawFunds,
     payBooking,
   }), [
-    ready, currentUser, currentUserId, state, login, requestPasswordReset,
-    resetPassword, register, logout, updateProfile, fetchTruck,
-    addTruck, updateTruck, deleteTruck, setAvailability, createBooking,
-    setBookingStatus, reportProblem, resolveDispute, setUserActive, deleteUser,
-    resetWorkspace, depositFunds, withdrawFunds, payBooking,
+    ready, connectionError, currentUser, users, bookings, disputes, trucks,
+    trucksLoading, walletBalance, transactions, walletAccounts, adminCommission, login, requestPasswordReset,
+    resetPassword, register, logout, updateProfile, fetchTruck, addTruck,
+    updateTruck, deleteTruck, setAvailability, createBooking, setBookingStatus,
+    reportProblem, resolveDispute, setUserActive, deleteUser,
+    depositFunds, withdrawFunds, payBooking,
   ]);
 
-  return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
+  return (
+    <StoreContext.Provider value={value}>
+      {connectionError ? (
+        <p role="alert" className="border-b border-bad/20 bg-bad-soft px-4 py-2 text-center text-sm text-bad">
+          API connection: {connectionError}
+        </p>
+      ) : null}
+      {children}
+    </StoreContext.Provider>
+  );
 }
 
 export function useIbanga() {

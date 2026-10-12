@@ -63,38 +63,6 @@ function getMonthlyBookingCounts(bookings: Booking[]) {
   return months;
 }
 
-function getMonthlyCommissionTotals(bookings: Booking[]) {
-  const now = new Date();
-  const firstMonth = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1),
-  );
-  const months = Array.from({ length: 6 }, (_, index) => {
-    const date = new Date(
-      Date.UTC(firstMonth.getUTCFullYear(), firstMonth.getUTCMonth() + index, 1),
-    );
-    return {
-      label: date.toLocaleDateString("en", { month: "short", timeZone: "UTC" }),
-      totalRwf: 0,
-    };
-  });
-
-  for (const booking of bookings) {
-    const payment = booking.payment;
-    if (payment?.status !== "RELEASED" || !payment.releasedAt) continue;
-    const releasedAt = new Date(payment.releasedAt);
-    if (Number.isNaN(releasedAt.getTime())) continue;
-    const monthIndex =
-      (releasedAt.getUTCFullYear() - firstMonth.getUTCFullYear()) * 12 +
-      releasedAt.getUTCMonth() -
-      firstMonth.getUTCMonth();
-    if (monthIndex >= 0 && monthIndex < months.length) {
-      months[monthIndex].totalRwf += payment.commissionRwf;
-    }
-  }
-
-  return months;
-}
-
 function getMonthlyUserRegistrations(users: AdminReportUser[]) {
   const now = new Date();
   const firstMonth = new Date(
@@ -151,7 +119,13 @@ function downloadCsv(
 }
 
 export default function AdminHome() {
-  const { trucks, bookings, disputes, users: accountUsers, resetWorkspace } = useIbanga();
+  const {
+    trucks,
+    bookings,
+    disputes,
+    users: accountUsers,
+    adminCommission: commission,
+  } = useIbanga();
   const users: AdminReportUser[] = accountUsers.map((user) => ({
     ...user,
     phone: user.phone || null,
@@ -161,23 +135,20 @@ export default function AdminHome() {
   }));
   const userCount = users.length;
   const [reportKind, setReportKind] = useState<ReportKind>("overview");
-  const commission = bookings.reduce(
-    (totals, booking) => {
-      const payment = booking.payment;
-      if (payment?.status === "FUNDED") totals.availableRwf += payment.commissionRwf;
-      if (payment?.status === "RELEASED") totals.totalEarnedRwf += payment.commissionRwf;
-      return totals;
-    },
-    { availableRwf: 0, totalEarnedRwf: 0 },
-  );
   const userCountError = false;
-  const [resetting, setResetting] = useState(false);
-  const [resetError, setResetError] = useState<string | null>(null);
   const openDisputes = disputes.filter((d) => d.status === "OPEN").length;
   const availableTrucks = trucks.filter((truck) => truck.status === "AVAILABLE").length;
   const monthlyBookings = getMonthlyBookingCounts(bookings);
   const maxMonthlyBookings = Math.max(1, ...monthlyBookings.map((month) => month.count));
-  const monthlyCommissions = getMonthlyCommissionTotals(bookings);
+  const monthlyCommissions = (commission?.monthlyHistory ?? []).map(
+    ({ month, totalRwf }) => ({
+      label: new Date(`${month}-01T00:00:00Z`).toLocaleDateString("en", {
+        month: "short",
+        timeZone: "UTC",
+      }),
+      totalRwf,
+    }),
+  );
   const maxMonthlyCommission = Math.max(
     1,
     ...monthlyCommissions.map((month) => month.totalRwf),
@@ -198,15 +169,6 @@ export default function AdminHome() {
     .map((point, index) => `${index === 0 ? "M" : "L"}${point.x},${point.y}`)
     .join(" ");
   const bookingAreaPath = `${bookingLinePath} L596,166 L44,166 Z`;
-
-  async function handleReset() {
-    if (!window.confirm("Restore marketplace records and balances to their initial values? This will discard current changes.")) return;
-    setResetting(true);
-    setResetError(null);
-    const error = await resetWorkspace();
-    if (error) setResetError(error);
-    setResetting(false);
-  }
 
   function handleGenerateReport(format: "csv" | "pdf") {
     const generatedAt = new Date().toISOString();
@@ -388,21 +350,9 @@ export default function AdminHome() {
                   </span>
                 ) : null}
               </Link>
-              <GhostButton
-                type="button"
-                disabled={resetting}
-                onClick={() => void handleReset()}
-              >
-                {resetting ? "Restoring…" : "Restore initial data"}
-              </GhostButton>
             </>
           }
         />
-        {resetError ? (
-          <p className="mt-4 flex items-center gap-2 rounded-xl border border-bad/20 bg-bad-soft px-3.5 py-2.5 text-sm text-bad">
-            {resetError}
-          </p>
-        ) : null}
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
@@ -659,7 +609,11 @@ export default function AdminHome() {
                   );
                 })}
               </div>
-              {!monthlyCommissions.some((month) => month.totalRwf > 0) ? (
+              {!commission ? (
+                <p className="mt-4 text-sm text-muted">
+                  Loading commission history…
+                </p>
+              ) : !monthlyCommissions.some((month) => month.totalRwf > 0) ? (
                 <p className="mt-4 text-sm text-muted">
                   No released commissions in the last six months.
                 </p>

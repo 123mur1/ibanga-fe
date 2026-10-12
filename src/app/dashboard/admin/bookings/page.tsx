@@ -11,6 +11,11 @@ export default function AdminBookingsPage() {
   const { bookings, trucks, users, setBookingStatus } = useIbanga();
   const statuses: BookingStatus[] = ["PENDING", "ACCEPTED", "IN_PROGRESS", "DELIVERED", "COMPLETED", "DISPUTED", "REJECTED"];
 
+  async function updateStatus(id: string, status: BookingStatus) {
+    const error = await setBookingStatus(id, status);
+    if (error) window.alert(error);
+  }
+
   return (
     <RequireAuth role="ADMIN">
       <DashboardShell role="ADMIN">
@@ -55,7 +60,7 @@ export default function AdminBookingsPage() {
                     aria-label={`Update booking status for ${booking.id}`}
                     className={`${inputClass} min-w-36 py-2`}
                     value={booking.status}
-                    onChange={(event) => void setBookingStatus(booking.id, event.target.value as BookingStatus)}
+                    onChange={(event) => void updateStatus(booking.id, event.target.value as BookingStatus)}
                   >
                     {statuses.map((status) => (
                       <option key={status} value={status}>{status.replaceAll("_", " ")}</option>

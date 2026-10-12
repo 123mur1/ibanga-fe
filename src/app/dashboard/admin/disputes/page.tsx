@@ -11,6 +11,11 @@ export default function AdminDisputesPage() {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const open = disputes.filter((d) => d.status === "OPEN");
 
+  async function resolve(disputeId: string) {
+    const error = await resolveDispute(disputeId, notes[disputeId] || "Resolved by admin");
+    if (error) window.alert(error);
+  }
+
   return (
     <RequireAuth role="ADMIN">
       <DashboardShell role="ADMIN">
@@ -52,7 +57,7 @@ export default function AdminDisputesPage() {
                   dispute.status === "OPEN" ? (
                     <div key={`${dispute.id}-action`} className="flex min-w-56 items-center gap-2">
                       <input aria-label={`Resolution notes for ${dispute.id}`} placeholder="Resolution notes" value={notes[dispute.id] ?? ""} onChange={(event) => setNotes((current) => ({ ...current, [dispute.id]: event.target.value }))} className={`${inputClass} min-w-28 py-2`} />
-                      <PrimaryButton type="button" className="shrink-0 px-3 py-2 text-xs" onClick={() => void resolveDispute(dispute.id, notes[dispute.id] || "Resolved by admin")}>Resolve</PrimaryButton>
+                      <PrimaryButton type="button" className="shrink-0 px-3 py-2 text-xs" onClick={() => void resolve(dispute.id)}>Resolve</PrimaryButton>
                     </div>
                   ) : dispute.resolutionNotes || "Closed",
                 ],

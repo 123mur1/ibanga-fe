@@ -29,7 +29,7 @@ export default function ImporterBookingDetail() {
     if (!booking || paymentPending) return;
     setPaymentPending(true);
     setPaymentError(null);
-    const error = payBooking(booking.id);
+    const error = await payBooking(booking.id);
     if (error) setPaymentError(error);
     else setPaymentConfirmed(true);
     setPaymentPending(false);

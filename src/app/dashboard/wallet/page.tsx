@@ -1,25 +1,16 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { DataTable, Field, inputClass, PageHeader, PrimaryButton, StatCard } from "@/components/ui";
+import { api } from "@/lib/api";
 import { useIbanga } from "@/lib/store";
 type BankOption = { id?: string; code?: string; name?: string };
 type BranchOption = { id?: string; code?: string; name?: string };
 type PaymentMode = "DEPOSIT" | "WITHDRAW";
 
 const AMOUNT_PRESETS = [10000, 25000, 50000, 100000];
-const banks: BankOption[] = [
-  { code: "BK", name: "Bank of Kigali" },
-  { code: "EQUITY", name: "Equity Bank Rwanda" },
-  { code: "I&M", name: "I&M Bank Rwanda" },
-];
-const branches: BranchOption[] = [
-  { code: "KGL", name: "Kigali Main Branch" },
-  { code: "NYA", name: "Nyarutarama Branch" },
-  { code: "REM", name: "Remera Branch" },
-];
 
 const formatRwf = (amount: number) =>
   new Intl.NumberFormat("en-RW", {
@@ -42,16 +33,35 @@ export default function WalletPage() {
   const [beneficiaryName, setBeneficiaryName] = useState("");
   const [withdrawPhone, setWithdrawPhone] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
+  const [banks, setBanks] = useState<BankOption[]>([]);
+  const [branches, setBranches] = useState<BranchOption[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    api<BankOption[]>("/wallet/banks")
+      .then(setBanks)
+      .catch((requestError: unknown) => {
+        setError(requestError instanceof Error ? requestError.message : "Could not load banks.");
+      });
+  }, []);
+
+  useEffect(() => {
+    if (!bankCode) return;
+    api<BranchOption[]>(`/wallet/banks/${encodeURIComponent(bankCode)}/branches`)
+      .then(setBranches)
+      .catch((requestError: unknown) => {
+        setError(requestError instanceof Error ? requestError.message : "Could not load bank branches.");
+      });
+  }, [bankCode]);
 
   async function deposit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
     setNotice(null);
-    const problem = depositFunds(Number(depositAmount));
+    const problem = await depositFunds(Number(depositAmount), depositPhone);
     if (problem) setError(problem);
     else {
       setDepositAmount("");
@@ -65,7 +75,14 @@ export default function WalletPage() {
     setSubmitting(true);
     setError(null);
     setNotice(null);
-    const problem = withdrawFunds(Number(withdrawAmount));
+    const problem = await withdrawFunds({
+      amountRwf: Number(withdrawAmount),
+      method,
+      beneficiaryName,
+      ...(method === "MOBILE_MONEY"
+        ? { phoneNumber: withdrawPhone }
+        : { bankCode, branchCode, accountNumber }),
+    });
     if (problem) setError(problem);
     else {
       setWithdrawAmount("");
@@ -353,6 +370,7 @@ export default function WalletPage() {
                           onChange={(event) => {
                             setBankCode(event.target.value);
                             setBranchCode("");
+                            setBranches([]);
                           }}
                         >
                           <option value="">Select bank</option>

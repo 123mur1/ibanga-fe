@@ -33,6 +33,7 @@ const nav: Record<Role, NavItem[]> = {
     { href: "/dashboard/admin/bookings", label: "Bookings", icon: "calendar" },
     { href: "/dashboard/admin/disputes", label: "Disputes", icon: "alert" },
     { href: "/dashboard/admin/wallets", label: "Wallets", icon: "wallet" },
+    { href: "/dashboard/wallet", label: "Withdraw funds", icon: "wallet" },
   ],
 };
 
