@@ -18,6 +18,7 @@ export type User = {
   phone: string;
   role: Role;
   location: string;
+  active: boolean;
   company?: string;
   photo?: string;
 };
@@ -64,8 +65,6 @@ export type Booking = {
   dispute?: Dispute | null;
   status: BookingStatus;
   createdAt: string;
-  importer?: User;
-  truck?: Truck;
 };
 
 export type BookingPayment = {

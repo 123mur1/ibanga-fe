@@ -28,9 +28,9 @@ export function LogoutConfirmationDialog({
         aria-describedby="logout-dialog-description"
         className="w-full max-w-md overflow-hidden rounded-3xl border border-line bg-white shadow-card"
       >
-        <div className="h-1.5 bg-linear-to-r from-brand via-accent to-brand" />
+        <div className="h-1.5 bg-linear-to-r from-bad via-bad/70 to-bad" />
         <div className="p-6 sm:p-7">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-soft text-brand">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-bad-soft text-bad">
             <svg
               width="23"
               height="23"
@@ -65,7 +65,7 @@ export function LogoutConfirmationDialog({
             <button
               type="button"
               onClick={onConfirm}
-              className="inline-flex items-center justify-center rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+              className="inline-flex items-center justify-center rounded-xl bg-bad px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-bad/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad focus-visible:ring-offset-2"
             >
               Log out
             </button>

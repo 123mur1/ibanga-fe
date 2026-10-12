@@ -1,19 +1,10 @@
-"use client";
-
 import Link from "next/link";
 import { TruckBadge } from "./status-badge";
 import { Avatar, TruckThumb } from "./photos";
-import { useIbanga } from "@/lib/store";
 import type { Truck } from "@/lib/types";
 
 export function TruckCard({ truck }: { truck: Truck }) {
-  const { currentUser } = useIbanga();
   const owner = truck.owner;
-  const detailsPath = `/trucks/${truck.id}`;
-  const detailsHref = currentUser
-    ? detailsPath
-    : `/login?next=${encodeURIComponent(detailsPath)}`;
-
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-soft transition duration-200 hover:-translate-y-1 hover:shadow-card">
       <div className="relative">
@@ -65,7 +56,7 @@ export function TruckCard({ truck }: { truck: Truck }) {
         </dl>
         <p className="mt-4 line-clamp-2 text-sm text-muted">{truck.description}</p>
         <Link
-          href={detailsHref}
+          href={`/trucks/${truck.id}`}
           className="mt-5 inline-flex items-center justify-center gap-1.5 rounded-xl bg-brand px-4 py-2.5 text-center text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-brand-dark hover:shadow-card"
         >
           View details
