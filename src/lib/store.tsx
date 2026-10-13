@@ -168,7 +168,10 @@ const initialState: AppState = {
   notices: seedNotices,
   notifications: seedNotifications,
   activity: seedActivity,
+<<<<<<< HEAD
 >>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
+=======
+>>>>>>> backup-before-rebase
 };
 
 type Store = {
@@ -243,7 +246,10 @@ type Store = {
   pings: CargoPing[];
   notices: TripNotice[];
   escrowRwf: number;
+<<<<<<< HEAD
 >>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
+=======
+>>>>>>> backup-before-rebase
 };
 
 const StoreContext = createContext<Store | null>(null);
@@ -271,7 +277,10 @@ function mapUser(user: ApiRelatedUser, role: Role = user.role ?? "IMPORTER"): Us
     notices: seedNotices.map((notice) => ({ ...notice })),
     notifications: seedNotifications.map((item) => ({ ...item })),
     activity: seedActivity.map((entry) => ({ ...entry })),
+<<<<<<< HEAD
 >>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
+=======
+>>>>>>> backup-before-rebase
   };
 }
 
@@ -298,6 +307,56 @@ function mapTruck(truck: ApiTruck): Truck {
 <<<<<<< HEAD
 function mapBooking(booking: ApiBooking): Booking {
 =======
+function uid(prefix: string) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function actorName(state: AppState, actorId: string | null) {
+  return state.users.find((user) => user.id === actorId)?.name ?? "iBanga";
+}
+
+function partyIds(state: AppState, booking: Booking) {
+  const truck = state.trucks.find((item) => item.id === booking.truckId);
+  const admins = state.users.filter((user) => user.role === "ADMIN").map((user) => user.id);
+  return [...new Set([booking.importerId, truck?.ownerId, ...admins].filter((id): id is string => Boolean(id)))];
+}
+
+function pushUpdate(
+  state: AppState,
+  userIds: string[],
+  title: string,
+  body: string,
+  href: string,
+  tone: AppNotification["tone"],
+  action: string,
+  detail: string,
+  actorId: string | null,
+) {
+  const createdAt = new Date().toISOString();
+  return {
+    notifications: [
+      ...userIds.map((userId, index) => ({
+        id: uid(`nt${index}`),
+        userId,
+        title,
+        body,
+        href,
+        tone,
+        read: false,
+        createdAt,
+      })),
+      ...state.notifications,
+    ],
+    activity: [{
+      id: uid("act"),
+      actorName: actorName(state, actorId),
+      action,
+      detail,
+      createdAt,
+    }, ...state.activity],
+  };
+}
+
 function uid(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -638,6 +697,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
 
   const register = useCallback<Store["register"]>(async (input) => {
 <<<<<<< HEAD
+<<<<<<< HEAD
     try {
       const result = await api<{ token: string; user: ApiUser }>("/auth/register", {
         method: "POST",
@@ -671,6 +731,8 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     }
   }, [loadMarketplace]);
 =======
+=======
+>>>>>>> backup-before-rebase
     if (!input.termsAccepted) return "Accept the iBanga terms and conditions to create an account.";
     if (state.users.some((user) => user.email.toLowerCase() === input.email.toLowerCase())) {
       return "An account with this email already exists.";
@@ -782,6 +844,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
   }, [refreshAfterMutation]);
 
 <<<<<<< HEAD
+<<<<<<< HEAD
   const createBooking = useCallback<Store["createBooking"]>(async (truck, input) => {
     if (!currentUser) return "Sign in to book a truck.";
     try {
@@ -830,6 +893,15 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     if (!["VISA", "AIRTEL", "MTN"].includes(checkout.method)) {
       return "Pay with a Visa card, Airtel Money, or MTN MoMo.";
     }
+=======
+  const createBooking = useCallback<Store["createBooking"]>(async (truck, input, checkout) => {
+    if (!currentUserId) return "Sign in to book a truck.";
+    const importer = state.users.find((user) => user.id === currentUserId);
+    if (importer?.role !== "IMPORTER") return "Only importer accounts can book trucks.";
+    if (!["VISA", "AIRTEL", "MTN"].includes(checkout.method)) {
+      return "Pay with a Visa card, Airtel Money, or MTN MoMo.";
+    }
+>>>>>>> backup-before-rebase
     if (!checkout.payerName.trim() || !checkout.accountMask.trim()) {
       return "Enter the payer name and payment account.";
     }
@@ -1229,7 +1301,195 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
       notifications: current.notifications.map((item) => item.userId === currentUserId ? { ...item, read: true } : item),
     }));
   }, [currentUserId]);
+<<<<<<< HEAD
 >>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
+=======
+
+  const withdrawFunds = useCallback((amount: number) => {
+    if (!currentUserId || !Number.isFinite(amount) || amount < 1000) {
+      return "Enter a valid amount of at least RWF 1,000.";
+    }
+    if ((state.balances[currentUserId] ?? 0) < amount) return "Insufficient wallet balance.";
+    const entry = transaction(currentUserId, "WITHDRAWAL", "DEBIT", amount, "Wallet withdrawal");
+    setState((current) => ({
+      ...current,
+      balances: { ...current.balances, [currentUserId]: (current.balances[currentUserId] ?? 0) - amount },
+      transactions: [entry, ...current.transactions],
+    }));
+    return null;
+  }, [currentUserId, state.balances]);
+
+  const notifyDeparture = useCallback<Store["notifyDeparture"]>(async (bookingId, at, place, note) => {
+    let error: string | null = null;
+    setState((current) => {
+      const booking = current.bookings.find((item) => item.id === bookingId);
+      if (!booking?.payment || booking.status !== "ACCEPTED" || booking.payment.status !== "HELD") {
+        error = "The payment must be held before departure can be recorded.";
+        return current;
+      }
+      const when = new Date(at);
+      if (Number.isNaN(when.getTime())) {
+        error = "Enter a valid departure date and time.";
+        return current;
+      }
+      const point = positionAt(booking.pickupLocation, booking.destination, 0);
+      const update = pushUpdate(current, partyIds(current, booking), "Trip departed", `${booking.pickupLocation} to ${booking.destination} left at ${when.toLocaleString("en-GB")}.`, `/dashboard/tracking/${bookingId}`, "info", "Recorded departure", place, current.currentUserId);
+      return {
+        ...current,
+        ...update,
+        bookings: current.bookings.map((item) => item.id === bookingId ? { ...booking, status: "IN_PROGRESS" } : item),
+        notices: [{ id: uid("notice"), bookingId, kind: "DEPARTURE", at: when.toISOString(), place, note }, ...current.notices],
+        pings: [{
+          id: uid("ping"),
+          bookingId,
+          kmFromStart: 0,
+          lat: point.lat,
+          lng: point.lng,
+          label: place || booking.pickupLocation,
+          recordedAt: when.toISOString(),
+          kind: "DEPARTURE",
+          note,
+        }, ...current.pings],
+      };
+    });
+    return error;
+  }, []);
+
+  const notifyRest = useCallback<Store["notifyRest"]>(async (bookingId, at, place, note) => {
+    let error: string | null = null;
+    setState((current) => {
+      const booking = current.bookings.find((item) => item.id === bookingId);
+      if (!booking || booking.status !== "IN_PROGRESS") {
+        error = "Rest stops are recorded while the trip is on the road.";
+        return current;
+      }
+      const when = new Date(at);
+      if (Number.isNaN(when.getTime()) || !place.trim()) {
+        error = "Enter the rest time and place.";
+        return current;
+      }
+      const lastKm = current.pings.filter((ping) => ping.bookingId === bookingId).reduce((max, ping) => Math.max(max, ping.kmFromStart), 0);
+      const point = positionAt(booking.pickupLocation, booking.destination, lastKm);
+      const update = pushUpdate(current, partyIds(current, booking), "Rest stop recorded", `${place} on ${booking.pickupLocation} to ${booking.destination}.`, `/dashboard/tracking/${bookingId}`, "warn", "Logged a rest stop", place, current.currentUserId);
+      return {
+        ...current,
+        ...update,
+        notices: [{ id: uid("notice"), bookingId, kind: "REST", at: when.toISOString(), place: place.trim(), note }, ...current.notices],
+        pings: [{
+          id: uid("ping"),
+          bookingId,
+          kmFromStart: lastKm,
+          lat: point.lat,
+          lng: point.lng,
+          label: place.trim(),
+          recordedAt: when.toISOString(),
+          kind: "REST",
+          note,
+        }, ...current.pings],
+      };
+    });
+    return error;
+  }, []);
+
+  const notifyResume = useCallback<Store["notifyResume"]>(async (bookingId, note) => {
+    let error: string | null = null;
+    setState((current) => {
+      const booking = current.bookings.find((item) => item.id === bookingId);
+      if (!booking || booking.status !== "IN_PROGRESS") {
+        error = "Resume is recorded during an active trip.";
+        return current;
+      }
+      const now = new Date().toISOString();
+      const last = [...current.pings].reverse().find((ping) => ping.bookingId === bookingId);
+      const update = pushUpdate(current, partyIds(current, booking), "Trip resumed", note, `/dashboard/tracking/${bookingId}`, "info", "Resumed after rest", booking.destination, current.currentUserId);
+      return {
+        ...current,
+        ...update,
+        notices: [{ id: uid("notice"), bookingId, kind: "RESUME", at: now, place: last?.label || booking.pickupLocation, note }, ...current.notices],
+      };
+    });
+    return error;
+  }, []);
+
+  const recordCheckpoint = useCallback<Store["recordCheckpoint"]>(async (bookingId) => {
+    let error: string | null = null;
+    setState((current) => {
+      const booking = current.bookings.find((item) => item.id === bookingId);
+      if (!booking || booking.status !== "IN_PROGRESS") {
+        error = "Checkpoints are recorded after departure.";
+        return current;
+      }
+      const lastKm = current.pings.filter((ping) => ping.bookingId === bookingId).reduce((max, ping) => Math.max(max, ping.kmFromStart), 0);
+      const nextKm = lastKm + 2;
+      const point = positionAt(booking.pickupLocation, booking.destination, nextKm);
+      if (nextKm > point.totalKm) {
+        error = "The recorded trail has reached the destination. Confirm delivery instead.";
+        return current;
+      }
+      const now = new Date().toISOString();
+      const update = pushUpdate(current, partyIds(current, booking), "Location updated", `${nextKm} km recorded on ${booking.pickupLocation} to ${booking.destination}.`, `/dashboard/tracking/${bookingId}`, "info", "Recorded a checkpoint", `${nextKm} km`, current.currentUserId);
+      return {
+        ...current,
+        ...update,
+        pings: [{
+          id: uid("ping"),
+          bookingId,
+          kmFromStart: nextKm,
+          lat: point.lat,
+          lng: point.lng,
+          label: `${nextKm} km from ${booking.pickupLocation}`,
+          recordedAt: now,
+          kind: "CHECKPOINT",
+        }, ...current.pings],
+      };
+    });
+    return error;
+  }, []);
+
+  const refundBooking = useCallback<Store["refundBooking"]>(async (bookingId, reason) => {
+    let error: string | null = null;
+    setState((current) => {
+      const actor = current.users.find((user) => user.id === current.currentUserId);
+      if (actor?.role !== "ADMIN") {
+        error = "Only an administrator can refund a held payment.";
+        return current;
+      }
+      const booking = current.bookings.find((item) => item.id === bookingId);
+      if (!booking?.payment || booking.payment.status === "RELEASED" || booking.payment.status === "REFUNDED") {
+        error = "This payment is no longer refundable.";
+        return current;
+      }
+      const now = new Date().toISOString();
+      const route = `${booking.pickupLocation} to ${booking.destination}`;
+      const update = pushUpdate(current, partyIds(current, booking), "Payment refunded", `${formatRwf(booking.payment.amountRwf)} for ${route} was returned to ${booking.payment.accountMask}.`, `/dashboard/tracking/${bookingId}`, "warn", "Refunded escrow", reason, current.currentUserId);
+      return {
+        ...current,
+        ...update,
+        bookings: current.bookings.map((item) => item.id === bookingId ? { ...booking, status: "REJECTED", payment: { ...booking.payment!, status: "REFUNDED", refundedAt: now } } : item),
+        trucks: current.trucks.map((item) => item.id === booking.truckId ? { ...item, status: "AVAILABLE" } : item),
+        disputes: current.disputes.map((dispute) => dispute.bookingId === bookingId && dispute.status === "OPEN"
+          ? { ...dispute, status: "RESOLVED", resolutionNotes: reason, resolvedAt: now }
+          : dispute),
+      };
+    });
+    return error;
+  }, []);
+
+  const markNotificationRead = useCallback((id: string) => {
+    setState((current) => ({
+      ...current,
+      notifications: current.notifications.map((item) => item.id === id ? { ...item, read: true } : item),
+    }));
+  }, []);
+
+  const markAllNotificationsRead = useCallback(() => {
+    if (!currentUserId) return;
+    setState((current) => ({
+      ...current,
+      notifications: current.notifications.map((item) => item.userId === currentUserId ? { ...item, read: true } : item),
+    }));
+  }, [currentUserId]);
+>>>>>>> backup-before-rebase
 
   const value = useMemo<Store>(() => ({
     ready,
@@ -1290,7 +1550,10 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     setBookingStatus, reportProblem, resolveDispute, setUserActive, deleteUser,
     resetWorkspace, depositFunds, withdrawFunds, notifyDeparture, notifyRest,
     notifyResume, recordCheckpoint, refundBooking, markNotificationRead, markAllNotificationsRead,
+<<<<<<< HEAD
 >>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
+=======
+>>>>>>> backup-before-rebase
   ]);
 
   return (

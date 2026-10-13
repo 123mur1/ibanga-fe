@@ -25,6 +25,7 @@ export default function ImporterBookingDetail() {
   const owner = truck ? users.find((u) => u.id === truck.ownerId) : undefined;
   const [reason, setReason] = useState("");
 <<<<<<< HEAD
+<<<<<<< HEAD
   const [message, setMessage] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [paymentPending, setPaymentPending] = useState(false);
@@ -41,6 +42,8 @@ export default function ImporterBookingDetail() {
   }
 =======
 >>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
+=======
+>>>>>>> backup-before-rebase
 
   return (
     <RequireAuth role="IMPORTER">

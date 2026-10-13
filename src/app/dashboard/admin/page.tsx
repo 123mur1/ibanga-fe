@@ -99,6 +99,7 @@ function getMonthlyUserRegistrations(users: AdminReportUser[]) {
 
 export default function AdminHome() {
 <<<<<<< HEAD
+<<<<<<< HEAD
   const {
     trucks,
     bookings,
@@ -109,6 +110,9 @@ export default function AdminHome() {
 =======
   const { trucks, bookings, disputes, users: accountUsers, resetWorkspace, activity, escrowRwf } = useIbanga();
 >>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
+=======
+  const { trucks, bookings, disputes, users: accountUsers, resetWorkspace, activity, escrowRwf } = useIbanga();
+>>>>>>> backup-before-rebase
   const users: AdminReportUser[] = accountUsers.map((user) => ({
     ...user,
     phone: user.phone || null,

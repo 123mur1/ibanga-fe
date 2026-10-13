@@ -12,7 +12,10 @@ type PaymentMode = "DEPOSIT" | "WITHDRAW";
 
 const AMOUNT_PRESETS = [10000, 25000, 50000, 100000];
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> backup-before-rebase
 const paymentMethods: { value: PaymentMethod; label: string }[] = [
   { value: "VISA", label: "Visa card" },
   { value: "AIRTEL", label: "Airtel Money" },
@@ -40,11 +43,14 @@ export default function WalletPage() {
   const [beneficiaryName, setBeneficiaryName] = useState("");
   const [withdrawPhone, setWithdrawPhone] = useState("");
 <<<<<<< HEAD
+<<<<<<< HEAD
   const [accountNumber, setAccountNumber] = useState("");
   const [banks, setBanks] = useState<BankOption[]>([]);
   const [branches, setBranches] = useState<BranchOption[]>([]);
 =======
 >>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
+=======
+>>>>>>> backup-before-rebase
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -295,6 +301,7 @@ export default function WalletPage() {
                   <input className={inputClass} required value={beneficiaryName} onChange={(event) => setBeneficiaryName(event.target.value)} autoComplete="name" />
                 </Field>
 <<<<<<< HEAD
+<<<<<<< HEAD
               ) : (
                 <>
                   <fieldset>
@@ -427,6 +434,8 @@ export default function WalletPage() {
                 </>
               )}
 =======
+=======
+>>>>>>> backup-before-rebase
               ) : null}
               <Field label={method === "VISA" ? "Visa card number" : method === "AIRTEL" ? "Airtel Money number" : "MTN MoMo number"}>
                 <input
@@ -437,7 +446,10 @@ export default function WalletPage() {
                   placeholder={method === "VISA" ? "Card number" : "07X XXX XXXX"}
                 />
               </Field>
+<<<<<<< HEAD
 >>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
+=======
+>>>>>>> backup-before-rebase
 
               <PrimaryButton type="submit" disabled={submitting} className="min-h-12 w-full justify-between px-5">
                 <span>

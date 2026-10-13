@@ -37,10 +37,14 @@ const nav: Record<Role, NavItem[]> = {
     { href: "/dashboard/admin/disputes", label: "Disputes", icon: "alert" },
     { href: "/dashboard/admin/wallets", label: "Wallets", icon: "wallet" },
 <<<<<<< HEAD
+<<<<<<< HEAD
     { href: "/dashboard/wallet", label: "Withdraw funds", icon: "wallet" },
 =======
     { href: "/dashboard/tracking", label: "Live cargo", icon: "pin" },
 >>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
+=======
+    { href: "/dashboard/tracking", label: "Live cargo", icon: "pin" },
+>>>>>>> backup-before-rebase
   ],
 };
 

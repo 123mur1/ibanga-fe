@@ -59,12 +59,8 @@ export default function AdminDisputesPage() {
                   dispute.status === "OPEN" ? (
                     <div key={`${dispute.id}-action`} className="flex min-w-56 items-center gap-2">
                       <input aria-label={`Resolution notes for ${dispute.id}`} placeholder="Resolution notes" value={notes[dispute.id] ?? ""} onChange={(event) => setNotes((current) => ({ ...current, [dispute.id]: event.target.value }))} className={`${inputClass} min-w-28 py-2`} />
-<<<<<<< HEAD
-                      <PrimaryButton type="button" className="shrink-0 px-3 py-2 text-xs" onClick={() => void resolve(dispute.id)}>Resolve</PrimaryButton>
-=======
                       <PrimaryButton type="button" className="shrink-0 px-3 py-2 text-xs" onClick={() => void resolveDispute(dispute.id, notes[dispute.id] || "Resolved by admin").then(() => toast("Dispute notes saved. The importer can still confirm receipt.", "info"))}>Resolve</PrimaryButton>
                       <GhostButton type="button" className="shrink-0 px-3 py-2 text-xs" onClick={() => void refundBooking(dispute.bookingId, notes[dispute.id] || "Refunded after review.").then((error) => toast(error ?? "Payment refunded to the original method.", error ? "bad" : "warn"))}>Refund</GhostButton>
->>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
                     </div>
                   ) : dispute.resolutionNotes || "Closed",
                 ],

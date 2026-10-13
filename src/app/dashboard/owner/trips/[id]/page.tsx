@@ -171,6 +171,7 @@ export default function OwnerTripDetail() {
             </div>
 
 <<<<<<< HEAD
+<<<<<<< HEAD
             <div className="mt-5 flex flex-wrap gap-3">
               {booking.status === "PENDING" ? (
                 <>
@@ -253,6 +254,8 @@ export default function OwnerTripDetail() {
 
 =======
 >>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
+=======
+>>>>>>> backup-before-rebase
             {booking.status === "REJECTED" ? (
               <div className="mt-4 flex items-start gap-3 rounded-2xl bg-good-soft px-4 py-3.5 text-sm font-medium text-good ring-1 ring-good/10">
                 <svg className="mt-0.5 shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
