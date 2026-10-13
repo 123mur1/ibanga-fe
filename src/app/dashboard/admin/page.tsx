@@ -5,9 +5,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
-import { DataTable, GhostButton, PageHeader, StatCard, formatDate, formatDateTime } from "@/components/ui";
-import { downloadExcel } from "@/lib/excel";
-import { formatRwf } from "@/lib/payments";
+import { DataTable, GhostButton, PageHeader, StatCard, formatDate } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
 import type { Booking, BookingStatus, Role } from "@/lib/types";
 import Link from "next/link";
@@ -97,9 +95,30 @@ function getMonthlyUserRegistrations(users: AdminReportUser[]) {
   return months;
 }
 
+function downloadCsv(
+  fileName: string,
+  headers: string[],
+  rows: unknown[][],
+) {
+  const escapeCell = (value: unknown) => {
+    const text = String(value ?? "");
+    const safeText = /^[=+\-@]/.test(text) ? `'${text}` : text;
+    return `"${safeText.replaceAll('"', '""')}"`;
+  };
+  const csv = [headers, ...rows]
+    .map((row) => row.map(escapeCell).join(","))
+    .join("\r\n");
+  const url = URL.createObjectURL(
+    new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }),
+  );
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
 export default function AdminHome() {
-<<<<<<< HEAD
-<<<<<<< HEAD
   const {
     trucks,
     bookings,
@@ -107,12 +126,6 @@ export default function AdminHome() {
     users: accountUsers,
     adminCommission: commission,
   } = useIbanga();
-=======
-  const { trucks, bookings, disputes, users: accountUsers, resetWorkspace, activity, escrowRwf } = useIbanga();
->>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
-=======
-  const { trucks, bookings, disputes, users: accountUsers, resetWorkspace, activity, escrowRwf } = useIbanga();
->>>>>>> backup-before-rebase
   const users: AdminReportUser[] = accountUsers.map((user) => ({
     ...user,
     phone: user.phone || null,
@@ -122,18 +135,6 @@ export default function AdminHome() {
   }));
   const userCount = users.length;
   const [reportKind, setReportKind] = useState<ReportKind>("overview");
-<<<<<<< HEAD
-=======
-  const commission = bookings.reduce(
-    (totals, booking) => {
-      const payment = booking.payment;
-      if (payment?.status === "HELD") totals.availableRwf += payment.commissionRwf;
-      if (payment?.status === "RELEASED") totals.totalEarnedRwf += payment.commissionRwf;
-      return totals;
-    },
-    { availableRwf: 0, totalEarnedRwf: 0 },
-  );
->>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
   const userCountError = false;
   const openDisputes = disputes.filter((d) => d.status === "OPEN").length;
   const availableTrucks = trucks.filter((truck) => truck.status === "AVAILABLE").length;
@@ -276,7 +277,7 @@ export default function AdminHome() {
 
     const fileName = `ibanga-${reportKind}-${generatedAt.slice(0, 10)}`;
     if (format === "csv") {
-      downloadExcel(fileName, headers, rows.map((row) => row.map((value) => typeof value === "number" ? value : String(value ?? ""))));
+      downloadCsv(`${fileName}.csv`, headers, rows);
       return;
     }
 
@@ -340,7 +341,7 @@ export default function AdminHome() {
             <>
               <Link
                 href="/dashboard/admin/disputes"
-                className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-brand-dark hover:shadow-card"
+                className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-dark"
               >
                 Review disputes
                 {openDisputes ? (
@@ -354,12 +355,6 @@ export default function AdminHome() {
         />
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            label="Held in escrow"
-            value={formatRwf(escrowRwf)}
-            hint="Waiting on both confirmations"
-            accent="brand"
-          />
           <StatCard
             label="Commission available"
             value={commission ? `RWF ${commission.availableRwf.toLocaleString("en-RW")}` : "—"}
@@ -421,31 +416,6 @@ export default function AdminHome() {
             accent="bad"
           />
         </div>
-
-        <section className="mt-8">
-          <div className="mb-4">
-            <h2 className="text-xl font-semibold text-navy">Activity log</h2>
-            <p className="mt-1 text-sm text-muted">Payments, confirmations, refunds, and location updates across the marketplace.</p>
-          </div>
-          <DataTable
-            exportName="ibanga-activity-log"
-            columns={[{ label: "When" }, { label: "Who" }, { label: "Action" }, { label: "Detail" }]}
-            filterLabel="All actions"
-            rows={activity.map((entry) => ({
-              id: entry.id,
-              searchText: `${entry.actorName} ${entry.action} ${entry.detail}`,
-              filterValue: entry.action,
-              exportValues: [formatDateTime(entry.createdAt), entry.actorName, entry.action, entry.detail],
-              cells: [
-                formatDateTime(entry.createdAt),
-                <span key={`${entry.id}-actor`} className="font-semibold">{entry.actorName}</span>,
-                entry.action,
-                <span key={`${entry.id}-detail`} className="whitespace-normal">{entry.detail}</span>,
-              ],
-            }))}
-            emptyMessage="Activity will appear here as people use iBanga."
-          />
-        </section>
 
         <section className="mt-8">
           <div className="mb-4">
@@ -524,7 +494,7 @@ export default function AdminHome() {
                   {Math.ceil(maxMonthlyBookings / 2)}
                 </text>
                 <text x="8" y="170" fill="#64748b" fontSize="11">0</text>
-                <path d={bookingAreaPath} fill="#e8f3f7" />
+                <path d={bookingAreaPath} fill="#e5f2f7" />
                 <path
                   d={bookingLinePath}
                   fill="none"
@@ -715,7 +685,7 @@ export default function AdminHome() {
             <div>
               <h2 className="font-display text-xl text-navy">Generate a report</h2>
               <p className="mt-1 text-sm text-muted">
-                Export current marketplace records as an Excel file or PDF.
+                Export current marketplace records as a spreadsheet-ready CSV.
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -740,7 +710,7 @@ export default function AdminHome() {
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M12 3v12m-5-5 5 5 5-5M4 17v3h16v-3" />
                 </svg>
-                Download Excel
+                Download CSV
               </GhostButton>
               <GhostButton
                 type="button"

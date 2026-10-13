@@ -8,9 +8,9 @@ import { RequireAuth } from "@/components/require-auth";
 import { TruckThumb } from "@/components/photos";
 import { useToast } from "@/components/toast";
 import { Field, inputClass, PrimaryButton } from "@/components/ui";
-import { formatRwf, maskAccount } from "@/lib/payments";
+import { formatRwf } from "@/lib/payments";
 import { useIbanga } from "@/lib/store";
-import type { PaymentMethod, Truck } from "@/lib/types";
+import type { Truck } from "@/lib/types";
 
 function BookingForm() {
   const params = useSearchParams();
@@ -45,13 +45,6 @@ function BookingForm() {
     expectedDeliveryDate: "",
     additionalInstructions: "",
   });
-  const [method, setMethod] = useState<PaymentMethod>("VISA");
-  const [payerName, setPayerName] = useState("");
-  const [cardNumber, setCardNumber] = useState("");
-  const [expiry, setExpiry] = useState("");
-  const [cvv, setCvv] = useState("");
-  const [phone, setPhone] = useState("");
-
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!currentUser || !truck || submitting) return;
@@ -60,34 +53,21 @@ function BookingForm() {
       setError("This truck does not have a price yet.");
       return;
     }
-    if (method === "VISA" && (cardNumber.replace(/\D/g, "").length < 13 || expiry.length < 4 || cvv.length < 3)) {
-      setError("Enter the Visa card number, expiry, and security code.");
-      return;
-    }
-    if (method !== "VISA" && phone.replace(/\D/g, "").length < 9) {
-      setError("Enter the mobile money number for this payment.");
-      return;
-    }
     setSubmitting(true);
     setError(null);
-    const paidAt = new Date();
     try {
       const err = await createBooking(truck, {
         ...form,
         truckId: truck.id,
         importerId: currentUser.id,
         agreedPrice: formatRwf(amount),
-      }, {
-        method,
-        payerName,
-        accountMask: maskAccount(method, method === "VISA" ? cardNumber : phone),
       });
       if (err) {
         setError(err);
         toast(err, "bad");
         return;
       }
-      toast(`Payment recorded ${paidAt.toLocaleString("en-GB")}. Funds stay with you until the owner confirms the truck.`, "good");
+      toast("Request sent. Pay from your wallet after the owner confirms the truck.", "good");
       router.push("/dashboard/importer/bookings");
     } finally {
       setSubmitting(false);
@@ -143,8 +123,8 @@ function BookingForm() {
 
           <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-muted">
             <span className="rounded-full bg-brand-soft px-3 py-1.5 text-brand-dark ring-1 ring-brand/20">1 Cargo</span>
-            <span className="rounded-full bg-white px-3 py-1.5 text-muted ring-1 ring-line">2 Journey</span>
-            <span className="rounded-full bg-white px-3 py-1.5 text-muted ring-1 ring-line">3 Payment</span>
+            <span className="rounded-full bg-brand-soft px-3 py-1.5 text-brand-dark ring-1 ring-brand/20">2 Journey</span>
+            <span className="rounded-full bg-white px-3 py-1.5 text-muted ring-1 ring-line">3 Pay after confirmation</span>
           </div>
 
           <section aria-labelledby="cargo-heading" className="rounded-xl border border-line bg-card p-4 sm:p-5">
@@ -212,53 +192,23 @@ function BookingForm() {
           </section>
 
           <section aria-labelledby="payment-heading" className="rounded-xl border border-line bg-card p-4 sm:p-5">
-            <div className="mb-5 flex items-start gap-3">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">3</span>
-              <div>
-                <h2 id="payment-heading" className="text-xl font-semibold text-navy">Pay now</h2>
-                <p className="mt-1 text-sm text-muted">Visa, Airtel Money, or MTN MoMo. The exact date and time are saved when you confirm.</p>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-bold text-white">3</span>
+                <div>
+                  <h2 id="payment-heading" className="text-xl font-semibold text-navy">Payment follows confirmation</h2>
+                  <p className="mt-1 max-w-xl text-sm text-muted">The owner confirms the truck first. You then pay the listed price from your wallet. Funds stay with iBanga until delivery is confirmed.</p>
+                </div>
               </div>
+              <p className="text-2xl font-semibold tabular-nums text-navy">{truck.priceRwf ? formatRwf(truck.priceRwf) : "Price unavailable"}</p>
             </div>
-            <p className="mb-4 text-2xl font-semibold text-navy">{truck.priceRwf ? formatRwf(truck.priceRwf) : "Price unavailable"}</p>
-            <div className="grid gap-2 sm:grid-cols-3">
-              {([
-                ["VISA", "Visa card"],
-                ["AIRTEL", "Airtel Money"],
-                ["MTN", "MTN MoMo"],
-              ] as const).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setMethod(value)}
-                  className={`rounded-xl border px-3 py-3 text-left text-sm font-semibold ${method === value ? "border-brand bg-brand-soft text-brand-dark" : "border-line text-navy"}`}
-                >
+            <ul className="mt-4 grid gap-2 sm:grid-cols-3">
+              {["Visa card", "Airtel Money", "MTN MoMo"].map((label) => (
+                <li key={label} className="rounded-lg border border-line bg-background px-3 py-2.5 text-sm font-semibold text-navy">
                   {label}
-                </button>
+                </li>
               ))}
-            </div>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <Field label="Name on the account">
-                <input className={inputClass} required value={payerName} onChange={(event) => setPayerName(event.target.value)} placeholder="As it appears on the card or wallet" />
-              </Field>
-              {method === "VISA" ? (
-                <>
-                  <Field label="Card number">
-                    <input className={inputClass} inputMode="numeric" autoComplete="cc-number" required value={cardNumber} onChange={(event) => setCardNumber(event.target.value)} placeholder="ACCT-000015" />
-                  </Field>
-                  <Field label="Expiry">
-                    <input className={inputClass} autoComplete="cc-exp" required value={expiry} onChange={(event) => setExpiry(event.target.value)} placeholder="MM/YY" />
-                  </Field>
-                  <Field label="Security code">
-                    <input className={inputClass} inputMode="numeric" autoComplete="cc-csc" required value={cvv} onChange={(event) => setCvv(event.target.value)} placeholder="123" />
-                  </Field>
-                </>
-              ) : (
-                <Field label={method === "AIRTEL" ? "Airtel Money number" : "MTN MoMo number"}>
-                  <input className={inputClass} type="tel" required value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="07X XXX XXXX" />
-                </Field>
-              )}
-            </div>
-            <p className="mt-4 text-sm text-navy">The amount is collected now. It moves into the iBanga account only after the owner confirms the truck is available, and it is released after delivery is confirmed by both of you.</p>
+            </ul>
           </section>
 
           {error ? <p role="alert" className="mt-5 rounded-xl border border-bad/20 bg-bad-soft px-4 py-3 text-sm text-bad">{error}</p> : null}
@@ -266,7 +216,7 @@ function BookingForm() {
           <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
             <Link href="/trucks" className="rounded-xl px-4 py-3 text-center text-sm font-semibold text-muted transition hover:bg-background hover:text-navy">Back to trucks</Link>
             <PrimaryButton className="w-full py-3 sm:w-auto sm:min-w-60" type="submit" disabled={submitting}>
-              {submitting ? "Recording payment…" : "Pay and send request"}
+              {submitting ? "Sending request…" : "Send request"}
               {!submitting ? <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" /></svg> : null}
             </PrimaryButton>
           </div>
@@ -283,7 +233,7 @@ export default function NewBookingPage() {
             <p className="text-sm font-semibold text-brand">Booking request</p>
             <h1 className="text-2xl font-semibold text-navy sm:text-3xl">Request a freight booking</h1>
             <p className="mt-1 max-w-2xl text-base text-muted">
-              Share the cargo and route, then pay with Visa, Airtel Money, or MTN MoMo.
+              Share the cargo and route. You pay from your wallet after the owner confirms the truck.
             </p>
           </div>
           <Link href="/trucks" className="text-sm font-semibold text-brand">Cancel</Link>

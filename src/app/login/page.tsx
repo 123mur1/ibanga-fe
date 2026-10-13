@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useEffect, useState } from "react";
 import { AuthShell } from "@/components/auth-shell";
 import { Field, inputClass, PrimaryButton } from "@/components/ui";
+import { demoAccounts, demoEnabled } from "@/lib/demo";
 import { dashboardPath, useIbanga } from "@/lib/store";
 import type { Role } from "@/lib/types";
 
@@ -57,47 +58,12 @@ function LoginForm() {
   }
 
   return (
-    <div className="relative mx-auto w-full max-w-2xl">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -inset-6 -z-10 rounded-full bg-linear-to-tr from-brand/25 via-accent/15 to-transparent blur-2xl"
-      />
-      <div className="overflow-hidden rounded-3xl border border-line bg-card shadow-card">
-        <div className="relative h-36 overflow-hidden bg-linear-to-br from-brand via-brand-dark to-navy">
-          <div className="paper-grid absolute inset-0 opacity-40" />
-          <div
-            aria-hidden="true"
-            className="absolute -right-10 -top-14 h-44 w-44 rounded-full border-18 border-white/10"
-          />
-          <div
-            aria-hidden="true"
-            className="absolute -bottom-24 left-16 h-40 w-40 rounded-full border-18 border-accent/30"
-          />
-          <div className="relative flex h-full items-center justify-center gap-4 px-8">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 shadow-lg ring-1 ring-white/25 backdrop-blur-sm">
-              <svg
-                width="30"
-                height="30"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="white"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M1 3h15v13H1z" />
-                <path d="M16 8h4l3 3v5h-7V8z" />
-                <circle cx="5.5" cy="18.5" r="2.5" />
-                <circle cx="18.5" cy="18.5" r="2.5" />
-              </svg>
-            </div>
-            <div className="text-left">
-              <p className="font-display text-xl text-white">Welcome back</p>
-              <p className="text-sm text-white/75">Drive your cargo forward</p>
-            </div>
-          </div>
-          <div className="absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-white/40 to-transparent" />
+    <div className="mx-auto w-full max-w-md">
+      <div className="overflow-hidden rounded-xl border border-line bg-card shadow-soft">
+        <div className="border-b-4 border-brand px-8 pb-5 pt-8">
+          <p className="text-sm font-semibold text-brand">iBanga</p>
+          <h1 className="mt-1 text-2xl font-semibold text-navy">Welcome back</h1>
+          <p className="mt-1 text-sm text-muted">Sign in to manage bookings, trucks, and payments.</p>
         </div>
 
         <div className="p-8">
@@ -208,10 +174,20 @@ function LoginForm() {
               </Link>
             </div>
 
-            <section className="rounded-2xl border border-brand/15 bg-brand-soft/45 p-4">
-              <p className="text-sm font-semibold text-navy">Administrator access</p>
-              <p className="mt-1 text-sm text-muted">Sign in with your administrator account to manage the marketplace.</p>
-            </section>
+            {demoEnabled ? (
+              <section className="rounded-lg border border-line bg-background px-3 py-3">
+                <p className="text-sm font-semibold text-navy">Demo accounts</p>
+                <p className="mt-1 text-sm text-muted">Local data only. No server is required.</p>
+                <ul className="mt-2 space-y-1.5 text-sm text-navy">
+                  {demoAccounts.map((account) => (
+                    <li key={account.email} className="flex flex-wrap justify-between gap-x-3 gap-y-0.5">
+                      <span className="font-medium">{account.role}</span>
+                      <span className="text-muted">{account.email} · {account.password}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
 
             {error ? (
               <p className="flex items-center gap-2 rounded-xl border border-bad/20 bg-bad-soft px-3.5 py-2.5 text-sm text-bad">

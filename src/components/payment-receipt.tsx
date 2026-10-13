@@ -11,6 +11,16 @@ const methodLabel: Record<BookingPayment["method"], string> = {
 };
 
 const statusCopy: Record<BookingPayment["status"], { label: string; tone: string; note: string }> = {
+  PENDING: {
+    label: "Waiting for payment",
+    tone: "bg-warn-soft text-warn",
+    note: "The booking is open. Pay from the wallet after the owner confirms the truck.",
+  },
+  FUNDED: {
+    label: "Paid from wallet",
+    tone: "bg-brand-soft text-brand-dark",
+    note: "The listed price has been paid and is held until the trip is completed.",
+  },
   AUTHORIZED: {
     label: "Paid, waiting for the truck",
     tone: "bg-warn-soft text-warn",

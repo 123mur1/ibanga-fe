@@ -39,7 +39,7 @@ function RegisterForm() {
       toast("Accept the terms and conditions to continue.", "warn");
       return;
     }
-    const err = await register({ ...form, role, termsAccepted: true });
+    const err = await register({ ...form, role });
     setBusy(false);
     if (err) {
       setError(err);
@@ -51,47 +51,12 @@ function RegisterForm() {
   }
 
   return (
-    <div className="relative mx-auto w-full max-w-2xl">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -inset-6 -z-10 rounded-full bg-linear-to-tr from-accent/20 via-brand/15 to-transparent blur-2xl"
-      />
-      <div className="overflow-hidden rounded-3xl border border-line bg-card shadow-card">
-        <div className="relative h-40 overflow-hidden bg-linear-to-br from-accent via-brand to-navy">
-          <div className="paper-grid absolute inset-0 opacity-40" />
-          <div
-            aria-hidden="true"
-            className="absolute -right-10 -top-14 h-44 w-44 rounded-full border-18 border-white/10"
-          />
-          <div
-            aria-hidden="true"
-            className="absolute -bottom-24 left-16 h-40 w-40 rounded-full border-18 border-brand/40"
-          />
-          <div className="relative flex h-full items-center justify-center gap-4 px-8">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 shadow-lg ring-1 ring-white/25 backdrop-blur-sm">
-              <svg
-                width="30"
-                height="30"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="white"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-            </div>
-            <div className="text-left">
-              <p className="font-display text-xl text-white">Join the network</p>
-              <p className="text-sm text-white/75">
-                Importer or truck owner — connect directly
-              </p>
-            </div>
-          </div>
-          <div className="absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-white/40 to-transparent" />
+    <div className="mx-auto w-full max-w-2xl">
+      <div className="overflow-hidden rounded-xl border border-line bg-card shadow-soft">
+        <div className="border-b-4 border-brand px-8 pb-5 pt-8">
+          <p className="text-sm font-semibold text-brand">iBanga</p>
+          <h1 className="mt-1 text-2xl font-semibold text-navy">Create an account</h1>
+          <p className="mt-1 text-sm text-muted">Join as an importer or a truck owner.</p>
         </div>
 
         <div className="p-8">

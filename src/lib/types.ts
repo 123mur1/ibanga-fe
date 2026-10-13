@@ -11,7 +11,7 @@ export type BookingStatus =
 export type DisputeStatus = "OPEN" | "RESOLVED";
 
 export type PaymentMethod = "VISA" | "AIRTEL" | "MTN";
-export type PaymentStatus = "AUTHORIZED" | "HELD" | "RELEASED" | "REFUNDED";
+export type PaymentStatus = "PENDING" | "AUTHORIZED" | "FUNDED" | "HELD" | "RELEASED" | "REFUNDED";
 
 export type User = {
   id: string;

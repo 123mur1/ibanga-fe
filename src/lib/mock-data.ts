@@ -101,17 +101,17 @@ export const seedUsers: User[] = [
     ["u-owner-13", "Isaac Tumusiime", "isaac@tumusiimehaul.ibanga.test", "TRUCK_OWNER", "Musanze", "Tumusiime Haul"],
   ].map(([id, name, email, role, location, company], index) => ({
     id,
-    createdAt: `2026-09-${String(index + 1).padStart(2, "0")}T10:00:00.000Z`,
+    createdAt: `2026-${String((index % 6) + 5).padStart(2, "0")}-${String((index % 27) + 1).padStart(2, "0")}T10:00:00.000Z`,
     name,
     email,
     phone: `${phonePrefixByLocation[location] ?? "+250 78"} ${String(1000000 + index).slice(-7, -4)} ${String(1000000 + index).slice(-4)}`,
     role: role as User["role"],
     location,
-    active: true,
+    active: index % 11 !== 0,
     company,
     photo: role === "IMPORTER"
-      ? "/photos/ibanga-importer-jeanine.png"
-      : "/photos/ibanga-owner-eric.png",
+      ? (index % 2 === 0 ? "/photos/ibanga-importer-jeanine.png" : "/photos/ibanga-importer-david.png")
+      : (index % 2 === 0 ? "/photos/ibanga-owner-eric.png" : "/photos/ibanga-owner-amina.png"),
   })),
 ];
 
@@ -227,7 +227,7 @@ export const seedBookings: Booking[] = [
         agreedPrice: `RWF ${(420000 + index * 65000).toLocaleString()}`,
         agreedPriceRwf: 420000 + index * 65000,
         status,
-        createdAt: `2026-10-${String((index % 27) + 1).padStart(2, "0")}T09:00:00.000Z`,
+        createdAt: `2026-${String((index % 6) + 5).padStart(2, "0")}-${String((index % 27) + 1).padStart(2, "0")}T09:00:00.000Z`,
       };
     }),
   ),
@@ -379,7 +379,17 @@ export const allSeedTrucks: Truck[] = [
       preferredRoute: `${["Kigali", "Nairobi", "Kampala"][index % 3]} — ${["Mombasa", "Kampala", "Kigali"][index % 3]}`,
       description: `Well-maintained ${["regional", "long-haul", "commercial"][index % 3]} ${["carrier", "truck", "freight vehicle"][index % 3]} ready for verified shipments.`,
       status: index % 4 === 0 ? "UNAVAILABLE" as const : "AVAILABLE" as const,
-      photos: ["/photos/ibanga-container-highway.png"],
+      photos: [
+        [
+          "/photos/ibanga-container-highway.png",
+          "/photos/ibanga-container-yard.png",
+          "/photos/ibanga-reefer.png",
+          "/photos/ibanga-flatbed.png",
+          "/photos/ibanga-box.png",
+          "/photos/ibanga-semi.png",
+          "/photos/ibanga-tanker.png",
+        ][index % 7],
+      ],
     })),
   ),
 ];

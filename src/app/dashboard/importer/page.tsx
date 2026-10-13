@@ -31,19 +31,19 @@ export default function ImporterHome() {
               ? "Some deliveries are waiting on your confirmation — let the trucks back to work."
               : pending
                 ? "You have pending requests. Track them here while owners decide."
-                : "Find a truck, pay by Visa, Airtel, or MTN when you book, then follow the cargo live."
+                : "Find a truck, send a request, and pay from your wallet after the owner confirms."
           }
           actions={
             <>
               <Link
                 href="/trucks"
-                className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-brand-dark shadow-soft transition hover:-translate-y-0.5 hover:shadow-card"
+                className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-brand-dark transition hover:bg-brand-soft"
               >
                 Find a truck
               </Link>
               <Link
                 href="/dashboard/importer/bookings"
-                className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-white/25 transition hover:-translate-y-0.5 hover:bg-white/15"
+                className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-white/25 transition hover:bg-white/15"
               >
                 My bookings
                 {pending ? <span className="rounded-full bg-white px-2 py-0.5 text-xs font-bold text-brand-dark">{pending}</span> : null}

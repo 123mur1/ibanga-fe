@@ -13,7 +13,7 @@ import { useIbanga } from "@/lib/store";
 
 export default function TrackingDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { currentUser, bookings, trucks, pings, notices } = useIbanga();
+  const { currentUser, bookings, trucks } = useIbanga();
   const booking = bookings.find((item) => item.id === id);
   const truck = booking ? trucks.find((item) => item.id === booking.truckId) : undefined;
   const allowed = Boolean(
@@ -44,7 +44,7 @@ export default function TrackingDetailPage() {
             {(currentUser.role === "TRUCK_OWNER" && truck?.ownerId === currentUser.id) || currentUser.role === "ADMIN" ? (
               <TripActions booking={booking} />
             ) : null}
-            <LiveTrack booking={booking} pings={pings.filter((ping) => ping.bookingId === booking.id)} notices={notices.filter((notice) => notice.bookingId === booking.id)} />
+            <LiveTrack booking={booking} pings={[]} notices={[]} />
             <PaymentReceipt booking={booking} plate={truck?.plateNumber} />
           </div>
         )}

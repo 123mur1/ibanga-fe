@@ -143,7 +143,7 @@ export function DataTable({
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] border-collapse text-left text-sm">
-          <thead className="border-b border-line bg-white text-sm text-muted">
+          <thead className="border-b border-line bg-background text-sm text-muted">
             <tr>
               <th scope="col" className="w-12 px-4 py-3.5">
                 <input
@@ -367,13 +367,9 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-dashed border-line bg-card px-6 py-16 text-center">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-20 left-1/2 h-48 w-96 -translate-x-1/2 rounded-full bg-linear-to-r from-brand/10 via-accent/10 to-transparent blur-2xl"
-      />
-      <div className="relative">
-        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-linear-to-br from-brand-soft to-accent-soft text-brand shadow-soft ring-1 ring-brand/10 [&_svg]:h-4.5 [&_svg]:w-4.5">
+    <div className="rounded-xl border border-dashed border-line bg-card px-6 py-14 text-center">
+      <div>
+        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg bg-brand-soft text-brand [&_svg]:h-4.5 [&_svg]:w-4.5">
           {icon ?? (
             <svg
               width="24"

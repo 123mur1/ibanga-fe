@@ -6,15 +6,14 @@ import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { BookingBadge } from "@/components/status-badge";
 import { Avatar } from "@/components/photos";
-import { LiveTrack } from "@/components/live-track";
-import { PaymentReceipt } from "@/components/payment-receipt";
-import { TripActions } from "@/components/trip-actions";
-import { formatDate } from "@/components/ui";
+import { GhostButton, PrimaryButton, formatDate } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
+import type { BookingStatus } from "@/lib/types";
+import { useState } from "react";
 
 export default function OwnerTripDetail() {
   const { id } = useParams<{ id: string }>();
-  const { currentUser, bookings, trucks, users, pings, notices } = useIbanga();
+  const { currentUser, bookings, trucks, users, setBookingStatus } = useIbanga();
   const mine = trucks.filter((t) => t.ownerId === currentUser?.id);
   const booking = bookings.find(
     (b) => b.id === id && mine.some((t) => t.id === b.truckId),
@@ -23,6 +22,13 @@ export default function OwnerTripDetail() {
   const importer = booking
     ? users.find((u) => u.id === booking.importerId)
     : undefined;
+
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  async function act(status: BookingStatus) {
+    const err = await setBookingStatus(id, status);
+    setActionError(err);
+  }
 
   return (
     <RequireAuth role="TRUCK_OWNER">
@@ -55,36 +61,21 @@ export default function OwnerTripDetail() {
               Requests
             </Link>
 
-            <div className="relative mt-4 overflow-hidden rounded-3xl bg-linear-to-br from-navy via-brand-dark to-brand p-6 shadow-card sm:p-8">
-              <div className="paper-grid absolute inset-0 opacity-30" />
-              <div
-                aria-hidden="true"
-                className="absolute -right-12 -top-16 h-44 w-44 rounded-full border-18 border-white/10"
-              />
-              <div className="relative flex flex-wrap items-center justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/70">
-                    {booking.status === "PENDING" ? "New request" : "Trip"}
-                  </p>
-                  <h1 className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 font-display text-2xl leading-tight text-white sm:text-3xl">
-                    {booking.pickupLocation}
-                    <svg className="shrink-0 text-accent" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M5 12h14M13 6l6 6-6 6" />
-                    </svg>
-                    {booking.destination}
-                  </h1>
-                  <p className="mt-2 text-sm text-white/75">
-                    {truck ? `${truck.plateNumber} · ${truck.truckType}` : "Truck"} ·{" "}
-                    {booking.cargoType}
-                  </p>
-                </div>
-                <div className="shrink-0 rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/20 backdrop-blur-sm">
-                  <p className="text-center text-xs text-white/70">Status</p>
-                  <div className="mt-1">
-                    <BookingBadge status={booking.status} />
-                  </div>
-                </div>
+            <div className="mt-4 flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-brand">
+                  {booking.status === "PENDING" ? "New request" : "Trip"}
+                </p>
+                <h1 className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-2xl font-semibold leading-tight text-navy sm:text-3xl">
+                  {booking.pickupLocation}
+                  <span className="text-muted" aria-hidden="true">to</span>
+                  {booking.destination}
+                </h1>
+                <p className="mt-1 text-base text-muted">
+                  {truck ? `${truck.plateNumber} · ${truck.truckType}` : "Truck"} · {booking.cargoType}
+                </p>
               </div>
+              <BookingBadge status={booking.status} />
             </div>
 
             <section className="mt-4 overflow-hidden rounded-2xl border border-line bg-card shadow-soft">
@@ -101,19 +92,19 @@ export default function OwnerTripDetail() {
               </div>
               <dl className="grid gap-x-8 gap-y-5 px-5 py-5 sm:grid-cols-2">
                 <div>
-                  <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">
+                  <dt className="text-sm font-medium text-muted">
                     Cargo
                   </dt>
                   <dd className="mt-1 font-medium text-navy">{booking.cargoType}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">
+                  <dt className="text-sm font-medium text-muted">
                     Weight
                   </dt>
                   <dd className="mt-1 font-medium text-navy">{booking.cargoWeight}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">
+                  <dt className="text-sm font-medium text-muted">
                     Pickup
                   </dt>
                   <dd className="mt-1 font-medium text-navy">
@@ -121,7 +112,7 @@ export default function OwnerTripDetail() {
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">
+                  <dt className="text-sm font-medium text-muted">
                     Expected delivery
                   </dt>
                   <dd className="mt-1 font-medium text-navy">
@@ -130,7 +121,7 @@ export default function OwnerTripDetail() {
                 </div>
               </dl>
               <div className="border-t border-line px-5 py-4">
-                <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">
+                <dt className="text-sm font-medium text-muted">
                   Description
                 </dt>
                 <dd className="mt-1.5 text-navy">{booking.cargoDescription}</dd>
@@ -160,18 +151,31 @@ export default function OwnerTripDetail() {
               </section>
             ) : null}
 
-            <div className="mt-4 space-y-4">
-              <PaymentReceipt booking={booking} plate={truck?.plateNumber} />
-              <TripActions booking={booking} />
-              <LiveTrack
-                booking={booking}
-                pings={pings.filter((ping) => ping.bookingId === booking.id)}
-                notices={notices.filter((notice) => notice.bookingId === booking.id)}
-              />
+            {booking.status === "PENDING" ? (
+              <div className="mt-4 flex items-start gap-3 rounded-2xl bg-warn-soft px-4 py-3.5 text-sm font-medium text-warn ring-1 ring-warn/10">
+                <svg className="mt-0.5 shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 8v4.5M12 16h.01" />
+                </svg>
+                This booking holds the truck at its listed RWF price. Accept to
+                proceed or reject to make it available again.
+              </div>
+            ) : null}
+
+            <div className="mt-5 border-y border-line py-4">
+              <p className="text-sm font-medium text-muted">
+                Listed booking price
+              </p>
+              <p className="mt-1 font-display text-2xl text-navy">
+                {booking.agreedPriceRwf == null
+                  ? "No price set"
+                  : `RWF ${booking.agreedPriceRwf.toLocaleString("en-RW")}`}
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                Price is copied from this truck&apos;s listing and cannot be changed per booking.
+              </p>
             </div>
 
-<<<<<<< HEAD
-<<<<<<< HEAD
             <div className="mt-5 flex flex-wrap gap-3">
               {booking.status === "PENDING" ? (
                 <>
@@ -216,12 +220,6 @@ export default function OwnerTripDetail() {
                     </span>
                     Start trip
                   </PrimaryButton>
-                ) : booking.payment?.status === "RELEASED" ? (
-                  <p className="rounded-lg bg-bad-soft px-4 py-3 text-sm font-medium text-bad">
-                    Payment has already been released, but this booking is still
-                    marked as accepted. Refresh the page; if the status remains
-                    unchanged, contact an administrator to correct the booking.
-                  </p>
                 ) : (
                   <p className="rounded-lg bg-warn-soft px-4 py-3 text-sm font-medium text-warn">
                     Waiting for the importer to pay. The trip cannot start until funds are held.
@@ -252,10 +250,6 @@ export default function OwnerTripDetail() {
               </p>
             ) : null}
 
-=======
->>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
-=======
->>>>>>> backup-before-rebase
             {booking.status === "REJECTED" ? (
               <div className="mt-4 flex items-start gap-3 rounded-2xl bg-good-soft px-4 py-3.5 text-sm font-medium text-good ring-1 ring-good/10">
                 <svg className="mt-0.5 shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

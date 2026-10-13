@@ -6,42 +6,43 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
-import { positionAt } from "./geo";
 import {
-<<<<<<< HEAD
   api,
   ApiError,
   clearAuthToken,
   readAuthToken,
   saveAuthToken,
 } from "./api";
-=======
-  accountPassword,
-  administratorPassword,
-  seedBookings,
-  seedDisputes,
-  seedTrucks,
-  seedUsers,
-  seedWalletTransactions,
-  seedVersion,
-} from "./mock-data";
-import { seedActivity, seedNotifications, seedNotices, seedPings } from "./ops-seed";
-import { formatRwf, hydrateBooking, paymentShares } from "./payments";
-import { ACTIVE_BOOKING_STATUSES } from "./types";
->>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
+import {
+  commissionFor,
+  demoAddTruck,
+  demoAuthenticate,
+  demoCreateBooking,
+  demoDeposit,
+  demoEnabled,
+  demoPayBooking,
+  demoRegister,
+  demoReportProblem,
+  demoResolveDispute,
+  demoSetAvailability,
+  demoSetBookingStatus,
+  demoUpdateTruck,
+  demoWithdraw,
+  loadDemoSession,
+  saveDemoSession,
+  walletAccountsFor,
+  walletBalanceFor,
+  type DemoSession,
+} from "./demo";
 import type {
-  ActivityEntry,
-  AppNotification,
   Booking,
   BookingPayment,
   BookingStatus,
-  CargoPing,
-  CheckoutDetails,
   Dispute,
   Role,
-  TripNotice,
   Truck,
   TruckStatus,
   User,
@@ -61,7 +62,6 @@ export type NewTruckInput = {
   photos?: string[];
 };
 
-<<<<<<< HEAD
 type ApiRelatedUser = {
   id: string;
   name: string;
@@ -133,45 +133,6 @@ type AdminCommission = {
   totalEarnedRwf: number;
   currency: string;
   monthlyHistory: { month: string; totalRwf: number }[];
-=======
-type AppState = {
-  seedVersion: number;
-  users: User[];
-  bookings: Booking[];
-  disputes: Dispute[];
-  trucks: Truck[];
-  currentUserId: string | null;
-  balances: Record<string, number>;
-  transactions: WalletTransaction[];
-  credentials: Record<string, string>;
-  pings: CargoPing[];
-  notices: TripNotice[];
-  notifications: AppNotification[];
-  activity: ActivityEntry[];
-};
-
-const STORAGE_KEY = "ibanga-app-state-v5";
-const initialState: AppState = {
-  seedVersion,
-  users: seedUsers.map((user) => ({ ...user, termsAcceptedAt: user.termsAcceptedAt ?? user.createdAt })),
-  bookings: seedBookings.map(hydrateBooking),
-  disputes: seedDisputes,
-  trucks: seedTrucks,
-  currentUserId: null,
-  balances: Object.fromEntries(seedUsers.map((user) => [user.id, 600000 + seedUsers.indexOf(user) * 175000])),
-  transactions: seedWalletTransactions,
-  credentials: Object.fromEntries(seedUsers.map((user) => [
-    user.email.toLowerCase(),
-    user.email.toLowerCase() === "admin@ibanga.com" ? administratorPassword : accountPassword,
-  ])),
-  pings: seedPings,
-  notices: seedNotices,
-  notifications: seedNotifications,
-  activity: seedActivity,
-<<<<<<< HEAD
->>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
-=======
->>>>>>> backup-before-rebase
 };
 
 type Store = {
@@ -198,7 +159,6 @@ type Store = {
     company: string;
     password: string;
     role: Exclude<Role, "ADMIN">;
-    termsAccepted: boolean;
   }) => Promise<string | null>;
   logout: () => void;
   updateProfile: (patch: Partial<Pick<User, "name" | "phone" | "location" | "company" | "photo">>) => Promise<string | null>;
@@ -210,18 +170,10 @@ type Store = {
   ) => Promise<string | null>;
   deleteTruck: (id: string) => Promise<string | null>;
   setAvailability: (id: string, status: TruckStatus) => Promise<string | null>;
-  createBooking: (truck: Truck, input: NewBookingInput, checkout: CheckoutDetails) => Promise<string | null>;
+  createBooking: (truck: Truck, input: NewBookingInput) => Promise<string | null>;
   setBookingStatus: (id: string, status: BookingStatus) => Promise<string | null>;
-  notifyDeparture: (bookingId: string, at: string, place: string, note: string) => Promise<string | null>;
-  notifyRest: (bookingId: string, at: string, place: string, note: string) => Promise<string | null>;
-  notifyResume: (bookingId: string, note: string) => Promise<string | null>;
-  recordCheckpoint: (bookingId: string) => Promise<string | null>;
-  refundBooking: (bookingId: string, reason: string) => Promise<string | null>;
-  markNotificationRead: (id: string) => void;
-  markAllNotificationsRead: () => void;
   reportProblem: (bookingId: string, reason: string) => Promise<string | null>;
   resolveDispute: (disputeId: string, notes: string) => Promise<string | null>;
-<<<<<<< HEAD
   setUserActive: (userId: string, active: boolean) => Promise<string | null>;
   deleteUser: (userId: string) => Promise<string | null>;
   depositFunds: (amount: number, phoneNumber: string) => Promise<string | null>;
@@ -235,28 +187,12 @@ type Store = {
     accountNumber?: string;
   }) => Promise<string | null>;
   payBooking: (bookingId: string) => Promise<string | null>;
-=======
-  setUserActive: (userId: string, active: boolean) => void;
-  deleteUser: (userId: string) => string | null;
-  resetWorkspace: () => Promise<string | null>;
-  depositFunds: (amount: number) => string | null;
-  withdrawFunds: (amount: number) => string | null;
-  notifications: AppNotification[];
-  activity: ActivityEntry[];
-  pings: CargoPing[];
-  notices: TripNotice[];
-  escrowRwf: number;
-<<<<<<< HEAD
->>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
-=======
->>>>>>> backup-before-rebase
 };
 
 const StoreContext = createContext<Store | null>(null);
 
 function mapUser(user: ApiRelatedUser, role: Role = user.role ?? "IMPORTER"): User {
   return {
-<<<<<<< HEAD
     ...user,
     phone: user.phone ?? "",
     location: user.location ?? "",
@@ -264,23 +200,6 @@ function mapUser(user: ApiRelatedUser, role: Role = user.role ?? "IMPORTER"): Us
     photo: user.photo ?? undefined,
     role,
     active: user.active ?? true,
-=======
-    ...initialState,
-    users: seedUsers.map((user) => ({ ...user, termsAcceptedAt: user.termsAcceptedAt ?? user.createdAt })),
-    bookings: seedBookings.map((booking) => hydrateBooking({ ...booking })),
-    disputes: seedDisputes.map((dispute) => ({ ...dispute })),
-    trucks: seedTrucks.map((truck) => ({ ...truck, photos: [...truck.photos] })),
-    balances: { ...initialState.balances },
-    transactions: initialState.transactions.map((transaction) => ({ ...transaction })),
-    credentials: { ...initialState.credentials },
-    pings: seedPings.map((ping) => ({ ...ping })),
-    notices: seedNotices.map((notice) => ({ ...notice })),
-    notifications: seedNotifications.map((item) => ({ ...item })),
-    activity: seedActivity.map((entry) => ({ ...entry })),
-<<<<<<< HEAD
->>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
-=======
->>>>>>> backup-before-rebase
   };
 }
 
@@ -304,120 +223,9 @@ function mapTruck(truck: ApiTruck): Truck {
   };
 }
 
-<<<<<<< HEAD
 function mapBooking(booking: ApiBooking): Booking {
-=======
-function uid(prefix: string) {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-}
-
-function actorName(state: AppState, actorId: string | null) {
-  return state.users.find((user) => user.id === actorId)?.name ?? "iBanga";
-}
-
-function partyIds(state: AppState, booking: Booking) {
-  const truck = state.trucks.find((item) => item.id === booking.truckId);
-  const admins = state.users.filter((user) => user.role === "ADMIN").map((user) => user.id);
-  return [...new Set([booking.importerId, truck?.ownerId, ...admins].filter((id): id is string => Boolean(id)))];
-}
-
-function pushUpdate(
-  state: AppState,
-  userIds: string[],
-  title: string,
-  body: string,
-  href: string,
-  tone: AppNotification["tone"],
-  action: string,
-  detail: string,
-  actorId: string | null,
-) {
-  const createdAt = new Date().toISOString();
-  return {
-    notifications: [
-      ...userIds.map((userId, index) => ({
-        id: uid(`nt${index}`),
-        userId,
-        title,
-        body,
-        href,
-        tone,
-        read: false,
-        createdAt,
-      })),
-      ...state.notifications,
-    ],
-    activity: [{
-      id: uid("act"),
-      actorName: actorName(state, actorId),
-      action,
-      detail,
-      createdAt,
-    }, ...state.activity],
-  };
-}
-
-function uid(prefix: string) {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-}
-
-function actorName(state: AppState, actorId: string | null) {
-  return state.users.find((user) => user.id === actorId)?.name ?? "iBanga";
-}
-
-function partyIds(state: AppState, booking: Booking) {
-  const truck = state.trucks.find((item) => item.id === booking.truckId);
-  const admins = state.users.filter((user) => user.role === "ADMIN").map((user) => user.id);
-  return [...new Set([booking.importerId, truck?.ownerId, ...admins].filter((id): id is string => Boolean(id)))];
-}
-
-function pushUpdate(
-  state: AppState,
-  userIds: string[],
-  title: string,
-  body: string,
-  href: string,
-  tone: AppNotification["tone"],
-  action: string,
-  detail: string,
-  actorId: string | null,
-) {
-  const createdAt = new Date().toISOString();
-  return {
-    notifications: [
-      ...userIds.map((userId, index) => ({
-        id: uid(`nt${index}`),
-        userId,
-        title,
-        body,
-        href,
-        tone,
-        read: false,
-        createdAt,
-      })),
-      ...state.notifications,
-    ],
-    activity: [{
-      id: uid("act"),
-      actorName: actorName(state, actorId),
-      action,
-      detail,
-      createdAt,
-    }, ...state.activity],
-  };
-}
-
-function transaction(
-  userId: string,
-  type: WalletTransaction["type"],
-  direction: WalletTransaction["direction"],
-  amountRwf: number,
-  description: string,
-): WalletTransaction {
->>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
   return {
     ...booking,
-    status: booking.payment?.status === "RELEASED" ? "COMPLETED" : booking.status,
     cargoWeight: String(booking.cargoWeight),
     cargoDescription: booking.cargoDescription ?? "",
     additionalInstructions: booking.additionalInstructions ?? "",
@@ -456,8 +264,25 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
   const [walletAccounts, setWalletAccounts] = useState<WalletAccount[]>([]);
   const [adminCommission, setAdminCommission] =
     useState<AdminCommission | null>(null);
+  const demoSession = useRef<DemoSession | null>(null);
 
-<<<<<<< HEAD
+  const publishDemo = useCallback((session: DemoSession, userId: string | null) => {
+    demoSession.current = session;
+    saveDemoSession(session, userId);
+    const user = userId ? session.users.find((item) => item.id === userId) ?? null : null;
+    setCurrentUser(user);
+    setUsers(session.users);
+    setBookings(session.bookings);
+    setDisputes(session.disputes);
+    setTrucks(session.trucks);
+    setWalletBalance(user ? walletBalanceFor(session, user.id) : 0);
+    setTransactions(user ? session.transactions.filter((transaction) => transaction.userId === user.id) : []);
+    setWalletAccounts(user?.role === "ADMIN" ? walletAccountsFor(session) : []);
+    setAdminCommission(user?.role === "ADMIN" ? commissionFor(session.bookings) : null);
+    setConnectionError(null);
+    setTrucksLoading(false);
+  }, []);
+
   const loadPublicTrucks = useCallback(async () => {
     setTrucksLoading(true);
     try {
@@ -471,53 +296,6 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setTrucksLoading(false);
     }
-=======
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved) as Partial<AppState>;
-          const includeNewSeeds = (parsed.seedVersion ?? 0) < seedVersion;
-          const credentials = { ...initialState.credentials, ...parsed.credentials };
-          for (const user of seedUsers) {
-            credentials[user.email.toLowerCase()] = user.email.toLowerCase() === "admin@ibanga.com"
-              ? administratorPassword
-              : accountPassword;
-          }
-          setState({
-            ...freshWorkspace(),
-            ...parsed,
-            seedVersion,
-            users: mergeSeedRecords(seedUsers, parsed.users, includeNewSeeds).map((user) => ({
-              ...user,
-              termsAcceptedAt: user.termsAcceptedAt ?? user.createdAt,
-            })),
-            bookings: mergeSeedRecords(seedBookings, parsed.bookings, includeNewSeeds).map(hydrateBooking),
-            disputes: mergeSeedRecords(seedDisputes, parsed.disputes, includeNewSeeds),
-            trucks: mergeSeedRecords(seedTrucks, parsed.trucks, includeNewSeeds),
-            balances: { ...initialState.balances, ...parsed.balances },
-            transactions: mergeSeedRecords(
-              seedWalletTransactions,
-              parsed.transactions,
-              includeNewSeeds,
-            ),
-            pings: parsed.pings ?? seedPings,
-            notices: parsed.notices ?? seedNotices,
-            notifications: parsed.notifications ?? seedNotifications,
-            activity: parsed.activity ?? seedActivity,
-            credentials,
-          });
-        }
-      } catch (error) {
-        console.error("Could not restore marketplace state.", error);
-        localStorage.removeItem(STORAGE_KEY);
-      } finally {
-        setReady(true);
-      }
-    }, 0);
-    return () => window.clearTimeout(timer);
->>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
   }, []);
 
   const loadMarketplace = useCallback(async (user: User) => {
@@ -623,6 +401,14 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     let active = true;
 
     async function initialize() {
+      if (demoEnabled) {
+        const loaded = loadDemoSession();
+        if (active) {
+          publishDemo(loaded.session, loaded.userId);
+          setReady(true);
+        }
+        return;
+      }
       try {
         window.localStorage.removeItem("ibanga-app-state-v4");
         if (readAuthToken()) {
@@ -654,9 +440,15 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     return () => {
       active = false;
     };
-  }, [loadMarketplace, loadPublicTrucks]);
+  }, [loadMarketplace, loadPublicTrucks, publishDemo]);
 
   const login = useCallback(async (email: string, password: string) => {
+    if (demoEnabled && demoSession.current) {
+      const result = demoAuthenticate(demoSession.current, email, password);
+      if (!result.user) return { user: null, error: result.error };
+      publishDemo(demoSession.current, result.user.id);
+      return { user: result.user, error: null };
+    }
     try {
       const result = await api<{ token: string; user: ApiUser }>("/auth/login", {
         method: "POST",
@@ -670,9 +462,15 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       return { user: null, error: errorMessage(error, "Could not sign in.") };
     }
-  }, [loadMarketplace]);
+  }, [loadMarketplace, publishDemo]);
 
   const requestPasswordReset = useCallback(async (email: string) => {
+    if (demoEnabled) {
+      const known = demoSession.current?.users.some((user) => user.email.toLowerCase() === email.trim().toLowerCase());
+      return known
+        ? { message: "Demo mode: use the password shown on the sign-in page." }
+        : { message: "", error: "No demo account uses that email." };
+    }
     try {
       return await api<{ message: string }>("/auth/password-reset/request", {
         method: "POST",
@@ -684,6 +482,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const resetPassword = useCallback(async (token: string, password: string) => {
+    if (demoEnabled) return "Password reset stays on the sign-in page while demo data is in use.";
     try {
       await api("/auth/password-reset/reset", {
         method: "POST",
@@ -696,8 +495,12 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const register = useCallback<Store["register"]>(async (input) => {
-<<<<<<< HEAD
-<<<<<<< HEAD
+    if (demoEnabled && demoSession.current) {
+      const result = demoRegister(demoSession.current, input);
+      if ("error" in result) return result.error;
+      publishDemo(result.session, result.user.id);
+      return null;
+    }
     try {
       const result = await api<{ token: string; user: ApiUser }>("/auth/register", {
         method: "POST",
@@ -729,38 +532,13 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       return errorMessage(error, "Could not create your account.");
     }
-  }, [loadMarketplace]);
-=======
-=======
->>>>>>> backup-before-rebase
-    if (!input.termsAccepted) return "Accept the iBanga terms and conditions to create an account.";
-    if (state.users.some((user) => user.email.toLowerCase() === input.email.toLowerCase())) {
-      return "An account with this email already exists.";
-    }
-    const user: User = {
-      id: `user-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      termsAcceptedAt: new Date().toISOString(),
-      name: input.name,
-      email: input.email,
-      phone: input.phone,
-      role: input.role,
-      location: input.location,
-      company: input.company,
-      active: true,
-    };
-    setState((current) => ({
-      ...current,
-      users: [...current.users, user],
-      currentUserId: user.id,
-      balances: { ...current.balances, [user.id]: 0 },
-      credentials: { ...current.credentials, [input.email.toLowerCase()]: input.password },
-    }));
-    return null;
-  }, [state.users]);
->>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
+  }, [loadMarketplace, publishDemo]);
 
   const logout = useCallback(() => {
+    if (demoEnabled && demoSession.current) {
+      publishDemo(demoSession.current, null);
+      return;
+    }
     clearAuthToken();
     setCurrentUser(null);
     setUsers([]);
@@ -776,6 +554,11 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
 
   const updateProfile = useCallback<Store["updateProfile"]>(async (patch) => {
     if (!currentUser) return "Sign in to update your profile.";
+    if (demoEnabled && demoSession.current) {
+      const users = demoSession.current.users.map((user) => user.id === currentUser.id ? { ...user, ...patch } : user);
+      publishDemo({ ...demoSession.current, users }, currentUser.id);
+      return null;
+    }
     try {
       const user = mapUser(await api<ApiUser>("/auth/me", {
         method: "PATCH",
@@ -786,15 +569,24 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       return errorMessage(error, "Could not update your profile.");
     }
-  }, [currentUser, loadMarketplace]);
+  }, [currentUser, loadMarketplace, publishDemo]);
 
   const fetchTruck = useCallback<Store["fetchTruck"]>(async (id) => {
+    if (demoEnabled) {
+      const truck = demoSession.current?.trucks.find((item) => item.id === id);
+      if (!truck) throw new Error("Truck not found in the demo data.");
+      return truck;
+    }
     const truck = await api<ApiTruck>(`/trucks/${encodeURIComponent(id)}`);
     return mapTruck(truck);
   }, []);
 
   const addTruck = useCallback<Store["addTruck"]>(async (input) => {
     if (!currentUser) return "Sign in to list a truck.";
+    if (demoEnabled && demoSession.current) {
+      publishDemo(demoAddTruck(demoSession.current, currentUser, input), currentUser.id);
+      return null;
+    }
     try {
       await api("/trucks", {
         method: "POST",
@@ -805,9 +597,13 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       return errorMessage(error, "Could not add the truck.");
     }
-  }, [currentUser, refreshAfterMutation]);
+  }, [currentUser, publishDemo, refreshAfterMutation]);
 
   const updateTruck = useCallback<Store["updateTruck"]>(async (id, patch) => {
+    if (demoEnabled && demoSession.current && currentUser) {
+      publishDemo(demoUpdateTruck(demoSession.current, id, patch), currentUser.id);
+      return null;
+    }
     try {
       await api(`/trucks/${encodeURIComponent(id)}`, {
         method: "PATCH",
@@ -818,9 +614,16 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       return errorMessage(error, "Could not update the truck.");
     }
-  }, [refreshAfterMutation]);
+  }, [currentUser, publishDemo, refreshAfterMutation]);
 
   const deleteTruck = useCallback<Store["deleteTruck"]>(async (id) => {
+    if (demoEnabled && demoSession.current && currentUser) {
+      publishDemo({
+        ...demoSession.current,
+        trucks: demoSession.current.trucks.filter((truck) => truck.id !== id),
+      }, currentUser.id);
+      return null;
+    }
     try {
       await api(`/trucks/${encodeURIComponent(id)}`, { method: "DELETE" });
       await refreshAfterMutation();
@@ -828,9 +631,13 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       return errorMessage(error, "Could not remove the truck.");
     }
-  }, [refreshAfterMutation]);
+  }, [currentUser, publishDemo, refreshAfterMutation]);
 
   const setAvailability = useCallback<Store["setAvailability"]>(async (id, status) => {
+    if (demoEnabled && demoSession.current && currentUser) {
+      publishDemo(demoSetAvailability(demoSession.current, id, status), currentUser.id);
+      return null;
+    }
     try {
       await api(`/trucks/${encodeURIComponent(id)}/availability`, {
         method: "PATCH",
@@ -841,12 +648,16 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       return errorMessage(error, "Could not update truck availability.");
     }
-  }, [refreshAfterMutation]);
+  }, [currentUser, publishDemo, refreshAfterMutation]);
 
-<<<<<<< HEAD
-<<<<<<< HEAD
   const createBooking = useCallback<Store["createBooking"]>(async (truck, input) => {
     if (!currentUser) return "Sign in to book a truck.";
+    if (demoEnabled && demoSession.current) {
+      const result = demoCreateBooking(demoSession.current, currentUser, truck, input);
+      if ("error" in result) return result.error;
+      publishDemo(result.session, currentUser.id);
+      return null;
+    }
     try {
       const cargoWeight = Number(input.cargoWeight);
       if (!Number.isFinite(cargoWeight) || cargoWeight <= 0) {
@@ -871,9 +682,13 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       return errorMessage(error, "Could not create the booking.");
     }
-  }, [currentUser, refreshAfterMutation]);
+  }, [currentUser, publishDemo, refreshAfterMutation]);
 
   const setBookingStatus = useCallback<Store["setBookingStatus"]>(async (id, status) => {
+    if (demoEnabled && demoSession.current && currentUser) {
+      publishDemo(demoSetBookingStatus(demoSession.current, id, status), currentUser.id);
+      return null;
+    }
     try {
       await api(`/bookings/${encodeURIComponent(id)}`, {
         method: "PATCH",
@@ -884,166 +699,13 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       return errorMessage(error, "Could not update the booking.");
     }
-  }, [refreshAfterMutation]);
-=======
-  const createBooking = useCallback<Store["createBooking"]>(async (truck, input, checkout) => {
-    if (!currentUserId) return "Sign in to book a truck.";
-    const importer = state.users.find((user) => user.id === currentUserId);
-    if (importer?.role !== "IMPORTER") return "Only importer accounts can book trucks.";
-    if (!["VISA", "AIRTEL", "MTN"].includes(checkout.method)) {
-      return "Pay with a Visa card, Airtel Money, or MTN MoMo.";
-    }
-=======
-  const createBooking = useCallback<Store["createBooking"]>(async (truck, input, checkout) => {
-    if (!currentUserId) return "Sign in to book a truck.";
-    const importer = state.users.find((user) => user.id === currentUserId);
-    if (importer?.role !== "IMPORTER") return "Only importer accounts can book trucks.";
-    if (!["VISA", "AIRTEL", "MTN"].includes(checkout.method)) {
-      return "Pay with a Visa card, Airtel Money, or MTN MoMo.";
-    }
->>>>>>> backup-before-rebase
-    if (!checkout.payerName.trim() || !checkout.accountMask.trim()) {
-      return "Enter the payer name and payment account.";
-    }
-    const amount = truck.priceRwf ?? 0;
-    if (amount < 1000) return "This truck does not have a bookable price.";
-    const paidAt = new Date().toISOString();
-    const bookingId = `booking-${Date.now()}`;
-    const booking: Booking = {
-      ...input,
-      id: bookingId,
-      importerId: currentUserId,
-      truckId: truck.id,
-      agreedPrice: formatRwf(amount),
-      agreedPriceRwf: amount,
-      status: "PENDING",
-      createdAt: paidAt,
-      payment: {
-        status: "AUTHORIZED",
-        method: checkout.method,
-        ...paymentShares(amount),
-        paidAt,
-        receiptNumber: `IB-${Date.now().toString().slice(-10)}`,
-        payerName: checkout.payerName.trim(),
-        accountMask: checkout.accountMask,
-      },
-    };
-    setState((current) => {
-      const update = pushUpdate(
-        current,
-        partyIds(current, booking),
-        "Booking paid",
-        `${booking.pickupLocation} to ${booking.destination} is paid and waiting for the owner to confirm the truck.`,
-        `/dashboard/tracking/${booking.id}`,
-        "warn",
-        "Paid a booking",
-        `${booking.pickupLocation} to ${booking.destination} · ${checkout.method} · ${formatRwf(amount)} at ${paidAt}`,
-        currentUserId,
-      );
-      return {
-        ...current,
-        ...update,
-        bookings: [booking, ...current.bookings],
-        trucks: current.trucks.map((item) => item.id === truck.id ? { ...item, status: "UNAVAILABLE" } : item),
-      };
-    });
-    return null;
-  }, [currentUserId, state.users]);
-
-  const setBookingStatus = useCallback<Store["setBookingStatus"]>(async (id, status) => {
-    let error: string | null = null;
-    setState((current) => {
-      const booking = current.bookings.find((item) => item.id === id);
-      if (!booking?.payment) {
-        error = "This booking has no payment record.";
-        return current;
-      }
-      const now = new Date().toISOString();
-      const route = `${booking.pickupLocation} to ${booking.destination}`;
-      const people = partyIds(current, booking);
-      const truck = current.trucks.find((item) => item.id === booking.truckId);
-
-      if (status === "ACCEPTED") {
-        if (booking.status !== "PENDING" || booking.payment.status !== "AUTHORIZED") {
-          error = "Only a paid request can move funds into the iBanga account.";
-          return current;
-        }
-        const update = pushUpdate(current, people, "Payment held by iBanga", `${route} is in the system account until both sides confirm delivery.`, `/dashboard/tracking/${id}`, "info", "Confirmed truck availability", route, current.currentUserId);
-        return {
-          ...current,
-          ...update,
-          bookings: current.bookings.map((item) => item.id === id ? { ...booking, status, payment: { ...booking.payment!, status: "HELD", heldAt: now } } : item),
-        };
-      }
-
-      if (status === "REJECTED") {
-        if (booking.payment.status === "RELEASED") {
-          error = "A released payment cannot be refunded from this screen.";
-          return current;
-        }
-        const update = pushUpdate(current, people, "Payment refunded", `${formatRwf(booking.payment.amountRwf)} for ${route} returns to the original ${booking.payment.method} account.`, `/dashboard/tracking/${id}`, "warn", "Refunded a booking", route, current.currentUserId);
-        return {
-          ...current,
-          ...update,
-          bookings: current.bookings.map((item) => item.id === id ? { ...booking, status, payment: { ...booking.payment!, status: "REFUNDED", refundedAt: now } } : item),
-          trucks: current.trucks.map((item) => item.id === booking.truckId ? { ...item, status: "AVAILABLE" } : item),
-        };
-      }
-
-      if (status === "DELIVERED") {
-        if (booking.status !== "IN_PROGRESS" || booking.payment.status !== "HELD") {
-          error = "Confirm delivery only after departure, while the payment is still held.";
-          return current;
-        }
-        const arrival = positionAt(booking.pickupLocation, booking.destination, 999999);
-        const update = pushUpdate(current, people, "Cargo marked delivered", `${route} is waiting for the importer to confirm receipt. Payment stays held.`, `/dashboard/tracking/${id}`, "warn", "Marked cargo delivered", route, current.currentUserId);
-        return {
-          ...current,
-          ...update,
-          bookings: current.bookings.map((item) => item.id === id ? { ...booking, status, payment: { ...booking.payment!, ownerConfirmedAt: now } } : item),
-          pings: [{
-            id: uid("ping"),
-            bookingId: id,
-            kmFromStart: arrival.totalKm,
-            lat: arrival.lat,
-            lng: arrival.lng,
-            label: booking.destination,
-            recordedAt: now,
-            kind: "DELIVERY",
-            note: "Owner confirmed the cargo was delivered.",
-          }, ...current.pings],
-        };
-      }
-
-      if (status === "COMPLETED") {
-        if (booking.status !== "DELIVERED" || !booking.payment.ownerConfirmedAt) {
-          error = "The owner has to confirm delivery before receipt can release the payment.";
-          return current;
-        }
-        if (booking.payment.status !== "HELD" || !truck) {
-          error = "There is no held payment to release.";
-          return current;
-        }
-        const earning = transaction(truck.ownerId, "BOOKING_EARNING", "CREDIT", booking.payment.ownerAmountRwf, `Escrow release for ${route}`);
-        const update = pushUpdate(current, people, "Payment released", `${formatRwf(booking.payment.ownerAmountRwf)} was released to the truck owner for ${route}.`, `/dashboard/tracking/${id}`, "good", "Released escrow", route, current.currentUserId);
-        return {
-          ...current,
-          ...update,
-          bookings: current.bookings.map((item) => item.id === id ? { ...booking, status, payment: { ...booking.payment!, status: "RELEASED", importerConfirmedAt: now, releasedAt: now } } : item),
-          trucks: current.trucks.map((item) => item.id === booking.truckId ? { ...item, status: "AVAILABLE" } : item),
-          balances: { ...current.balances, [truck.ownerId]: (current.balances[truck.ownerId] ?? 0) + booking.payment!.ownerAmountRwf },
-          transactions: [earning, ...current.transactions],
-        };
-      }
-
-      error = "Record departure from the trip screen before changing this status.";
-      return current;
-    });
-    return error;
-  }, []);
->>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
+  }, [currentUser, publishDemo, refreshAfterMutation]);
 
   const reportProblem = useCallback<Store["reportProblem"]>(async (bookingId, reason) => {
+    if (demoEnabled && demoSession.current && currentUser) {
+      publishDemo(demoReportProblem(demoSession.current, currentUser, bookingId, reason), currentUser.id);
+      return null;
+    }
     try {
       await api("/disputes", {
         method: "POST",
@@ -1054,9 +716,13 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       return errorMessage(error, "Could not report the booking problem.");
     }
-  }, [refreshAfterMutation]);
+  }, [currentUser, publishDemo, refreshAfterMutation]);
 
   const resolveDispute = useCallback<Store["resolveDispute"]>(async (disputeId, notes) => {
+    if (demoEnabled && demoSession.current && currentUser) {
+      publishDemo(demoResolveDispute(demoSession.current, disputeId, notes), currentUser.id);
+      return null;
+    }
     try {
       await api(`/disputes/${encodeURIComponent(disputeId)}/resolve`, {
         method: "PATCH",
@@ -1067,9 +733,16 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       return errorMessage(error, "Could not resolve the dispute.");
     }
-  }, [refreshAfterMutation]);
+  }, [currentUser, publishDemo, refreshAfterMutation]);
 
   const setUserActive = useCallback<Store["setUserActive"]>(async (userId, active) => {
+    if (demoEnabled && demoSession.current && currentUser) {
+      publishDemo({
+        ...demoSession.current,
+        users: demoSession.current.users.map((user) => user.id === userId ? { ...user, active } : user),
+      }, currentUser.id);
+      return null;
+    }
     try {
       await api(`/users/${encodeURIComponent(userId)}/status`, {
         method: "PATCH",
@@ -1080,9 +753,16 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       return errorMessage(error, "Could not update the account status.");
     }
-  }, [refreshAfterMutation]);
+  }, [currentUser, publishDemo, refreshAfterMutation]);
 
   const deleteUser = useCallback<Store["deleteUser"]>(async (userId) => {
+    if (demoEnabled && demoSession.current && currentUser) {
+      publishDemo({
+        ...demoSession.current,
+        users: demoSession.current.users.filter((user) => user.id !== userId),
+      }, currentUser.id);
+      return null;
+    }
     try {
       await api(`/users/${encodeURIComponent(userId)}`, { method: "DELETE" });
       await refreshAfterMutation();
@@ -1090,9 +770,15 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       return errorMessage(error, "Could not remove the account.");
     }
-  }, [refreshAfterMutation]);
+  }, [currentUser, publishDemo, refreshAfterMutation]);
 
   const depositFunds = useCallback<Store["depositFunds"]>(async (amount, phoneNumber) => {
+    if (demoEnabled && demoSession.current && currentUser) {
+      const result = demoDeposit(demoSession.current, currentUser, amount);
+      if ("error" in result) return result.error;
+      publishDemo(result.session, currentUser.id);
+      return null;
+    }
     try {
       await api("/wallet/deposits", {
         method: "POST",
@@ -1103,10 +789,15 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       return errorMessage(error, "Could not deposit funds.");
     }
-  }, [refreshAfterMutation]);
+  }, [currentUser, publishDemo, refreshAfterMutation]);
 
-<<<<<<< HEAD
   const withdrawFunds = useCallback<Store["withdrawFunds"]>(async (input) => {
+    if (demoEnabled && demoSession.current && currentUser) {
+      const result = demoWithdraw(demoSession.current, currentUser, input.amountRwf);
+      if ("error" in result) return result.error;
+      publishDemo(result.session, currentUser.id);
+      return null;
+    }
     try {
       await api("/wallet/withdrawals", {
         method: "POST",
@@ -1117,9 +808,15 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       return errorMessage(error, "Could not withdraw funds.");
     }
-  }, [refreshAfterMutation]);
+  }, [currentUser, publishDemo, refreshAfterMutation]);
 
   const payBooking = useCallback<Store["payBooking"]>(async (bookingId) => {
+    if (demoEnabled && demoSession.current && currentUser) {
+      const result = demoPayBooking(demoSession.current, currentUser, bookingId);
+      if ("error" in result) return result.error;
+      publishDemo(result.session, currentUser.id);
+      return null;
+    }
     try {
       await api(`/wallet/bookings/${encodeURIComponent(bookingId)}/pay`, {
         method: "POST",
@@ -1129,367 +826,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       return errorMessage(error, "Could not pay for the booking.");
     }
-  }, [refreshAfterMutation]);
-=======
-  const notifyDeparture = useCallback<Store["notifyDeparture"]>(async (bookingId, at, place, note) => {
-    let error: string | null = null;
-    setState((current) => {
-      const booking = current.bookings.find((item) => item.id === bookingId);
-      if (!booking?.payment || booking.status !== "ACCEPTED" || booking.payment.status !== "HELD") {
-        error = "The payment must be held before departure can be recorded.";
-        return current;
-      }
-      const when = new Date(at);
-      if (Number.isNaN(when.getTime())) {
-        error = "Enter a valid departure date and time.";
-        return current;
-      }
-      const point = positionAt(booking.pickupLocation, booking.destination, 0);
-      const update = pushUpdate(current, partyIds(current, booking), "Trip departed", `${booking.pickupLocation} to ${booking.destination} left at ${when.toLocaleString("en-GB")}.`, `/dashboard/tracking/${bookingId}`, "info", "Recorded departure", place, current.currentUserId);
-      return {
-        ...current,
-        ...update,
-        bookings: current.bookings.map((item) => item.id === bookingId ? { ...booking, status: "IN_PROGRESS" } : item),
-        notices: [{ id: uid("notice"), bookingId, kind: "DEPARTURE", at: when.toISOString(), place, note }, ...current.notices],
-        pings: [{
-          id: uid("ping"),
-          bookingId,
-          kmFromStart: 0,
-          lat: point.lat,
-          lng: point.lng,
-          label: place || booking.pickupLocation,
-          recordedAt: when.toISOString(),
-          kind: "DEPARTURE",
-          note,
-        }, ...current.pings],
-      };
-    });
-    return error;
-  }, []);
-
-  const notifyRest = useCallback<Store["notifyRest"]>(async (bookingId, at, place, note) => {
-    let error: string | null = null;
-    setState((current) => {
-      const booking = current.bookings.find((item) => item.id === bookingId);
-      if (!booking || booking.status !== "IN_PROGRESS") {
-        error = "Rest stops are recorded while the trip is on the road.";
-        return current;
-      }
-      const when = new Date(at);
-      if (Number.isNaN(when.getTime()) || !place.trim()) {
-        error = "Enter the rest time and place.";
-        return current;
-      }
-      const lastKm = current.pings.filter((ping) => ping.bookingId === bookingId).reduce((max, ping) => Math.max(max, ping.kmFromStart), 0);
-      const point = positionAt(booking.pickupLocation, booking.destination, lastKm);
-      const update = pushUpdate(current, partyIds(current, booking), "Rest stop recorded", `${place} on ${booking.pickupLocation} to ${booking.destination}.`, `/dashboard/tracking/${bookingId}`, "warn", "Logged a rest stop", place, current.currentUserId);
-      return {
-        ...current,
-        ...update,
-        notices: [{ id: uid("notice"), bookingId, kind: "REST", at: when.toISOString(), place: place.trim(), note }, ...current.notices],
-        pings: [{
-          id: uid("ping"),
-          bookingId,
-          kmFromStart: lastKm,
-          lat: point.lat,
-          lng: point.lng,
-          label: place.trim(),
-          recordedAt: when.toISOString(),
-          kind: "REST",
-          note,
-        }, ...current.pings],
-      };
-    });
-    return error;
-  }, []);
-
-  const notifyResume = useCallback<Store["notifyResume"]>(async (bookingId, note) => {
-    let error: string | null = null;
-    setState((current) => {
-      const booking = current.bookings.find((item) => item.id === bookingId);
-      if (!booking || booking.status !== "IN_PROGRESS") {
-        error = "Resume is recorded during an active trip.";
-        return current;
-      }
-      const now = new Date().toISOString();
-      const last = [...current.pings].reverse().find((ping) => ping.bookingId === bookingId);
-      const update = pushUpdate(current, partyIds(current, booking), "Trip resumed", note, `/dashboard/tracking/${bookingId}`, "info", "Resumed after rest", booking.destination, current.currentUserId);
-      return {
-        ...current,
-        ...update,
-        notices: [{ id: uid("notice"), bookingId, kind: "RESUME", at: now, place: last?.label || booking.pickupLocation, note }, ...current.notices],
-      };
-    });
-    return error;
-  }, []);
-
-  const recordCheckpoint = useCallback<Store["recordCheckpoint"]>(async (bookingId) => {
-    let error: string | null = null;
-    setState((current) => {
-      const booking = current.bookings.find((item) => item.id === bookingId);
-      if (!booking || booking.status !== "IN_PROGRESS") {
-        error = "Checkpoints are recorded after departure.";
-        return current;
-      }
-      const lastKm = current.pings.filter((ping) => ping.bookingId === bookingId).reduce((max, ping) => Math.max(max, ping.kmFromStart), 0);
-      const nextKm = lastKm + 2;
-      const point = positionAt(booking.pickupLocation, booking.destination, nextKm);
-      if (nextKm > point.totalKm) {
-        error = "The recorded trail has reached the destination. Confirm delivery instead.";
-        return current;
-      }
-      const now = new Date().toISOString();
-      const update = pushUpdate(current, partyIds(current, booking), "Location updated", `${nextKm} km recorded on ${booking.pickupLocation} to ${booking.destination}.`, `/dashboard/tracking/${bookingId}`, "info", "Recorded a checkpoint", `${nextKm} km`, current.currentUserId);
-      return {
-        ...current,
-        ...update,
-        pings: [{
-          id: uid("ping"),
-          bookingId,
-          kmFromStart: nextKm,
-          lat: point.lat,
-          lng: point.lng,
-          label: `${nextKm} km from ${booking.pickupLocation}`,
-          recordedAt: now,
-          kind: "CHECKPOINT",
-        }, ...current.pings],
-      };
-    });
-    return error;
-  }, []);
-
-  const refundBooking = useCallback<Store["refundBooking"]>(async (bookingId, reason) => {
-    let error: string | null = null;
-    setState((current) => {
-      const actor = current.users.find((user) => user.id === current.currentUserId);
-      if (actor?.role !== "ADMIN") {
-        error = "Only an administrator can refund a held payment.";
-        return current;
-      }
-      const booking = current.bookings.find((item) => item.id === bookingId);
-      if (!booking?.payment || booking.payment.status === "RELEASED" || booking.payment.status === "REFUNDED") {
-        error = "This payment is no longer refundable.";
-        return current;
-      }
-      const now = new Date().toISOString();
-      const route = `${booking.pickupLocation} to ${booking.destination}`;
-      const update = pushUpdate(current, partyIds(current, booking), "Payment refunded", `${formatRwf(booking.payment.amountRwf)} for ${route} was returned to ${booking.payment.accountMask}.`, `/dashboard/tracking/${bookingId}`, "warn", "Refunded escrow", reason, current.currentUserId);
-      return {
-        ...current,
-        ...update,
-        bookings: current.bookings.map((item) => item.id === bookingId ? { ...booking, status: "REJECTED", payment: { ...booking.payment!, status: "REFUNDED", refundedAt: now } } : item),
-        trucks: current.trucks.map((item) => item.id === booking.truckId ? { ...item, status: "AVAILABLE" } : item),
-        disputes: current.disputes.map((dispute) => dispute.bookingId === bookingId && dispute.status === "OPEN"
-          ? { ...dispute, status: "RESOLVED", resolutionNotes: reason, resolvedAt: now }
-          : dispute),
-      };
-    });
-    return error;
-  }, []);
-
-  const markNotificationRead = useCallback((id: string) => {
-    setState((current) => ({
-      ...current,
-      notifications: current.notifications.map((item) => item.id === id ? { ...item, read: true } : item),
-    }));
-  }, []);
-
-  const markAllNotificationsRead = useCallback(() => {
-    if (!currentUserId) return;
-    setState((current) => ({
-      ...current,
-      notifications: current.notifications.map((item) => item.userId === currentUserId ? { ...item, read: true } : item),
-    }));
-  }, [currentUserId]);
-<<<<<<< HEAD
->>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
-=======
-
-  const withdrawFunds = useCallback((amount: number) => {
-    if (!currentUserId || !Number.isFinite(amount) || amount < 1000) {
-      return "Enter a valid amount of at least RWF 1,000.";
-    }
-    if ((state.balances[currentUserId] ?? 0) < amount) return "Insufficient wallet balance.";
-    const entry = transaction(currentUserId, "WITHDRAWAL", "DEBIT", amount, "Wallet withdrawal");
-    setState((current) => ({
-      ...current,
-      balances: { ...current.balances, [currentUserId]: (current.balances[currentUserId] ?? 0) - amount },
-      transactions: [entry, ...current.transactions],
-    }));
-    return null;
-  }, [currentUserId, state.balances]);
-
-  const notifyDeparture = useCallback<Store["notifyDeparture"]>(async (bookingId, at, place, note) => {
-    let error: string | null = null;
-    setState((current) => {
-      const booking = current.bookings.find((item) => item.id === bookingId);
-      if (!booking?.payment || booking.status !== "ACCEPTED" || booking.payment.status !== "HELD") {
-        error = "The payment must be held before departure can be recorded.";
-        return current;
-      }
-      const when = new Date(at);
-      if (Number.isNaN(when.getTime())) {
-        error = "Enter a valid departure date and time.";
-        return current;
-      }
-      const point = positionAt(booking.pickupLocation, booking.destination, 0);
-      const update = pushUpdate(current, partyIds(current, booking), "Trip departed", `${booking.pickupLocation} to ${booking.destination} left at ${when.toLocaleString("en-GB")}.`, `/dashboard/tracking/${bookingId}`, "info", "Recorded departure", place, current.currentUserId);
-      return {
-        ...current,
-        ...update,
-        bookings: current.bookings.map((item) => item.id === bookingId ? { ...booking, status: "IN_PROGRESS" } : item),
-        notices: [{ id: uid("notice"), bookingId, kind: "DEPARTURE", at: when.toISOString(), place, note }, ...current.notices],
-        pings: [{
-          id: uid("ping"),
-          bookingId,
-          kmFromStart: 0,
-          lat: point.lat,
-          lng: point.lng,
-          label: place || booking.pickupLocation,
-          recordedAt: when.toISOString(),
-          kind: "DEPARTURE",
-          note,
-        }, ...current.pings],
-      };
-    });
-    return error;
-  }, []);
-
-  const notifyRest = useCallback<Store["notifyRest"]>(async (bookingId, at, place, note) => {
-    let error: string | null = null;
-    setState((current) => {
-      const booking = current.bookings.find((item) => item.id === bookingId);
-      if (!booking || booking.status !== "IN_PROGRESS") {
-        error = "Rest stops are recorded while the trip is on the road.";
-        return current;
-      }
-      const when = new Date(at);
-      if (Number.isNaN(when.getTime()) || !place.trim()) {
-        error = "Enter the rest time and place.";
-        return current;
-      }
-      const lastKm = current.pings.filter((ping) => ping.bookingId === bookingId).reduce((max, ping) => Math.max(max, ping.kmFromStart), 0);
-      const point = positionAt(booking.pickupLocation, booking.destination, lastKm);
-      const update = pushUpdate(current, partyIds(current, booking), "Rest stop recorded", `${place} on ${booking.pickupLocation} to ${booking.destination}.`, `/dashboard/tracking/${bookingId}`, "warn", "Logged a rest stop", place, current.currentUserId);
-      return {
-        ...current,
-        ...update,
-        notices: [{ id: uid("notice"), bookingId, kind: "REST", at: when.toISOString(), place: place.trim(), note }, ...current.notices],
-        pings: [{
-          id: uid("ping"),
-          bookingId,
-          kmFromStart: lastKm,
-          lat: point.lat,
-          lng: point.lng,
-          label: place.trim(),
-          recordedAt: when.toISOString(),
-          kind: "REST",
-          note,
-        }, ...current.pings],
-      };
-    });
-    return error;
-  }, []);
-
-  const notifyResume = useCallback<Store["notifyResume"]>(async (bookingId, note) => {
-    let error: string | null = null;
-    setState((current) => {
-      const booking = current.bookings.find((item) => item.id === bookingId);
-      if (!booking || booking.status !== "IN_PROGRESS") {
-        error = "Resume is recorded during an active trip.";
-        return current;
-      }
-      const now = new Date().toISOString();
-      const last = [...current.pings].reverse().find((ping) => ping.bookingId === bookingId);
-      const update = pushUpdate(current, partyIds(current, booking), "Trip resumed", note, `/dashboard/tracking/${bookingId}`, "info", "Resumed after rest", booking.destination, current.currentUserId);
-      return {
-        ...current,
-        ...update,
-        notices: [{ id: uid("notice"), bookingId, kind: "RESUME", at: now, place: last?.label || booking.pickupLocation, note }, ...current.notices],
-      };
-    });
-    return error;
-  }, []);
-
-  const recordCheckpoint = useCallback<Store["recordCheckpoint"]>(async (bookingId) => {
-    let error: string | null = null;
-    setState((current) => {
-      const booking = current.bookings.find((item) => item.id === bookingId);
-      if (!booking || booking.status !== "IN_PROGRESS") {
-        error = "Checkpoints are recorded after departure.";
-        return current;
-      }
-      const lastKm = current.pings.filter((ping) => ping.bookingId === bookingId).reduce((max, ping) => Math.max(max, ping.kmFromStart), 0);
-      const nextKm = lastKm + 2;
-      const point = positionAt(booking.pickupLocation, booking.destination, nextKm);
-      if (nextKm > point.totalKm) {
-        error = "The recorded trail has reached the destination. Confirm delivery instead.";
-        return current;
-      }
-      const now = new Date().toISOString();
-      const update = pushUpdate(current, partyIds(current, booking), "Location updated", `${nextKm} km recorded on ${booking.pickupLocation} to ${booking.destination}.`, `/dashboard/tracking/${bookingId}`, "info", "Recorded a checkpoint", `${nextKm} km`, current.currentUserId);
-      return {
-        ...current,
-        ...update,
-        pings: [{
-          id: uid("ping"),
-          bookingId,
-          kmFromStart: nextKm,
-          lat: point.lat,
-          lng: point.lng,
-          label: `${nextKm} km from ${booking.pickupLocation}`,
-          recordedAt: now,
-          kind: "CHECKPOINT",
-        }, ...current.pings],
-      };
-    });
-    return error;
-  }, []);
-
-  const refundBooking = useCallback<Store["refundBooking"]>(async (bookingId, reason) => {
-    let error: string | null = null;
-    setState((current) => {
-      const actor = current.users.find((user) => user.id === current.currentUserId);
-      if (actor?.role !== "ADMIN") {
-        error = "Only an administrator can refund a held payment.";
-        return current;
-      }
-      const booking = current.bookings.find((item) => item.id === bookingId);
-      if (!booking?.payment || booking.payment.status === "RELEASED" || booking.payment.status === "REFUNDED") {
-        error = "This payment is no longer refundable.";
-        return current;
-      }
-      const now = new Date().toISOString();
-      const route = `${booking.pickupLocation} to ${booking.destination}`;
-      const update = pushUpdate(current, partyIds(current, booking), "Payment refunded", `${formatRwf(booking.payment.amountRwf)} for ${route} was returned to ${booking.payment.accountMask}.`, `/dashboard/tracking/${bookingId}`, "warn", "Refunded escrow", reason, current.currentUserId);
-      return {
-        ...current,
-        ...update,
-        bookings: current.bookings.map((item) => item.id === bookingId ? { ...booking, status: "REJECTED", payment: { ...booking.payment!, status: "REFUNDED", refundedAt: now } } : item),
-        trucks: current.trucks.map((item) => item.id === booking.truckId ? { ...item, status: "AVAILABLE" } : item),
-        disputes: current.disputes.map((dispute) => dispute.bookingId === bookingId && dispute.status === "OPEN"
-          ? { ...dispute, status: "RESOLVED", resolutionNotes: reason, resolvedAt: now }
-          : dispute),
-      };
-    });
-    return error;
-  }, []);
-
-  const markNotificationRead = useCallback((id: string) => {
-    setState((current) => ({
-      ...current,
-      notifications: current.notifications.map((item) => item.id === id ? { ...item, read: true } : item),
-    }));
-  }, []);
-
-  const markAllNotificationsRead = useCallback(() => {
-    if (!currentUserId) return;
-    setState((current) => ({
-      ...current,
-      notifications: current.notifications.map((item) => item.userId === currentUserId ? { ...item, read: true } : item),
-    }));
-  }, [currentUserId]);
->>>>>>> backup-before-rebase
+  }, [currentUser, publishDemo, refreshAfterMutation]);
 
   const value = useMemo<Store>(() => ({
     ready,
@@ -1523,37 +860,14 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     deleteUser,
     depositFunds,
     withdrawFunds,
-    notifications: state.notifications.filter((item) => item.userId === currentUserId),
-    activity: state.activity,
-    pings: state.pings,
-    notices: state.notices,
-    escrowRwf: state.bookings.reduce((sum, booking) => sum + (booking.payment?.status === "HELD" ? booking.payment.amountRwf : 0), 0),
-    notifyDeparture,
-    notifyRest,
-    notifyResume,
-    recordCheckpoint,
-    refundBooking,
-    markNotificationRead,
-    markAllNotificationsRead,
+    payBooking,
   }), [
-<<<<<<< HEAD
     ready, connectionError, currentUser, users, bookings, disputes, trucks,
     trucksLoading, walletBalance, transactions, walletAccounts, adminCommission, login, requestPasswordReset,
     resetPassword, register, logout, updateProfile, fetchTruck, addTruck,
     updateTruck, deleteTruck, setAvailability, createBooking, setBookingStatus,
     reportProblem, resolveDispute, setUserActive, deleteUser,
     depositFunds, withdrawFunds, payBooking,
-=======
-    ready, currentUser, currentUserId, state, login, requestPasswordReset,
-    resetPassword, register, logout, updateProfile, fetchTruck,
-    addTruck, updateTruck, deleteTruck, setAvailability, createBooking,
-    setBookingStatus, reportProblem, resolveDispute, setUserActive, deleteUser,
-    resetWorkspace, depositFunds, withdrawFunds, notifyDeparture, notifyRest,
-    notifyResume, recordCheckpoint, refundBooking, markNotificationRead, markAllNotificationsRead,
-<<<<<<< HEAD
->>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
-=======
->>>>>>> backup-before-rebase
   ]);
 
   return (

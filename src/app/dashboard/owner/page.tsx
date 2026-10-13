@@ -40,13 +40,13 @@ export default function OwnerDashboard() {
             <>
               <Link
                 href="/dashboard/owner/trucks/new"
-                className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-brand-dark shadow-soft transition hover:-translate-y-0.5 hover:shadow-card"
+                className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-brand-dark shadow-soft transition hover:bg-brand-soft"
               >
                 Add a truck
               </Link>
               <Link
                 href="/dashboard/owner/requests"
-                className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-white/25 transition hover:-translate-y-0.5 hover:bg-white/15"
+                className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-white/25 transition hover:bg-white/15"
               >
                 Review requests
                 {requests.length ? <span className="rounded-full bg-white px-2 py-0.5 text-xs font-bold text-brand-dark">{requests.length}</span> : null}
