@@ -57,8 +57,18 @@ const iconPaths: Record<string, React.ReactNode> = {
       <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5" />
     </>
   ),
-  collapse: <path d="m15 18-6-6 6-6M20 4v16M4 4v16" />,
-  expand: <path d="m9 18 6-6-6-6M4 4v16M20 4v16" />,
+  collapse: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M9 4v16" />
+    </>
+  ),
+  expand: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M9 4v16M13 9l3 3-3 3" />
+    </>
+  ),
   chevron: <path d="m6 9 6 6 6-6" />,
   search: (
     <>
