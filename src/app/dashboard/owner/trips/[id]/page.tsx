@@ -61,11 +61,11 @@ export default function OwnerTripDetail() {
               Requests
             </Link>
 
-            <div className="relative mt-4 overflow-hidden rounded-3xl bg-gradient-to-br from-navy via-brand-dark to-brand p-6 shadow-card sm:p-8">
+            <div className="relative mt-4 overflow-hidden rounded-3xl bg-linear-to-br from-navy via-brand-dark to-brand p-6 shadow-card sm:p-8">
               <div className="paper-grid absolute inset-0 opacity-30" />
               <div
                 aria-hidden="true"
-                className="absolute -right-12 -top-16 h-44 w-44 rounded-full border-[18px] border-white/10"
+                className="absolute -right-12 -top-16 h-44 w-44 rounded-full border-18 border-white/10"
               />
               <div className="relative flex flex-wrap items-center justify-between gap-4">
                 <div className="min-w-0">
@@ -235,6 +235,12 @@ export default function OwnerTripDetail() {
                     </span>
                     Start trip
                   </PrimaryButton>
+                ) : booking.payment?.status === "RELEASED" ? (
+                  <p className="rounded-lg bg-bad-soft px-4 py-3 text-sm font-medium text-bad">
+                    Payment has already been released, but this booking is still
+                    marked as accepted. Refresh the page; if the status remains
+                    unchanged, contact an administrator to correct the booking.
+                  </p>
                 ) : (
                   <p className="rounded-lg bg-warn-soft px-4 py-3 text-sm font-medium text-warn">
                     Waiting for the importer to pay. The trip cannot start until funds are held.

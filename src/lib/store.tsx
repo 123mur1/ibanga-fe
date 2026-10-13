@@ -204,6 +204,7 @@ function mapTruck(truck: ApiTruck): Truck {
 function mapBooking(booking: ApiBooking): Booking {
   return {
     ...booking,
+    status: booking.payment?.status === "RELEASED" ? "COMPLETED" : booking.status,
     cargoWeight: String(booking.cargoWeight),
     cargoDescription: booking.cargoDescription ?? "",
     additionalInstructions: booking.additionalInstructions ?? "",
