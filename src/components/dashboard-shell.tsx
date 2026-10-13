@@ -232,7 +232,7 @@ export function DashboardShell({
   return (
     <div className="min-h-screen bg-background">
       <div className="flex">
-        <aside className={`sticky top-0 hidden h-screen min-h-0 shrink-0 self-start flex-col overflow-y-auto border-r border-line bg-white transition-[width] duration-200 lg:flex ${collapsed ? "w-[76px]" : "w-[264px]"}`}>
+        <aside className={`sticky top-0 hidden h-screen min-h-0 shrink-0 self-start flex-col overflow-y-auto border-r border-line bg-card transition-[width] duration-200 lg:flex ${collapsed ? "w-[76px]" : "w-[240px]"}`}>
           <div className={`flex items-center ${collapsed ? "justify-center px-2" : "justify-between px-5"} pb-5 pt-6`}>
             {collapsed ? <Link href="/" aria-label="iBanga home"><LogoMark /></Link> : <BrandLink href="/" />}
             {!collapsed ? (
@@ -265,12 +265,12 @@ export function DashboardShell({
                   key={item.href}
                   href={item.href}
                   title={collapsed ? item.label : undefined}
-                  className={`group relative flex items-center rounded-xl py-2.5 text-sm transition ${
-                    collapsed ? "justify-center px-2" : "gap-3 px-3.5"
+                  className={`group relative flex items-center rounded-lg py-2 text-[15px] transition ${
+                    collapsed ? "justify-center px-2" : "gap-3 px-3"
                   } ${
                     active
                       ? "bg-brand-soft font-semibold text-brand-dark"
-                      : "text-muted hover:bg-background hover:text-navy"
+                      : "font-medium text-muted hover:bg-background hover:text-navy"
                   }`}
                 >
                   <NavIcon
@@ -286,15 +286,12 @@ export function DashboardShell({
             })}
           </nav>
 
-          {!collapsed ? <div className="mx-4 mb-4 rounded-2xl border border-brand/15 bg-brand-soft/50 p-4">
-            <div className="flex items-center gap-2 text-brand-dark">
-              <NavIcon name="spark" className="h-4 w-4" />
-              <p className="text-xs font-semibold">Good to know</p>
+          {!collapsed ? (
+            <div className="mx-3 mb-3 rounded-lg bg-background px-3 py-3">
+              <p className="text-sm font-semibold text-navy">How payment works</p>
+              <p className="mt-1 text-sm leading-5 text-muted">{roleTip(role)}</p>
             </div>
-            <p className="mt-1.5 text-xs leading-relaxed text-navy/70">
-              {roleTip(role)}
-            </p>
-          </div> : null}
+          ) : null}
 
           <div className={`mt-auto border-t border-line p-3 ${collapsed ? "px-2" : ""}`}>
             <Link
@@ -314,14 +311,11 @@ export function DashboardShell({
               <NavIcon name="logout" />
               {!collapsed ? "Log out" : null}
             </button>
-            <div className={`mt-2 px-1 pt-2 text-xs text-muted/70 ${collapsed ? "text-center" : ""}`}>
-              {collapsed ? "iB" : "iBanga"}
-            </div>
           </div>
         </aside>
 
         <div className="min-w-0 flex-1">
-          <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-line bg-background/80 px-4 py-3.5 backdrop-blur lg:px-8">
+          <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-line bg-card px-4 py-3 lg:px-6">
             <div className="flex items-center gap-3 lg:hidden">
               <button
                 type="button"
@@ -456,7 +450,7 @@ export function DashboardShell({
             </div>
           ) : null}
 
-          <main className="mx-0 w-full px-4 py-6 sm:px-5 lg:px-6 lg:py-7">{children}</main>
+          <main className="mx-auto w-full max-w-[1240px] px-4 py-6 sm:px-6 lg:py-8">{children}</main>
         </div>
       </div>
       {logoutConfirmationOpen ? (

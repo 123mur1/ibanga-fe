@@ -63,7 +63,7 @@ export function LiveTrack({
   ].sort((a, b) => a.at.localeCompare(b.at));
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-line bg-card shadow-soft">
+    <section className="overflow-hidden rounded-xl border border-line bg-card shadow-soft">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-5 py-4">
         <div>
           <h2 className="text-lg font-semibold text-navy">Live cargo location</h2>

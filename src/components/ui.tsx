@@ -327,7 +327,6 @@ export function DashboardWelcomeCard({
   actions,
   metric,
   metricLabel,
-  metricIcon,
 }: {
   title: string;
   description: string;
@@ -346,7 +345,7 @@ export function DashboardWelcomeCard({
           <div className="mt-4 flex flex-wrap gap-3">{actions}</div>
         </div>
         {metric !== undefined && metricLabel ? (
-          <div className="min-w-40 rounded-lg bg-white/12 px-4 py-3 ring-1 ring-white/20">
+          <div className="min-w-40 rounded-lg bg-white/15 px-4 py-3 ring-1 ring-white/25">
             <p className="text-2xl font-semibold leading-none tabular-nums">{metric}</p>
             <p className="mt-1 text-sm text-white/75">{metricLabel}</p>
           </div>

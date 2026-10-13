@@ -18,7 +18,7 @@ export function StatusBars({
 }) {
   const max = Math.max(1, ...items.map((item) => item.value));
   return (
-    <article className="rounded-2xl border border-line bg-card p-5 shadow-soft">
+    <article className="rounded-xl border border-line bg-card p-5 shadow-soft">
       <h3 className="text-lg font-semibold text-navy">{title}</h3>
       {caption ? <p className="mt-1 text-sm text-muted">{caption}</p> : null}
       <div className="mt-4 space-y-3">

@@ -11,10 +11,10 @@ type ToastItem = {
 };
 
 const tones: Record<ToastTone, string> = {
-  good: "border-good/25 bg-good-soft text-good",
-  bad: "border-bad/25 bg-bad-soft text-bad",
-  warn: "border-warn/25 bg-warn-soft text-warn",
-  info: "border-line bg-white text-navy",
+  good: "border-good bg-good-soft text-good",
+  bad: "border-bad bg-bad-soft text-bad",
+  warn: "border-warn bg-warn-soft text-warn",
+  info: "border-brand bg-white text-navy",
 };
 
 const ToastContext = createContext<((message: string, tone?: ToastTone) => void) | null>(null);
@@ -38,7 +38,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           <div
             key={toast.id}
             role="status"
-            className={`pointer-events-auto rounded-xl border px-4 py-3 text-sm font-semibold shadow-card ${tones[toast.tone]}`}
+            className={`pointer-events-auto border-l-4 px-4 py-3 text-sm font-semibold shadow-card ${tones[toast.tone]}`}
           >
             {toast.message}
           </div>

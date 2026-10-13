@@ -111,35 +111,26 @@ function BookingForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="mx-auto max-w-4xl">
-      <div className="relative overflow-hidden rounded-[30px] border border-line bg-[#f7f8fa] shadow-[0_32px_70px_-32px_rgba(15,23,42,0.28)]">
-        <div className="absolute inset-x-0 top-0 h-22 bg-linear-to-r from-brand to-navy" aria-hidden="true" />
-        <div className="absolute inset-x-0 top-18 h-20 bg-[radial-gradient(circle_at_top,rgba(148,163,184,0.18),transparent_55%)]" aria-hidden="true" />
-
-        <div className="relative p-4 sm:p-6">
-          <div className="mb-6 flex flex-col gap-4 overflow-hidden rounded-3xl border border-white/15 bg-linear-to-r from-brand via-brand-dark to-navy p-4 text-white shadow-[0_20px_40px_-22px_rgba(15,23,42,0.75)] sm:flex-row sm:items-center sm:justify-between sm:p-5">
+    <form onSubmit={onSubmit} className="space-y-4">
+          <div className="flex flex-col gap-4 rounded-xl border border-line bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3 sm:gap-4">
-              <div className="overflow-hidden rounded-2xl border border-white/15 bg-white/8 p-1.5 backdrop-blur-sm">
-                <TruckThumb photos={truck.photos} alt={truck.plateNumber} className="h-16 w-16 rounded-xl object-cover sm:h-20 sm:w-20" />
-              </div>
-
+              <TruckThumb photos={truck.photos} alt={truck.plateNumber} className="h-16 w-16 rounded-lg object-cover sm:h-20 sm:w-20" />
               <div className="min-w-0">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/80">Selected truck</p>
-                <h2 className="mt-1 truncate font-display text-xl text-white sm:text-2xl">{truck.truckType}</h2>
-                <p className="mt-1 truncate text-sm text-white/80">
-                  {truck.plateNumber} <span aria-hidden="true">·</span> {truck.currentLocation || "Location not specified"}
+                <p className="text-sm font-medium text-muted">Selected truck</p>
+                <h2 className="truncate text-xl font-semibold text-navy">{truck.truckType}</h2>
+                <p className="mt-0.5 truncate text-sm text-muted">
+                  {truck.plateNumber} · {truck.currentLocation || "Location not specified"} · {truck.capacity} tons
                 </p>
               </div>
             </div>
-
-            <div className="flex items-center gap-3 self-start rounded-2xl border border-white/15 bg-white/5 px-3 py-2 backdrop-blur-sm sm:self-center">
-              <div className="text-left">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/80">Capacity</p>
-                <p className="mt-0.5 font-display text-xl text-white">{truck.capacity}<span className="ml-1 text-sm font-sans text-white/80">tons</span></p>
+            <div className="flex items-center gap-3">
+              <div>
+                <p className="text-sm text-muted">Listed price</p>
+                <p className="text-xl font-semibold tabular-nums text-navy">{truck.priceRwf ? formatRwf(truck.priceRwf) : "Unavailable"}</p>
               </div>
               <Link
                 href={`/trucks/${truck.id}`}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-white/5 text-white/80 transition hover:border-white/40 hover:bg-white/10 hover:text-white"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-brand hover:bg-brand-soft"
                 aria-label="View truck details"
                 title="View truck details"
               >
@@ -150,13 +141,13 @@ function BookingForm() {
             </div>
           </div>
 
-          <div className="mb-6 flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+          <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-muted">
             <span className="rounded-full bg-brand-soft px-3 py-1.5 text-brand-dark ring-1 ring-brand/20">1 Cargo</span>
             <span className="rounded-full bg-white px-3 py-1.5 text-muted ring-1 ring-line">2 Journey</span>
             <span className="rounded-full bg-white px-3 py-1.5 text-muted ring-1 ring-line">3 Payment</span>
           </div>
 
-          <section aria-labelledby="cargo-heading" className="rounded-3xl border border-line bg-white p-4 shadow-[0_10px_28px_-22px_rgba(15,23,42,0.22)] sm:p-5">
+          <section aria-labelledby="cargo-heading" className="rounded-xl border border-line bg-card p-4 sm:p-5">
             <div className="mb-5 flex items-start justify-between gap-3">
               <div className="flex items-start gap-3">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold text-white shadow-soft">1</span>
@@ -187,7 +178,7 @@ function BookingForm() {
             </div>
           </section>
 
-          <section aria-labelledby="journey-heading" className="mt-5 rounded-3xl border border-line bg-white p-4 shadow-[0_10px_28px_-22px_rgba(15,23,42,0.22)] sm:p-5">
+          <section aria-labelledby="journey-heading" className="rounded-xl border border-line bg-card p-4 sm:p-5">
             <div className="mb-5 flex items-start justify-between gap-3">
               <div className="flex items-start gap-3">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold text-white shadow-soft">2</span>
@@ -220,7 +211,7 @@ function BookingForm() {
             </div>
           </section>
 
-          <section aria-labelledby="payment-heading" className="mt-5 rounded-3xl border border-line bg-white p-4 shadow-soft sm:p-5">
+          <section aria-labelledby="payment-heading" className="rounded-xl border border-line bg-card p-4 sm:p-5">
             <div className="mb-5 flex items-start gap-3">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">3</span>
               <div>
@@ -279,8 +270,6 @@ function BookingForm() {
               {!submitting ? <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" /></svg> : null}
             </PrimaryButton>
           </div>
-        </div>
-      </div>
     </form>
   );
 }
@@ -289,29 +278,19 @@ export default function NewBookingPage() {
   return (
     <RequireAuth role="IMPORTER">
       <DashboardShell role="IMPORTER">
-        <div className="min-h-screen bg-background">
-          <div className="border-b border-line bg-card">
-            <div className="mx-auto flex max-w-5xl justify-end px-4 py-3">
-              <Link href="/trucks" className="text-sm font-semibold text-brand">
-                Cancel
-              </Link>
-            </div>
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-line pb-5">
+          <div>
+            <p className="text-sm font-semibold text-brand">Booking request</p>
+            <h1 className="text-2xl font-semibold text-navy sm:text-3xl">Request a freight booking</h1>
+            <p className="mt-1 max-w-2xl text-base text-muted">
+              Share the cargo and route, then pay with Visa, Airtel Money, or MTN MoMo.
+            </p>
           </div>
-          <main className="mx-auto max-w-5xl px-4 py-8 sm:py-10">
-            <div className="mx-auto mb-7 max-w-3xl">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted">Booking request</p>
-              <h1 className="mt-2 font-display text-3xl text-navy sm:text-4xl">Request a freight booking</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted sm:text-base">
-                Share your shipment details and route requirements. We will forward the request to the truck owner for approval.
-              </p>
-            </div>
-            <div className="mx-auto max-w-3xl rounded-[26px] border border-line bg-white/90 px-5 py-6 shadow-[0_20px_50px_-30px_rgba(15,23,42,0.28)] sm:px-8 sm:py-8">
-              <Suspense>
-                <BookingForm />
-              </Suspense>
-            </div>
-          </main>
+          <Link href="/trucks" className="text-sm font-semibold text-brand">Cancel</Link>
         </div>
+        <Suspense fallback={null}>
+          <BookingForm />
+        </Suspense>
       </DashboardShell>
     </RequireAuth>
   );
