@@ -2,7 +2,7 @@ import type { Booking, Dispute, Truck, User } from "./types";
 
 export const accountPassword = "ibanga123";
 export const administratorPassword = "admin123";
-export const seedVersion = 2;
+export const seedVersion = 3;
 
 const phonePrefixByLocation: Record<string, string> = {
   Kigali: "+250 78",

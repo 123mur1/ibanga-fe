@@ -2,7 +2,9 @@
 
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
+import { StatusBars } from "@/components/charts";
 import { DashboardWelcomeCard, StatCard } from "@/components/ui";
+import { formatRwf } from "@/lib/payments";
 import { useIbanga } from "@/lib/store";
 import Link from "next/link";
 import { BookingManagementTable } from "@/components/booking-management-table";
@@ -15,6 +17,8 @@ export default function ImporterHome() {
     ["ACCEPTED", "IN_PROGRESS", "DELIVERED"].includes(b.status),
   ).length;
   const toConfirm = mine.filter((b) => b.status === "DELIVERED");
+  const held = mine.filter((booking) => booking.payment?.status === "HELD");
+  const live = mine.filter((booking) => ["ACCEPTED", "IN_PROGRESS", "DELIVERED"].includes(booking.status));
   const firstName = (currentUser?.name ?? "").split(" ")[0] || "there";
 
   return (
@@ -27,7 +31,7 @@ export default function ImporterHome() {
               ? "Some deliveries are waiting on your confirmation — let the trucks back to work."
               : pending
                 ? "You have pending requests. Track them here while owners decide."
-                : "Find a priced truck, book it, and pay from your wallet after the owner accepts."
+                : "Find a truck, pay by Visa, Airtel, or MTN when you book, then follow the cargo live."
           }
           actions={
             <>
@@ -57,7 +61,7 @@ export default function ImporterHome() {
           }
         />
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             label="Open requests"
             value={pending}
@@ -82,9 +86,15 @@ export default function ImporterHome() {
             accent="brand"
           />
           <StatCard
+            label="Held for you"
+            value={formatRwf(held.reduce((sum, booking) => sum + (booking.payment?.amountRwf ?? 0), 0))}
+            hint="In the iBanga account"
+            accent="brand"
+          />
+          <StatCard
             label="Waiting for you"
             value={toConfirm.length}
-            hint="Confirm delivery"
+            hint="Confirm receipt"
             icon={
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M20 6 9 17l-5-5" />
@@ -92,6 +102,33 @@ export default function ImporterHome() {
             }
             accent="good"
           />
+        </div>
+
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          <StatusBars
+            title="Your bookings"
+            caption="Where your freight sits right now."
+            items={[
+              { label: "Waiting on the owner", value: pending, tone: "warn" },
+              { label: "On the road", value: live.length, tone: "accent" },
+              { label: "Need your receipt", value: toConfirm.length, tone: "good" },
+              { label: "Disputed", value: mine.filter((booking) => booking.status === "DISPUTED").length, tone: "bad" },
+            ]}
+          />
+          <section className="rounded-2xl border border-line bg-card p-5 shadow-soft">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-navy">Live cargo</h2>
+              <Link href="/dashboard/tracking" className="text-sm font-semibold text-brand">Open map</Link>
+            </div>
+            <ul className="mt-4 space-y-3">
+              {live.length === 0 ? <li className="text-sm text-muted">No cargo is moving yet.</li> : live.slice(0, 4).map((booking) => (
+                <li key={booking.id}>
+                  <Link href={`/dashboard/tracking/${booking.id}`} className="font-semibold text-navy hover:text-brand">{booking.pickupLocation} to {booking.destination}</Link>
+                  <p className="text-sm text-muted">{booking.payment?.status === "HELD" ? "Payment held" : "Payment recorded"} · {booking.cargoType}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
         </div>
 
         <div className="mt-8 flex items-center justify-between">

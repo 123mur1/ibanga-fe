@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
+import { StatusBars } from "@/components/charts";
 import { DashboardWelcomeCard, StatCard } from "@/components/ui";
+import { formatRwf } from "@/lib/payments";
 import { useIbanga } from "@/lib/store";
 import { BookingManagementTable } from "@/components/booking-management-table";
 
@@ -20,6 +22,7 @@ export default function OwnerDashboard() {
   const active = myBookings.filter((b) =>
     ["ACCEPTED", "IN_PROGRESS", "DELIVERED"].includes(b.status),
   );
+  const heldForMe = myBookings.filter((booking) => booking.payment?.status === "HELD");
 
   return (
     <RequireAuth role="TRUCK_OWNER">
@@ -28,7 +31,7 @@ export default function OwnerDashboard() {
           title={`Welcome back, ${firstName}.`}
           description={
             requests.length
-              ? "You have requests to review — accepting keeps the truck locked for the trip."
+              ? "Paid requests are waiting. Confirming the truck moves the money into the iBanga account."
               : available.length === mine.length && mine.length
                 ? "All your trucks are available on the market. Find cargo to move."
                 : "Keep your fleet honest: update trip status as you go."
@@ -108,6 +111,34 @@ export default function OwnerDashboard() {
             }
             accent="accent"
           />
+        </div>
+
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          <StatusBars
+            title="Fleet workload"
+            caption="Requests, trips on the road, and payments still held."
+            items={[
+              { label: "Requests to confirm", value: requests.length, tone: "warn" },
+              { label: "Trips to track", value: active.length, tone: "accent" },
+              { label: "Payments held", value: heldForMe.length, tone: "brand" },
+              { label: "Trucks available", value: available.length, tone: "good" },
+            ]}
+          />
+          <section className="rounded-2xl border border-line bg-card p-5 shadow-soft">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-navy">Held until both sides confirm</h2>
+              <Link href="/dashboard/tracking" className="text-sm font-semibold text-brand">Live cargo</Link>
+            </div>
+            <p className="mt-2 text-2xl font-semibold text-navy">{formatRwf(heldForMe.reduce((sum, booking) => sum + (booking.payment?.ownerAmountRwf ?? 0), 0))}</p>
+            <p className="mt-1 text-sm text-muted">Your share, released after you confirm delivery and the importer confirms receipt.</p>
+            <ul className="mt-4 space-y-2">
+              {active.slice(0, 3).map((booking) => (
+                <li key={booking.id}>
+                  <Link href={`/dashboard/owner/trips/${booking.id}`} className="font-semibold text-navy hover:text-brand">{booking.pickupLocation} to {booking.destination}</Link>
+                </li>
+              ))}
+            </ul>
+          </section>
         </div>
 
         <div className="mt-8">

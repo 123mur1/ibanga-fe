@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { downloadExcel } from "@/lib/excel";
 
 export function Field({
   label,
@@ -55,6 +56,7 @@ export type DataTableRow = {
   cells: React.ReactNode[];
   searchText: string;
   filterValue?: string;
+  extraFilterValue?: string;
   exportValues: string[];
 };
 
@@ -63,40 +65,50 @@ export function DataTable({
   rows,
   emptyMessage = "There are no records to display.",
   filterLabel = "All statuses",
+  extraFilterLabel = "All types",
+  exportName = "ibanga-export",
 }: {
   columns: { label: string; className?: string }[];
   rows: DataTableRow[];
   emptyMessage?: string;
   filterLabel?: string;
+  extraFilterLabel?: string;
+  exportName?: string;
 }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("");
+  const [extraFilter, setExtraFilter] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const filterOptions = useMemo(
     () => [...new Set(rows.map((row) => row.filterValue).filter((value): value is string => Boolean(value)))].sort(),
     [rows],
   );
+  const extraOptions = useMemo(
+    () => [...new Set(rows.map((row) => row.extraFilterValue).filter((value): value is string => Boolean(value)))].sort(),
+    [rows],
+  );
   const visibleRows = useMemo(() => rows.filter((row) =>
     row.searchText.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())
-    && (!filter || row.filterValue === filter),
-  ), [filter, rows, search]);
-  const allVisibleSelected = visibleRows.length > 0 && visibleRows.every((row) => selected.has(row.id));
+    && (!filter || row.filterValue === filter)
+    && (!extraFilter || row.extraFilterValue === extraFilter),
+  ), [extraFilter, filter, rows, search]);
+  const pageCount = Math.max(1, Math.ceil(visibleRows.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const pageRows = visibleRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const allVisibleSelected = pageRows.length > 0 && pageRows.every((row) => selected.has(row.id));
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, filter, extraFilter, pageSize]);
 
   const exportRows = (data: DataTableRow[]) => {
-    const escape = (value: string) => {
-      const safeValue = /^[=+\-@]/.test(value) ? `'${value}` : value;
-      return `"${safeValue.replaceAll('"', '""')}"`;
-    };
-    const csv = [
-      columns.map((column) => escape(column.label)).join(","),
-      ...data.map((row) => row.exportValues.map(escape).join(",")),
-    ].join("\r\n");
-    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }));
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "ibanga-export.csv";
-    anchor.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    downloadExcel(
+      exportName,
+      columns.map((column) => column.label),
+      data.map((row) => row.exportValues),
+    );
   };
 
   return (
@@ -116,16 +128,22 @@ export function DataTable({
               {filterOptions.map((option) => <option key={option} value={option}>{option.replaceAll("_", " ")}</option>)}
             </select>
           ) : null}
+          {extraOptions.length > 0 ? (
+            <select aria-label={extraFilterLabel} value={extraFilter} onChange={(event) => setExtraFilter(event.target.value)} className="rounded-lg border border-line bg-white px-3 py-2 text-sm text-navy outline-none focus:border-brand">
+              <option value="">{extraFilterLabel}</option>
+              {extraOptions.map((option) => <option key={option} value={option}>{option.replaceAll("_", " ")}</option>)}
+            </select>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-1 text-xs text-muted">{selected.size} selected</span>
-          <button type="button" disabled={!selected.size} onClick={() => exportRows(rows.filter((row) => selected.has(row.id)))} className="rounded-lg border border-line px-3 py-2 text-xs font-semibold text-navy transition hover:border-brand disabled:cursor-not-allowed disabled:opacity-50">Export selected</button>
-          <button type="button" onClick={() => exportRows(rows)} className="rounded-lg bg-brand px-3 py-2 text-xs font-semibold text-white transition hover:bg-brand-dark">Export all</button>
+          <span className="mr-1 text-sm text-muted">{selected.size} selected</span>
+          <button type="button" disabled={!selected.size} onClick={() => exportRows(rows.filter((row) => selected.has(row.id)))} className="rounded-lg border border-line px-3 py-2 text-sm font-semibold text-navy transition hover:border-brand disabled:cursor-not-allowed disabled:opacity-50">Export selected</button>
+          <button type="button" onClick={() => exportRows(visibleRows)} className="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark">Export Excel</button>
         </div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] border-collapse text-left text-sm">
-          <thead className="bg-background text-xs uppercase tracking-wide text-muted">
+          <thead className="bg-background text-sm font-semibold text-navy">
             <tr>
               <th scope="col" className="w-12 px-4 py-3.5">
                 <input
@@ -134,7 +152,7 @@ export function DataTable({
                   checked={allVisibleSelected}
                   onChange={() => setSelected((current) => {
                     const next = new Set(current);
-                    visibleRows.forEach((row) => allVisibleSelected ? next.delete(row.id) : next.add(row.id));
+                    pageRows.forEach((row) => allVisibleSelected ? next.delete(row.id) : next.add(row.id));
                     return next;
                   })}
                   className="accent-brand"
@@ -148,7 +166,7 @@ export function DataTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {visibleRows.map((row) => (
+            {pageRows.map((row) => (
               <tr key={row.id} className={`transition hover:bg-background/70 ${selected.has(row.id) ? "bg-brand-soft/40" : ""}`}>
                 <td className="px-4 py-4">
                   <input type="checkbox" aria-label={`Select row ${row.id}`} checked={selected.has(row.id)} onChange={() => setSelected((current) => {
@@ -170,7 +188,24 @@ export function DataTable({
       </div>
       {visibleRows.length === 0 ? (
         <p className="px-5 py-12 text-center text-sm text-muted">{emptyMessage}</p>
-      ) : null}
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-4 py-3 text-sm text-muted">
+          <p>
+            Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, visibleRows.length)} of {visibleRows.length}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-2">
+              Rows
+              <select aria-label="Rows per page" value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))} className="rounded-lg border border-line bg-white px-2 py-1 text-navy">
+                {[10, 25, 50].map((size) => <option key={size} value={size}>{size}</option>)}
+              </select>
+            </label>
+            <button type="button" disabled={currentPage === 1} onClick={() => setPage((value) => Math.max(1, value - 1))} className="rounded-lg border border-line px-3 py-1.5 font-semibold text-navy disabled:opacity-40">Previous</button>
+            <span className="tabular-nums">{currentPage} / {pageCount}</span>
+            <button type="button" disabled={currentPage === pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))} className="rounded-lg border border-line px-3 py-1.5 font-semibold text-navy disabled:opacity-40">Next</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -233,7 +268,7 @@ export function StatCard({
             {icon}
           </span>
         ) : null}
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">
+        <p className="text-sm font-semibold text-navy/80">
           {label}
         </p>
       </div>
@@ -382,9 +417,24 @@ export function EmptyState({
 }
 
 export function formatDate(value: string) {
-  return new Date(value).toLocaleDateString("en-GB", {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",
+  });
+}
+
+export function formatDateTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
   });
 }

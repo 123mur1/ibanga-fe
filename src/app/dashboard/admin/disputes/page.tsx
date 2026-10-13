@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
-import { DataTable, PageHeader, StatCard, inputClass, PrimaryButton } from "@/components/ui";
+import { useToast } from "@/components/toast";
+import { DataTable, GhostButton, PageHeader, StatCard, inputClass, PrimaryButton } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
 
 export default function AdminDisputesPage() {
-  const { disputes, bookings, users, trucks, resolveDispute } = useIbanga();
+  const { disputes, bookings, users, trucks, resolveDispute, refundBooking } = useIbanga();
+  const toast = useToast();
   const [notes, setNotes] = useState<Record<string, string>>({});
   const open = disputes.filter((d) => d.status === "OPEN");
 
@@ -17,7 +19,7 @@ export default function AdminDisputesPage() {
         <PageHeader
           eyebrow="Fairness"
           title="Disputes"
-          subtitle="Resolve the review, then the importer must confirm receipt before funds are released and the truck becomes available."
+          subtitle="Held payments stay in the iBanga account until the importer confirms receipt, or you refund the original Visa, Airtel, or MTN payment."
           icon={
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M12 3 2.5 20h19L12 3Z" />
@@ -52,7 +54,8 @@ export default function AdminDisputesPage() {
                   dispute.status === "OPEN" ? (
                     <div key={`${dispute.id}-action`} className="flex min-w-56 items-center gap-2">
                       <input aria-label={`Resolution notes for ${dispute.id}`} placeholder="Resolution notes" value={notes[dispute.id] ?? ""} onChange={(event) => setNotes((current) => ({ ...current, [dispute.id]: event.target.value }))} className={`${inputClass} min-w-28 py-2`} />
-                      <PrimaryButton type="button" className="shrink-0 px-3 py-2 text-xs" onClick={() => void resolveDispute(dispute.id, notes[dispute.id] || "Resolved by admin")}>Resolve</PrimaryButton>
+                      <PrimaryButton type="button" className="shrink-0 px-3 py-2 text-xs" onClick={() => void resolveDispute(dispute.id, notes[dispute.id] || "Resolved by admin").then(() => toast("Dispute notes saved. The importer can still confirm receipt.", "info"))}>Resolve</PrimaryButton>
+                      <GhostButton type="button" className="shrink-0 px-3 py-2 text-xs" onClick={() => void refundBooking(dispute.bookingId, notes[dispute.id] || "Refunded after review.").then((error) => toast(error ?? "Payment refunded to the original method.", error ? "bad" : "warn"))}>Refund</GhostButton>
                     </div>
                   ) : dispute.resolutionNotes || "Closed",
                 ],

@@ -18,7 +18,7 @@
   --bad: #dc2626;
   --bad-soft: #fef2f2;
   --ink: #16313e;
-  --muted: #647784;
+  --muted: #3d5662;
   --card: #ffffff;
   --line: #e5e7eb;
 }
@@ -61,6 +61,22 @@ body {
   background: var(--background);
   color: var(--ink);
   font-family: var(--font-ibanga-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+@keyframes load-slide {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(280%);
+  }
+}
+
+.loading-bar {
+  width: 42%;
+  animation: load-slide 1.05s ease-in-out infinite;
 }
 
 .font-display {

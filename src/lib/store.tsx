@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { positionAt } from "./geo";
 import {
   accountPassword,
   administratorPassword,
@@ -18,12 +19,19 @@ import {
   seedWalletTransactions,
   seedVersion,
 } from "./mock-data";
+import { seedActivity, seedNotifications, seedNotices, seedPings } from "./ops-seed";
+import { formatRwf, hydrateBooking, paymentShares } from "./payments";
 import { ACTIVE_BOOKING_STATUSES } from "./types";
 import type {
+  ActivityEntry,
+  AppNotification,
   Booking,
   BookingStatus,
+  CargoPing,
+  CheckoutDetails,
   Dispute,
   Role,
+  TripNotice,
   Truck,
   TruckStatus,
   User,
@@ -53,13 +61,17 @@ type AppState = {
   balances: Record<string, number>;
   transactions: WalletTransaction[];
   credentials: Record<string, string>;
+  pings: CargoPing[];
+  notices: TripNotice[];
+  notifications: AppNotification[];
+  activity: ActivityEntry[];
 };
 
-const STORAGE_KEY = "ibanga-app-state-v4";
+const STORAGE_KEY = "ibanga-app-state-v5";
 const initialState: AppState = {
   seedVersion,
-  users: seedUsers,
-  bookings: seedBookings,
+  users: seedUsers.map((user) => ({ ...user, termsAcceptedAt: user.termsAcceptedAt ?? user.createdAt })),
+  bookings: seedBookings.map(hydrateBooking),
   disputes: seedDisputes,
   trucks: seedTrucks,
   currentUserId: null,
@@ -69,6 +81,10 @@ const initialState: AppState = {
     user.email.toLowerCase(),
     user.email.toLowerCase() === "admin@ibanga.com" ? administratorPassword : accountPassword,
   ])),
+  pings: seedPings,
+  notices: seedNotices,
+  notifications: seedNotifications,
+  activity: seedActivity,
 };
 
 type Store = {
@@ -100,6 +116,7 @@ type Store = {
     company: string;
     password: string;
     role: Exclude<Role, "ADMIN">;
+    termsAccepted: boolean;
   }) => Promise<string | null>;
   logout: () => void;
   updateProfile: (patch: Partial<Pick<User, "name" | "phone" | "location" | "company" | "photo">>) => Promise<string | null>;
@@ -111,8 +128,15 @@ type Store = {
   ) => Promise<string | null>;
   deleteTruck: (id: string) => Promise<string | null>;
   setAvailability: (id: string, status: TruckStatus) => Promise<string | null>;
-  createBooking: (truck: Truck, input: NewBookingInput) => Promise<string | null>;
+  createBooking: (truck: Truck, input: NewBookingInput, checkout: CheckoutDetails) => Promise<string | null>;
   setBookingStatus: (id: string, status: BookingStatus) => Promise<string | null>;
+  notifyDeparture: (bookingId: string, at: string, place: string, note: string) => Promise<string | null>;
+  notifyRest: (bookingId: string, at: string, place: string, note: string) => Promise<string | null>;
+  notifyResume: (bookingId: string, note: string) => Promise<string | null>;
+  recordCheckpoint: (bookingId: string) => Promise<string | null>;
+  refundBooking: (bookingId: string, reason: string) => Promise<string | null>;
+  markNotificationRead: (id: string) => void;
+  markAllNotificationsRead: () => void;
   reportProblem: (bookingId: string, reason: string) => Promise<string | null>;
   resolveDispute: (disputeId: string, notes: string) => Promise<string | null>;
   setUserActive: (userId: string, active: boolean) => void;
@@ -120,7 +144,11 @@ type Store = {
   resetWorkspace: () => Promise<string | null>;
   depositFunds: (amount: number) => string | null;
   withdrawFunds: (amount: number) => string | null;
-  payBooking: (bookingId: string) => string | null;
+  notifications: AppNotification[];
+  activity: ActivityEntry[];
+  pings: CargoPing[];
+  notices: TripNotice[];
+  escrowRwf: number;
 };
 
 const StoreContext = createContext<Store | null>(null);
@@ -128,13 +156,17 @@ const StoreContext = createContext<Store | null>(null);
 function freshWorkspace(): AppState {
   return {
     ...initialState,
-    users: seedUsers.map((user) => ({ ...user })),
-    bookings: seedBookings.map((booking) => ({ ...booking })),
+    users: seedUsers.map((user) => ({ ...user, termsAcceptedAt: user.termsAcceptedAt ?? user.createdAt })),
+    bookings: seedBookings.map((booking) => hydrateBooking({ ...booking })),
     disputes: seedDisputes.map((dispute) => ({ ...dispute })),
     trucks: seedTrucks.map((truck) => ({ ...truck, photos: [...truck.photos] })),
     balances: { ...initialState.balances },
     transactions: initialState.transactions.map((transaction) => ({ ...transaction })),
     credentials: { ...initialState.credentials },
+    pings: seedPings.map((ping) => ({ ...ping })),
+    notices: seedNotices.map((notice) => ({ ...notice })),
+    notifications: seedNotifications.map((item) => ({ ...item })),
+    activity: seedActivity.map((entry) => ({ ...entry })),
   };
 }
 
@@ -147,6 +179,56 @@ function mergeSeedRecords<T extends { id: string }>(
   const records = new Map(seeded.map((record) => [record.id, record]));
   saved?.forEach((record) => records.set(record.id, record));
   return [...records.values()];
+}
+
+function uid(prefix: string) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function actorName(state: AppState, actorId: string | null) {
+  return state.users.find((user) => user.id === actorId)?.name ?? "iBanga";
+}
+
+function partyIds(state: AppState, booking: Booking) {
+  const truck = state.trucks.find((item) => item.id === booking.truckId);
+  const admins = state.users.filter((user) => user.role === "ADMIN").map((user) => user.id);
+  return [...new Set([booking.importerId, truck?.ownerId, ...admins].filter((id): id is string => Boolean(id)))];
+}
+
+function pushUpdate(
+  state: AppState,
+  userIds: string[],
+  title: string,
+  body: string,
+  href: string,
+  tone: AppNotification["tone"],
+  action: string,
+  detail: string,
+  actorId: string | null,
+) {
+  const createdAt = new Date().toISOString();
+  return {
+    notifications: [
+      ...userIds.map((userId, index) => ({
+        id: uid(`nt${index}`),
+        userId,
+        title,
+        body,
+        href,
+        tone,
+        read: false,
+        createdAt,
+      })),
+      ...state.notifications,
+    ],
+    activity: [{
+      id: uid("act"),
+      actorName: actorName(state, actorId),
+      action,
+      detail,
+      createdAt,
+    }, ...state.activity],
+  };
 }
 
 function transaction(
@@ -190,8 +272,11 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
             ...freshWorkspace(),
             ...parsed,
             seedVersion,
-            users: mergeSeedRecords(seedUsers, parsed.users, includeNewSeeds),
-            bookings: mergeSeedRecords(seedBookings, parsed.bookings, includeNewSeeds),
+            users: mergeSeedRecords(seedUsers, parsed.users, includeNewSeeds).map((user) => ({
+              ...user,
+              termsAcceptedAt: user.termsAcceptedAt ?? user.createdAt,
+            })),
+            bookings: mergeSeedRecords(seedBookings, parsed.bookings, includeNewSeeds).map(hydrateBooking),
             disputes: mergeSeedRecords(seedDisputes, parsed.disputes, includeNewSeeds),
             trucks: mergeSeedRecords(seedTrucks, parsed.trucks, includeNewSeeds),
             balances: { ...initialState.balances, ...parsed.balances },
@@ -200,6 +285,10 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
               parsed.transactions,
               includeNewSeeds,
             ),
+            pings: parsed.pings ?? seedPings,
+            notices: parsed.notices ?? seedNotices,
+            notifications: parsed.notifications ?? seedNotifications,
+            activity: parsed.activity ?? seedActivity,
             credentials,
           });
         }
@@ -243,12 +332,14 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     "Password reset is not available yet. Contact support for assistance.", []);
 
   const register = useCallback<Store["register"]>(async (input) => {
+    if (!input.termsAccepted) return "Accept the iBanga terms and conditions to create an account.";
     if (state.users.some((user) => user.email.toLowerCase() === input.email.toLowerCase())) {
       return "An account with this email already exists.";
     }
     const user: User = {
       id: `user-${Date.now()}`,
       createdAt: new Date().toISOString(),
+      termsAcceptedAt: new Date().toISOString(),
       name: input.name,
       email: input.email,
       phone: input.phone,
@@ -342,44 +433,151 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     return null;
   }, [state.bookings]);
 
-  const createBooking = useCallback<Store["createBooking"]>(async (truck, input) => {
+  const createBooking = useCallback<Store["createBooking"]>(async (truck, input, checkout) => {
     if (!currentUserId) return "Sign in to book a truck.";
-    const currentUser = state.users.find((user) => user.id === currentUserId);
-    if (currentUser?.role !== "IMPORTER") {
-      return "Only importer accounts can book trucks.";
+    const importer = state.users.find((user) => user.id === currentUserId);
+    if (importer?.role !== "IMPORTER") return "Only importer accounts can book trucks.";
+    if (!["VISA", "AIRTEL", "MTN"].includes(checkout.method)) {
+      return "Pay with a Visa card, Airtel Money, or MTN MoMo.";
     }
+    if (!checkout.payerName.trim() || !checkout.accountMask.trim()) {
+      return "Enter the payer name and payment account.";
+    }
+    const amount = truck.priceRwf ?? 0;
+    if (amount < 1000) return "This truck does not have a bookable price.";
+    const paidAt = new Date().toISOString();
+    const bookingId = `booking-${Date.now()}`;
     const booking: Booking = {
       ...input,
-      id: `booking-${Date.now()}`,
+      id: bookingId,
       importerId: currentUserId,
       truckId: truck.id,
+      agreedPrice: formatRwf(amount),
+      agreedPriceRwf: amount,
       status: "PENDING",
-      createdAt: new Date().toISOString(),
+      createdAt: paidAt,
+      payment: {
+        status: "AUTHORIZED",
+        method: checkout.method,
+        ...paymentShares(amount),
+        paidAt,
+        receiptNumber: `IB-${Date.now().toString().slice(-10)}`,
+        payerName: checkout.payerName.trim(),
+        accountMask: checkout.accountMask,
+      },
     };
-    setState((current) => ({
-      ...current,
-      bookings: [booking, ...current.bookings],
-      trucks: current.trucks.map((item) => item.id === truck.id ? { ...item, status: "UNAVAILABLE" } : item),
-    }));
+    setState((current) => {
+      const update = pushUpdate(
+        current,
+        partyIds(current, booking),
+        "Booking paid",
+        `${booking.pickupLocation} to ${booking.destination} is paid and waiting for the owner to confirm the truck.`,
+        `/dashboard/tracking/${booking.id}`,
+        "warn",
+        "Paid a booking",
+        `${booking.pickupLocation} to ${booking.destination} · ${checkout.method} · ${formatRwf(amount)} at ${paidAt}`,
+        currentUserId,
+      );
+      return {
+        ...current,
+        ...update,
+        bookings: [booking, ...current.bookings],
+        trucks: current.trucks.map((item) => item.id === truck.id ? { ...item, status: "UNAVAILABLE" } : item),
+      };
+    });
     return null;
   }, [currentUserId, state.users]);
 
   const setBookingStatus = useCallback<Store["setBookingStatus"]>(async (id, status) => {
+    let error: string | null = null;
     setState((current) => {
       const booking = current.bookings.find((item) => item.id === id);
-      return {
-        ...current,
-        bookings: current.bookings.map((item) =>
-          item.id === id
-            ? { ...item, status, agreedPrice: item.agreedPrice || "RWF 850,000", agreedPriceRwf: item.agreedPriceRwf ?? 850000 }
-            : item,
-        ),
-        trucks: booking && (status === "REJECTED" || status === "COMPLETED")
-          ? current.trucks.map((item) => item.id === booking.truckId ? { ...item, status: "AVAILABLE" } : item)
-          : current.trucks,
-      };
+      if (!booking?.payment) {
+        error = "This booking has no payment record.";
+        return current;
+      }
+      const now = new Date().toISOString();
+      const route = `${booking.pickupLocation} to ${booking.destination}`;
+      const people = partyIds(current, booking);
+      const truck = current.trucks.find((item) => item.id === booking.truckId);
+
+      if (status === "ACCEPTED") {
+        if (booking.status !== "PENDING" || booking.payment.status !== "AUTHORIZED") {
+          error = "Only a paid request can move funds into the iBanga account.";
+          return current;
+        }
+        const update = pushUpdate(current, people, "Payment held by iBanga", `${route} is in the system account until both sides confirm delivery.`, `/dashboard/tracking/${id}`, "info", "Confirmed truck availability", route, current.currentUserId);
+        return {
+          ...current,
+          ...update,
+          bookings: current.bookings.map((item) => item.id === id ? { ...booking, status, payment: { ...booking.payment!, status: "HELD", heldAt: now } } : item),
+        };
+      }
+
+      if (status === "REJECTED") {
+        if (booking.payment.status === "RELEASED") {
+          error = "A released payment cannot be refunded from this screen.";
+          return current;
+        }
+        const update = pushUpdate(current, people, "Payment refunded", `${formatRwf(booking.payment.amountRwf)} for ${route} returns to the original ${booking.payment.method} account.`, `/dashboard/tracking/${id}`, "warn", "Refunded a booking", route, current.currentUserId);
+        return {
+          ...current,
+          ...update,
+          bookings: current.bookings.map((item) => item.id === id ? { ...booking, status, payment: { ...booking.payment!, status: "REFUNDED", refundedAt: now } } : item),
+          trucks: current.trucks.map((item) => item.id === booking.truckId ? { ...item, status: "AVAILABLE" } : item),
+        };
+      }
+
+      if (status === "DELIVERED") {
+        if (booking.status !== "IN_PROGRESS" || booking.payment.status !== "HELD") {
+          error = "Confirm delivery only after departure, while the payment is still held.";
+          return current;
+        }
+        const arrival = positionAt(booking.pickupLocation, booking.destination, 999999);
+        const update = pushUpdate(current, people, "Cargo marked delivered", `${route} is waiting for the importer to confirm receipt. Payment stays held.`, `/dashboard/tracking/${id}`, "warn", "Marked cargo delivered", route, current.currentUserId);
+        return {
+          ...current,
+          ...update,
+          bookings: current.bookings.map((item) => item.id === id ? { ...booking, status, payment: { ...booking.payment!, ownerConfirmedAt: now } } : item),
+          pings: [{
+            id: uid("ping"),
+            bookingId: id,
+            kmFromStart: arrival.totalKm,
+            lat: arrival.lat,
+            lng: arrival.lng,
+            label: booking.destination,
+            recordedAt: now,
+            kind: "DELIVERY",
+            note: "Owner confirmed the cargo was delivered.",
+          }, ...current.pings],
+        };
+      }
+
+      if (status === "COMPLETED") {
+        if (booking.status !== "DELIVERED" || !booking.payment.ownerConfirmedAt) {
+          error = "The owner has to confirm delivery before receipt can release the payment.";
+          return current;
+        }
+        if (booking.payment.status !== "HELD" || !truck) {
+          error = "There is no held payment to release.";
+          return current;
+        }
+        const earning = transaction(truck.ownerId, "BOOKING_EARNING", "CREDIT", booking.payment.ownerAmountRwf, `Escrow release for ${route}`);
+        const update = pushUpdate(current, people, "Payment released", `${formatRwf(booking.payment.ownerAmountRwf)} was released to the truck owner for ${route}.`, `/dashboard/tracking/${id}`, "good", "Released escrow", route, current.currentUserId);
+        return {
+          ...current,
+          ...update,
+          bookings: current.bookings.map((item) => item.id === id ? { ...booking, status, payment: { ...booking.payment!, status: "RELEASED", importerConfirmedAt: now, releasedAt: now } } : item),
+          trucks: current.trucks.map((item) => item.id === booking.truckId ? { ...item, status: "AVAILABLE" } : item),
+          balances: { ...current.balances, [truck.ownerId]: (current.balances[truck.ownerId] ?? 0) + booking.payment!.ownerAmountRwf },
+          transactions: [earning, ...current.transactions],
+        };
+      }
+
+      error = "Record departure from the trip screen before changing this status.";
+      return current;
     });
-    return null;
+    return error;
   }, []);
 
   const reportProblem = useCallback<Store["reportProblem"]>(async (bookingId, reason) => {
@@ -479,25 +677,176 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     return null;
   }, [currentUserId, state.balances]);
 
-  const payBooking = useCallback((bookingId: string) => {
-    if (!currentUserId) return "Sign in to pay for a booking.";
-    const booking = state.bookings.find((item) => item.id === bookingId);
-    if (!booking || booking.importerId !== currentUserId) return "Booking not found.";
-    const amount = booking.agreedPriceRwf ?? 850000;
-    if ((state.balances[currentUserId] ?? 0) < amount) return "Insufficient wallet balance.";
-    const entry = transaction(currentUserId, "BOOKING_PAYMENT", "DEBIT", amount, `Payment for ${booking.id}`);
+  const notifyDeparture = useCallback<Store["notifyDeparture"]>(async (bookingId, at, place, note) => {
+    let error: string | null = null;
+    setState((current) => {
+      const booking = current.bookings.find((item) => item.id === bookingId);
+      if (!booking?.payment || booking.status !== "ACCEPTED" || booking.payment.status !== "HELD") {
+        error = "The payment must be held before departure can be recorded.";
+        return current;
+      }
+      const when = new Date(at);
+      if (Number.isNaN(when.getTime())) {
+        error = "Enter a valid departure date and time.";
+        return current;
+      }
+      const point = positionAt(booking.pickupLocation, booking.destination, 0);
+      const update = pushUpdate(current, partyIds(current, booking), "Trip departed", `${booking.pickupLocation} to ${booking.destination} left at ${when.toLocaleString("en-GB")}.`, `/dashboard/tracking/${bookingId}`, "info", "Recorded departure", place, current.currentUserId);
+      return {
+        ...current,
+        ...update,
+        bookings: current.bookings.map((item) => item.id === bookingId ? { ...booking, status: "IN_PROGRESS" } : item),
+        notices: [{ id: uid("notice"), bookingId, kind: "DEPARTURE", at: when.toISOString(), place, note }, ...current.notices],
+        pings: [{
+          id: uid("ping"),
+          bookingId,
+          kmFromStart: 0,
+          lat: point.lat,
+          lng: point.lng,
+          label: place || booking.pickupLocation,
+          recordedAt: when.toISOString(),
+          kind: "DEPARTURE",
+          note,
+        }, ...current.pings],
+      };
+    });
+    return error;
+  }, []);
+
+  const notifyRest = useCallback<Store["notifyRest"]>(async (bookingId, at, place, note) => {
+    let error: string | null = null;
+    setState((current) => {
+      const booking = current.bookings.find((item) => item.id === bookingId);
+      if (!booking || booking.status !== "IN_PROGRESS") {
+        error = "Rest stops are recorded while the trip is on the road.";
+        return current;
+      }
+      const when = new Date(at);
+      if (Number.isNaN(when.getTime()) || !place.trim()) {
+        error = "Enter the rest time and place.";
+        return current;
+      }
+      const lastKm = current.pings.filter((ping) => ping.bookingId === bookingId).reduce((max, ping) => Math.max(max, ping.kmFromStart), 0);
+      const point = positionAt(booking.pickupLocation, booking.destination, lastKm);
+      const update = pushUpdate(current, partyIds(current, booking), "Rest stop recorded", `${place} on ${booking.pickupLocation} to ${booking.destination}.`, `/dashboard/tracking/${bookingId}`, "warn", "Logged a rest stop", place, current.currentUserId);
+      return {
+        ...current,
+        ...update,
+        notices: [{ id: uid("notice"), bookingId, kind: "REST", at: when.toISOString(), place: place.trim(), note }, ...current.notices],
+        pings: [{
+          id: uid("ping"),
+          bookingId,
+          kmFromStart: lastKm,
+          lat: point.lat,
+          lng: point.lng,
+          label: place.trim(),
+          recordedAt: when.toISOString(),
+          kind: "REST",
+          note,
+        }, ...current.pings],
+      };
+    });
+    return error;
+  }, []);
+
+  const notifyResume = useCallback<Store["notifyResume"]>(async (bookingId, note) => {
+    let error: string | null = null;
+    setState((current) => {
+      const booking = current.bookings.find((item) => item.id === bookingId);
+      if (!booking || booking.status !== "IN_PROGRESS") {
+        error = "Resume is recorded during an active trip.";
+        return current;
+      }
+      const now = new Date().toISOString();
+      const last = [...current.pings].reverse().find((ping) => ping.bookingId === bookingId);
+      const update = pushUpdate(current, partyIds(current, booking), "Trip resumed", note, `/dashboard/tracking/${bookingId}`, "info", "Resumed after rest", booking.destination, current.currentUserId);
+      return {
+        ...current,
+        ...update,
+        notices: [{ id: uid("notice"), bookingId, kind: "RESUME", at: now, place: last?.label || booking.pickupLocation, note }, ...current.notices],
+      };
+    });
+    return error;
+  }, []);
+
+  const recordCheckpoint = useCallback<Store["recordCheckpoint"]>(async (bookingId) => {
+    let error: string | null = null;
+    setState((current) => {
+      const booking = current.bookings.find((item) => item.id === bookingId);
+      if (!booking || booking.status !== "IN_PROGRESS") {
+        error = "Checkpoints are recorded after departure.";
+        return current;
+      }
+      const lastKm = current.pings.filter((ping) => ping.bookingId === bookingId).reduce((max, ping) => Math.max(max, ping.kmFromStart), 0);
+      const nextKm = lastKm + 2;
+      const point = positionAt(booking.pickupLocation, booking.destination, nextKm);
+      if (nextKm > point.totalKm) {
+        error = "The recorded trail has reached the destination. Confirm delivery instead.";
+        return current;
+      }
+      const now = new Date().toISOString();
+      const update = pushUpdate(current, partyIds(current, booking), "Location updated", `${nextKm} km recorded on ${booking.pickupLocation} to ${booking.destination}.`, `/dashboard/tracking/${bookingId}`, "info", "Recorded a checkpoint", `${nextKm} km`, current.currentUserId);
+      return {
+        ...current,
+        ...update,
+        pings: [{
+          id: uid("ping"),
+          bookingId,
+          kmFromStart: nextKm,
+          lat: point.lat,
+          lng: point.lng,
+          label: `${nextKm} km from ${booking.pickupLocation}`,
+          recordedAt: now,
+          kind: "CHECKPOINT",
+        }, ...current.pings],
+      };
+    });
+    return error;
+  }, []);
+
+  const refundBooking = useCallback<Store["refundBooking"]>(async (bookingId, reason) => {
+    let error: string | null = null;
+    setState((current) => {
+      const actor = current.users.find((user) => user.id === current.currentUserId);
+      if (actor?.role !== "ADMIN") {
+        error = "Only an administrator can refund a held payment.";
+        return current;
+      }
+      const booking = current.bookings.find((item) => item.id === bookingId);
+      if (!booking?.payment || booking.payment.status === "RELEASED" || booking.payment.status === "REFUNDED") {
+        error = "This payment is no longer refundable.";
+        return current;
+      }
+      const now = new Date().toISOString();
+      const route = `${booking.pickupLocation} to ${booking.destination}`;
+      const update = pushUpdate(current, partyIds(current, booking), "Payment refunded", `${formatRwf(booking.payment.amountRwf)} for ${route} was returned to ${booking.payment.accountMask}.`, `/dashboard/tracking/${bookingId}`, "warn", "Refunded escrow", reason, current.currentUserId);
+      return {
+        ...current,
+        ...update,
+        bookings: current.bookings.map((item) => item.id === bookingId ? { ...booking, status: "REJECTED", payment: { ...booking.payment!, status: "REFUNDED", refundedAt: now } } : item),
+        trucks: current.trucks.map((item) => item.id === booking.truckId ? { ...item, status: "AVAILABLE" } : item),
+        disputes: current.disputes.map((dispute) => dispute.bookingId === bookingId && dispute.status === "OPEN"
+          ? { ...dispute, status: "RESOLVED", resolutionNotes: reason, resolvedAt: now }
+          : dispute),
+      };
+    });
+    return error;
+  }, []);
+
+  const markNotificationRead = useCallback((id: string) => {
     setState((current) => ({
       ...current,
-      balances: { ...current.balances, [currentUserId]: (current.balances[currentUserId] ?? 0) - amount },
-      transactions: [entry, ...current.transactions],
-      bookings: current.bookings.map((item) =>
-        item.id === bookingId
-          ? { ...item, payment: { status: "FUNDED", amountRwf: amount, commissionRwf: Math.round(amount * 0.06), ownerAmountRwf: Math.round(amount * 0.94), fundedAt: new Date().toISOString() } }
-          : item,
-      ),
+      notifications: current.notifications.map((item) => item.id === id ? { ...item, read: true } : item),
     }));
-    return null;
-  }, [currentUserId, state.balances, state.bookings]);
+  }, []);
+
+  const markAllNotificationsRead = useCallback(() => {
+    if (!currentUserId) return;
+    setState((current) => ({
+      ...current,
+      notifications: current.notifications.map((item) => item.userId === currentUserId ? { ...item, read: true } : item),
+    }));
+  }, [currentUserId]);
 
   const value = useMemo<Store>(() => ({
     ready,
@@ -543,13 +892,25 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     resetWorkspace,
     depositFunds,
     withdrawFunds,
-    payBooking,
+    notifications: state.notifications.filter((item) => item.userId === currentUserId),
+    activity: state.activity,
+    pings: state.pings,
+    notices: state.notices,
+    escrowRwf: state.bookings.reduce((sum, booking) => sum + (booking.payment?.status === "HELD" ? booking.payment.amountRwf : 0), 0),
+    notifyDeparture,
+    notifyRest,
+    notifyResume,
+    recordCheckpoint,
+    refundBooking,
+    markNotificationRead,
+    markAllNotificationsRead,
   }), [
     ready, currentUser, currentUserId, state, login, requestPasswordReset,
     resetPassword, register, logout, updateProfile, fetchTruck,
     addTruck, updateTruck, deleteTruck, setAvailability, createBooking,
     setBookingStatus, reportProblem, resolveDispute, setUserActive, deleteUser,
-    resetWorkspace, depositFunds, withdrawFunds, payBooking,
+    resetWorkspace, depositFunds, withdrawFunds, notifyDeparture, notifyRest,
+    notifyResume, recordCheckpoint, refundBooking, markNotificationRead, markAllNotificationsRead,
   ]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

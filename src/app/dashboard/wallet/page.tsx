@@ -3,22 +3,17 @@
 import { FormEvent, useState } from "react";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
+import { useToast } from "@/components/toast";
 import { DataTable, Field, inputClass, PageHeader, PrimaryButton, StatCard } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
-type BankOption = { id?: string; code?: string; name?: string };
-type BranchOption = { id?: string; code?: string; name?: string };
+import type { PaymentMethod } from "@/lib/types";
 type PaymentMode = "DEPOSIT" | "WITHDRAW";
 
 const AMOUNT_PRESETS = [10000, 25000, 50000, 100000];
-const banks: BankOption[] = [
-  { code: "BK", name: "Bank of Kigali" },
-  { code: "EQUITY", name: "Equity Bank Rwanda" },
-  { code: "I&M", name: "I&M Bank Rwanda" },
-];
-const branches: BranchOption[] = [
-  { code: "KGL", name: "Kigali Main Branch" },
-  { code: "NYA", name: "Nyarutarama Branch" },
-  { code: "REM", name: "Remera Branch" },
+const paymentMethods: { value: PaymentMethod; label: string }[] = [
+  { value: "VISA", label: "Visa card" },
+  { value: "AIRTEL", label: "Airtel Money" },
+  { value: "MTN", label: "MTN MoMo" },
 ];
 
 const formatRwf = (amount: number) =>
@@ -32,16 +27,14 @@ export default function WalletPage() {
   const { currentUser, walletBalance, transactions, depositFunds, withdrawFunds } = useIbanga();
   const isAdmin = currentUser?.role === "ADMIN";
   const canDeposit = currentUser?.role === "IMPORTER";
-  const [method, setMethod] = useState<"MOBILE_MONEY" | "BANK">("MOBILE_MONEY");
+  const [method, setMethod] = useState<PaymentMethod>("MTN");
+  const toast = useToast();
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("DEPOSIT");
-  const [bankCode, setBankCode] = useState("");
-  const [branchCode, setBranchCode] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
   const [depositPhone, setDepositPhone] = useState("");
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [beneficiaryName, setBeneficiaryName] = useState("");
   const [withdrawPhone, setWithdrawPhone] = useState("");
-  const [accountNumber, setAccountNumber] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -55,7 +48,8 @@ export default function WalletPage() {
     if (problem) setError(problem);
     else {
       setDepositAmount("");
-      setNotice("Wallet balance updated. No payment was processed.");
+      setNotice("Wallet updated through your selected Visa, Airtel, or MTN account.");
+      toast("Wallet updated.", "good");
     }
     setSubmitting(false);
   }
@@ -69,17 +63,15 @@ export default function WalletPage() {
     if (problem) setError(problem);
     else {
       setWithdrawAmount("");
-      setNotice("Wallet balance updated. No payout was processed.");
+      setNotice("Withdrawal recorded to your Visa, Airtel, or MTN account.");
+      toast("Withdrawal recorded.", "good");
     }
     setSubmitting(false);
   }
 
-  const bankValue = (bank: BankOption) => bank.code ?? bank.id ?? "";
-  const branchValue = (branch: BranchOption) => branch.code ?? branch.id ?? "";
   const activePaymentMode: PaymentMode = canDeposit ? paymentMode : "WITHDRAW";
   const activeAmount = activePaymentMode === "DEPOSIT" ? depositAmount : withdrawAmount;
   const transferAmount = Number(activeAmount) || 0;
-  const selectedBank = banks.find((bank) => bankValue(bank) === bankCode);
 
   return (
     <RequireAuth>
@@ -253,147 +245,31 @@ export default function WalletPage() {
                 </div>
               </div>
 
-              {activePaymentMode === "DEPOSIT" ? (
-                <Field label="MTN Mobile Money number">
-                  <input
-                    className={inputClass}
-                    type="tel"
-                    required
-                    value={depositPhone}
-                    onChange={(event) => setDepositPhone(event.target.value)}
-                    placeholder="078 000 0000"
-                  />
+              <fieldset>
+                <legend className="text-sm font-semibold text-navy">Payment method</legend>
+                <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                  {paymentMethods.map((option) => (
+                    <label key={option.value} className={`cursor-pointer rounded-xl border px-3 py-3 text-sm font-semibold ${method === option.value ? "border-brand bg-brand-soft text-brand-dark" : "border-line text-navy"}`}>
+                      <input className="sr-only" type="radio" name="wallet-method" value={option.value} checked={method === option.value} onChange={() => setMethod(option.value)} />
+                      {option.label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              {activePaymentMode === "WITHDRAW" ? (
+                <Field label="Beneficiary name">
+                  <input className={inputClass} required value={beneficiaryName} onChange={(event) => setBeneficiaryName(event.target.value)} autoComplete="name" />
                 </Field>
-              ) : (
-                <>
-                  <fieldset>
-                    <legend className="text-sm font-semibold text-navy">Send to</legend>
-                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                      {([
-                        { value: "MOBILE_MONEY", label: "MTN Mobile Money", detail: "Mobile wallet" },
-                        { value: "BANK", label: "Bank account", detail: "Rwanda bank" },
-                      ] as const).map((option) => (
-                        <label
-                          key={option.value}
-                          className={`flex min-h-16 cursor-pointer items-center gap-3 rounded-xl border px-3.5 py-3 transition ${
-                            method === option.value
-                              ? "border-brand bg-brand-soft/60 ring-1 ring-brand/20"
-                              : "border-line bg-white hover:border-brand/40"
-                          }`}
-                        >
-                          <input
-                            className="sr-only"
-                            type="radio"
-                            name="withdrawal-method"
-                            value={option.value}
-                            checked={method === option.value}
-                            onChange={() => {
-                              const nextMethod = option.value;
-                              setMethod(nextMethod);
-                              if (nextMethod !== "BANK") {
-                                setBankCode("");
-                                setBranchCode("");
-                              }
-                            }}
-                          />
-                          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                            method === option.value ? "bg-white text-brand" : "bg-background text-muted"
-                          }`}>
-                            {option.value === "MOBILE_MONEY" ? (
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                <rect x="6" y="2.5" width="12" height="19" rx="2" />
-                                <path d="M10 5.5h4M11 18.5h2" />
-                              </svg>
-                            ) : (
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                <path d="m3 9 9-6 9 6M5 10v8m4-8v8m6-8v8m4-8v8M3 21h18M2 18h20" />
-                              </svg>
-                            )}
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block text-sm font-semibold text-navy">{option.label}</span>
-                            <span className="mt-0.5 block text-xs text-muted">{option.detail}</span>
-                          </span>
-                          <span className={`ml-auto h-4 w-4 shrink-0 rounded-full border ${
-                            method === option.value ? "border-[5px] border-brand" : "border-line"
-                          }`} />
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
-
-                  <Field label="Beneficiary name">
-                    <input
-                      className={inputClass}
-                      required
-                      value={beneficiaryName}
-                      onChange={(event) => setBeneficiaryName(event.target.value)}
-                      autoComplete="name"
-                    />
-                  </Field>
-                  {method === "MOBILE_MONEY" ? (
-                    <Field label="MTN Mobile Money number">
-                      <input
-                        className={inputClass}
-                        type="tel"
-                        required
-                        value={withdrawPhone}
-                        onChange={(event) => setWithdrawPhone(event.target.value)}
-                        placeholder="078 000 0000"
-                        autoComplete="tel"
-                      />
-                    </Field>
-                  ) : (
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <Field label="Bank">
-                        <select
-                          className={inputClass}
-                          required
-                          value={bankCode}
-                          onChange={(event) => {
-                            setBankCode(event.target.value);
-                            setBranchCode("");
-                          }}
-                        >
-                          <option value="">Select bank</option>
-                          {banks.map((bank) => (
-                            <option key={bankValue(bank)} value={bankValue(bank)}>
-                              {bank.name ?? bankValue(bank)}
-                            </option>
-                          ))}
-                        </select>
-                      </Field>
-                      <Field label="Branch">
-                        <select
-                          className={inputClass}
-                          required
-                          disabled={!bankCode}
-                          value={branchCode}
-                          onChange={(event) => setBranchCode(event.target.value)}
-                        >
-                          <option value="">Select branch</option>
-                          {branches.map((branch) => (
-                            <option key={branchValue(branch)} value={branchValue(branch)}>
-                              {branch.name ?? branchValue(branch)}
-                            </option>
-                          ))}
-                        </select>
-                      </Field>
-                      <div className="sm:col-span-2">
-                        <Field label="Bank account number">
-                          <input
-                            className={inputClass}
-                            required
-                            value={accountNumber}
-                            onChange={(event) => setAccountNumber(event.target.value)}
-                            autoComplete="off"
-                          />
-                        </Field>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
+              ) : null}
+              <Field label={method === "VISA" ? "Visa card number" : method === "AIRTEL" ? "Airtel Money number" : "MTN MoMo number"}>
+                <input
+                  className={inputClass}
+                  required
+                  value={activePaymentMode === "DEPOSIT" ? depositPhone : withdrawPhone}
+                  onChange={(event) => activePaymentMode === "DEPOSIT" ? setDepositPhone(event.target.value) : setWithdrawPhone(event.target.value)}
+                  placeholder={method === "VISA" ? "Card number" : "07X XXX XXXX"}
+                />
+              </Field>
 
               <PrimaryButton type="submit" disabled={submitting} className="min-h-12 w-full justify-between px-5">
                 <span>
@@ -409,10 +285,8 @@ export default function WalletPage() {
                   </svg>
                 ) : null}
               </PrimaryButton>
-              <p className="text-center text-xs text-muted">
-                {activePaymentMode === "DEPOSIT"
-                  ? "The displayed balance updates immediately. No provider payment is requested."
-                  : "The displayed balance updates immediately. No external transfer is started."}
+              <p className="text-center text-sm text-muted">
+                Wallet movement uses Visa, Airtel Money, or MTN MoMo only.
               </p>
             </form>
           </section>
@@ -441,19 +315,13 @@ export default function WalletPage() {
                 <div className="flex items-start justify-between gap-4">
                   <dt className="text-muted">Method</dt>
                   <dd className="text-right font-medium text-navy">
-                    {activePaymentMode === "DEPOSIT" || method === "MOBILE_MONEY"
-                      ? "MTN Mobile Money"
-                      : "Rwanda bank account"}
+                    {paymentMethods.find((option) => option.value === method)?.label}
                   </dd>
                 </div>
                 <div className="flex items-start justify-between gap-4">
                   <dt className="text-muted">Destination</dt>
                   <dd className="max-w-48 wrap-break-word text-right font-medium text-navy">
-                    {activePaymentMode === "DEPOSIT"
-                      ? depositPhone || "Mobile Money number"
-                      : method === "MOBILE_MONEY"
-                        ? withdrawPhone || "Mobile Money number"
-                        : selectedBank?.name ?? "Bank account"}
+                    {(activePaymentMode === "DEPOSIT" ? depositPhone : withdrawPhone) || "Account number"}
                   </dd>
                 </div>
               </dl>
@@ -464,12 +332,12 @@ export default function WalletPage() {
               <ol className="mt-4 space-y-3">
                 {(activePaymentMode === "DEPOSIT"
                   ? [
-                      "Enter an amount and sample mobile number.",
+                      "Choose Visa, Airtel Money, or MTN MoMo.",
                       "Submit to add funds to this wallet.",
                       "Review the updated balance and activity.",
                     ]
                   : [
-                      "Choose a sample mobile or bank destination.",
+                      "Choose Visa, Airtel Money, or MTN MoMo.",
                       "Submit to deduct the amount from this wallet.",
                       "Review the transaction in recent activity.",
                     ]).map((step, index) => (

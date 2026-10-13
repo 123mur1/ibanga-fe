@@ -59,9 +59,9 @@ export function PayNotice() {
         <path d="M12 16h.01" />
       </svg>
       <p>
-        Booking holds the truck at its listed RWF price. After the owner accepts,
-        pay from your iBanga wallet before the trip starts. Funds stay held until
-        you confirm delivery.
+        You pay by Visa, Airtel Money, or MTN MoMo when you book. After the owner
+        confirms the truck, iBanga holds the money until the owner confirms delivery
+        and you confirm receipt. Otherwise it is refunded.
       </p>
     </div>
   );

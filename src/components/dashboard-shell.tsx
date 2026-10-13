@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import { NotificationsBell } from "./notifications-bell";
 import { BrandLink, LogoMark } from "./brand";
 import { LogoutConfirmationDialog } from "./logout-confirmation-dialog";
 import { Avatar } from "./photos";
@@ -16,6 +17,7 @@ const nav: Record<Role, NavItem[]> = {
     { href: "/dashboard/importer", label: "Overview", icon: "grid" },
     { href: "/trucks", label: "Find trucks", icon: "search" },
     { href: "/dashboard/importer/bookings", label: "My bookings", icon: "calendar" },
+    { href: "/dashboard/tracking", label: "Live cargo", icon: "pin" },
     { href: "/dashboard/wallet", label: "Wallet", icon: "wallet" },
   ],
   TRUCK_OWNER: [
@@ -24,6 +26,7 @@ const nav: Record<Role, NavItem[]> = {
     { href: "/dashboard/owner/requests", label: "Requests", icon: "inbox" },
     { href: "/dashboard/owner/trips", label: "Active trips", icon: "route" },
     { href: "/dashboard/owner/history", label: "History", icon: "history" },
+    { href: "/dashboard/tracking", label: "Live cargo", icon: "pin" },
     { href: "/dashboard/wallet", label: "Wallet", icon: "wallet" },
   ],
   ADMIN: [
@@ -33,6 +36,7 @@ const nav: Record<Role, NavItem[]> = {
     { href: "/dashboard/admin/bookings", label: "Bookings", icon: "calendar" },
     { href: "/dashboard/admin/disputes", label: "Disputes", icon: "alert" },
     { href: "/dashboard/admin/wallets", label: "Wallets", icon: "wallet" },
+    { href: "/dashboard/tracking", label: "Live cargo", icon: "pin" },
   ],
 };
 
@@ -91,6 +95,12 @@ const iconPaths: Record<string, React.ReactNode> = {
       <path d="M3.5 12a8.5 8.5 0 1 1 2.5 6" />
       <path d="M3.5 15.5V11H8" />
       <path d="M12 7v5l3 2" />
+    </>
+  ),
+  pin: (
+    <>
+      <path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11Z" />
+      <circle cx="12" cy="10" r="2.4" />
     </>
   ),
   wallet: (
@@ -163,10 +173,10 @@ function roleLabel(role: Role) {
 
 function roleTip(role: Role) {
   if (role === "TRUCK_OWNER")
-    return "To free a truck from a trip, the importer must confirm the delivery.";
+    return "Confirm the truck to move the payment into escrow. Log departure, rests, and a position every 2 km.";
   if (role === "ADMIN")
-    return "After dispute review, only the importer can confirm receipt and release the held payment.";
-  return "Booking a truck holds it until the owner accepts or rejects.";
+    return "Escrow stays held until the owner confirms delivery and the importer confirms receipt. Otherwise refund it.";
+  return "You pay when you book. Funds move into escrow after the owner confirms the truck.";
 }
 
 export function DashboardShell({
@@ -321,7 +331,8 @@ export function DashboardShell({
               <span className="font-medium text-navy">Good {morning()}, {firstName}.</span>
             </div>
 
-            <div className="relative">
+            <div className="relative flex items-center gap-2">
+              <NotificationsBell />
               <button
                 type="button"
                 aria-expanded={profileOpen}
