@@ -7,19 +7,24 @@ import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { BookingBadge } from "@/components/status-badge";
 import { Avatar } from "@/components/photos";
+import { LiveTrack } from "@/components/live-track";
+import { PaymentReceipt } from "@/components/payment-receipt";
+import { useToast } from "@/components/toast";
 import { Field, GhostButton, inputClass, PrimaryButton, formatDate } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
 
 export default function ImporterBookingDetail() {
   const { id } = useParams<{ id: string }>();
-  const { bookings, trucks, users, currentUser, setBookingStatus, reportProblem, payBooking } =
+  const { bookings, trucks, users, currentUser, setBookingStatus, reportProblem, pings, notices } =
     useIbanga();
+  const toast = useToast();
   const booking = bookings.find(
     (b) => b.id === id && b.importerId === currentUser?.id,
   );
   const truck = booking ? trucks.find((t) => t.id === booking.truckId) : undefined;
   const owner = truck ? users.find((u) => u.id === truck.ownerId) : undefined;
   const [reason, setReason] = useState("");
+<<<<<<< HEAD
   const [message, setMessage] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [paymentPending, setPaymentPending] = useState(false);
@@ -34,6 +39,8 @@ export default function ImporterBookingDetail() {
     else setPaymentConfirmed(true);
     setPaymentPending(false);
   }
+=======
+>>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
 
   return (
     <RequireAuth role="IMPORTER">
@@ -199,61 +206,16 @@ export default function ImporterBookingDetail() {
               </section>
             ) : null}
 
-            <section className="mt-4 rounded-2xl border border-line bg-card px-5 py-4 shadow-soft">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">
-                    Truck listing price
-                  </p>
-                  <p className="mt-1 font-display text-2xl text-navy">
-                    {booking.agreedPriceRwf == null
-                      ? "Price unavailable"
-                      : `RWF ${booking.agreedPriceRwf.toLocaleString("en-RW")}`}
-                  </p>
-                  <p className="mt-1 text-xs text-muted">
-                    The 6% platform commission is deducted from the owner&apos;s proceeds.
-                  </p>
-                </div>
-                {booking.payment ? (
-                  <span className="rounded-full bg-good-soft px-3 py-1 text-xs font-semibold text-good">
-                    {booking.payment.status === "RELEASED"
-                      ? "Paid and released"
-                      : booking.payment.status === "FUNDED"
-                        ? "Payment held"
-                        : booking.payment.status}
-                  </span>
-                ) : null}
-              </div>
-              {booking.status === "ACCEPTED" &&
-              !booking.payment &&
-              !paymentConfirmed ? (
-                <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-line pt-4">
-                  <PrimaryButton
-                    type="button"
-                    disabled={paymentPending || !booking.agreedPriceRwf}
-                    onClick={payForBooking}
-                  >
-                    {paymentPending ? "Processing…" : "Pay from wallet"}
-                  </PrimaryButton>
-                  <Link
-                    href="/dashboard/wallet"
-                    className="text-sm font-semibold text-brand hover:text-brand-dark"
-                  >
-                    Add wallet funds
-                  </Link>
-                </div>
-              ) : null}
-              {paymentConfirmed ? (
-                <p className="mt-3 text-sm font-medium text-good" role="status">
-                  Payment is held. The owner can now start the trip.
-                </p>
-              ) : null}
-              {paymentError ? (
-                <p className="mt-3 text-sm font-medium text-bad" role="alert">
-                  {paymentError}
-                </p>
-              ) : null}
-            </section>
+            <div className="mt-4">
+              <PaymentReceipt booking={booking} plate={truck?.plateNumber} />
+            </div>
+            <div className="mt-4">
+              <LiveTrack
+                booking={booking}
+                pings={pings.filter((ping) => ping.bookingId === booking.id)}
+                notices={notices.filter((notice) => notice.bookingId === booking.id)}
+              />
+            </div>
 
             {booking.status === "PENDING" ? (
               <div className="mt-4 flex items-start gap-3 rounded-2xl bg-warn-soft px-4 py-3.5 text-sm font-medium text-warn ring-1 ring-warn/10">
@@ -261,9 +223,7 @@ export default function ImporterBookingDetail() {
                   <circle cx="12" cy="12" r="9" />
                   <path d="M12 8v4.5M12 16h.01" />
                 </svg>
-                The truck&apos;s listed price is fixed for this booking. The owner
-                can accept or reject your request. After acceptance, pay from
-                your wallet before the trip begins.
+                Payment is recorded. It moves into the iBanga account when the owner confirms the truck.
               </div>
             ) : null}
 
@@ -303,7 +263,7 @@ export default function ImporterBookingDetail() {
                     className="group"
                     onClick={async () => {
                       const error = await setBookingStatus(booking.id, "COMPLETED");
-                      setMessage(error ?? "Receipt confirmed. Trip completed.");
+                      toast(error ?? "Receipt confirmed. The held payment was released to the owner.", error ? "bad" : "good");
                     }}
                   >
                     <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white/20 transition duration-200 group-hover:scale-110">
@@ -328,11 +288,11 @@ export default function ImporterBookingDetail() {
                       className="group transition hover:border-bad/30 hover:text-bad"
                       onClick={async () => {
                         if (!reason.trim()) {
-                          setMessage("Please describe the problem.");
+                          toast("Describe the problem before sending it.", "warn");
                           return;
                         }
                         const error = await reportProblem(booking.id, reason.trim());
-                        setMessage(error ?? "Dispute opened. Admin will review.");
+                        toast(error ?? "Dispute opened. The payment stays held.", error ? "bad" : "warn");
                       }}
                     >
                       <span className="flex h-5 w-5 items-center justify-center rounded-md bg-bad-soft text-bad transition duration-200 group-hover:scale-110">
@@ -349,15 +309,6 @@ export default function ImporterBookingDetail() {
               </section>
             ) : null}
 
-            {message ? (
-              <p className="mt-4 inline-flex items-center gap-2 rounded-xl bg-good-soft px-3.5 py-2 text-sm font-medium text-good">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <circle cx="12" cy="12" r="9" />
-                  <path d="m8 12 3 3 5-6" />
-                </svg>
-                {message}
-              </p>
-            ) : null}
           </div>
         )}
       </DashboardShell>

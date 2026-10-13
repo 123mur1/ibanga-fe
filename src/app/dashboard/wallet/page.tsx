@@ -3,14 +3,22 @@
 import { FormEvent, useEffect, useState } from "react";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
+import { useToast } from "@/components/toast";
 import { DataTable, Field, inputClass, PageHeader, PrimaryButton, StatCard } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useIbanga } from "@/lib/store";
-type BankOption = { id?: string; code?: string; name?: string };
-type BranchOption = { id?: string; code?: string; name?: string };
+import type { PaymentMethod } from "@/lib/types";
 type PaymentMode = "DEPOSIT" | "WITHDRAW";
 
 const AMOUNT_PRESETS = [10000, 25000, 50000, 100000];
+<<<<<<< HEAD
+=======
+const paymentMethods: { value: PaymentMethod; label: string }[] = [
+  { value: "VISA", label: "Visa card" },
+  { value: "AIRTEL", label: "Airtel Money" },
+  { value: "MTN", label: "MTN MoMo" },
+];
+>>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
 
 const formatRwf = (amount: number) =>
   new Intl.NumberFormat("en-RW", {
@@ -23,18 +31,20 @@ export default function WalletPage() {
   const { currentUser, walletBalance, transactions, depositFunds, withdrawFunds } = useIbanga();
   const isAdmin = currentUser?.role === "ADMIN";
   const canDeposit = currentUser?.role === "IMPORTER";
-  const [method, setMethod] = useState<"MOBILE_MONEY" | "BANK">("MOBILE_MONEY");
+  const [method, setMethod] = useState<PaymentMethod>("MTN");
+  const toast = useToast();
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("DEPOSIT");
-  const [bankCode, setBankCode] = useState("");
-  const [branchCode, setBranchCode] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
   const [depositPhone, setDepositPhone] = useState("");
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [beneficiaryName, setBeneficiaryName] = useState("");
   const [withdrawPhone, setWithdrawPhone] = useState("");
+<<<<<<< HEAD
   const [accountNumber, setAccountNumber] = useState("");
   const [banks, setBanks] = useState<BankOption[]>([]);
   const [branches, setBranches] = useState<BranchOption[]>([]);
+=======
+>>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -65,7 +75,8 @@ export default function WalletPage() {
     if (problem) setError(problem);
     else {
       setDepositAmount("");
-      setNotice("Wallet balance updated. No payment was processed.");
+      setNotice("Wallet updated through your selected Visa, Airtel, or MTN account.");
+      toast("Wallet updated.", "good");
     }
     setSubmitting(false);
   }
@@ -86,17 +97,15 @@ export default function WalletPage() {
     if (problem) setError(problem);
     else {
       setWithdrawAmount("");
-      setNotice("Wallet balance updated. No payout was processed.");
+      setNotice("Withdrawal recorded to your Visa, Airtel, or MTN account.");
+      toast("Withdrawal recorded.", "good");
     }
     setSubmitting(false);
   }
 
-  const bankValue = (bank: BankOption) => bank.code ?? bank.id ?? "";
-  const branchValue = (branch: BranchOption) => branch.code ?? branch.id ?? "";
   const activePaymentMode: PaymentMode = canDeposit ? paymentMode : "WITHDRAW";
   const activeAmount = activePaymentMode === "DEPOSIT" ? depositAmount : withdrawAmount;
   const transferAmount = Number(activeAmount) || 0;
-  const selectedBank = banks.find((bank) => bankValue(bank) === bankCode);
 
   return (
     <RequireAuth>
@@ -270,17 +279,22 @@ export default function WalletPage() {
                 </div>
               </div>
 
-              {activePaymentMode === "DEPOSIT" ? (
-                <Field label="MTN Mobile Money number">
-                  <input
-                    className={inputClass}
-                    type="tel"
-                    required
-                    value={depositPhone}
-                    onChange={(event) => setDepositPhone(event.target.value)}
-                    placeholder="078 000 0000"
-                  />
+              <fieldset>
+                <legend className="text-sm font-semibold text-navy">Payment method</legend>
+                <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                  {paymentMethods.map((option) => (
+                    <label key={option.value} className={`cursor-pointer rounded-xl border px-3 py-3 text-sm font-semibold ${method === option.value ? "border-brand bg-brand-soft text-brand-dark" : "border-line text-navy"}`}>
+                      <input className="sr-only" type="radio" name="wallet-method" value={option.value} checked={method === option.value} onChange={() => setMethod(option.value)} />
+                      {option.label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              {activePaymentMode === "WITHDRAW" ? (
+                <Field label="Beneficiary name">
+                  <input className={inputClass} required value={beneficiaryName} onChange={(event) => setBeneficiaryName(event.target.value)} autoComplete="name" />
                 </Field>
+<<<<<<< HEAD
               ) : (
                 <>
                   <fieldset>
@@ -412,6 +426,18 @@ export default function WalletPage() {
                   )}
                 </>
               )}
+=======
+              ) : null}
+              <Field label={method === "VISA" ? "Visa card number" : method === "AIRTEL" ? "Airtel Money number" : "MTN MoMo number"}>
+                <input
+                  className={inputClass}
+                  required
+                  value={activePaymentMode === "DEPOSIT" ? depositPhone : withdrawPhone}
+                  onChange={(event) => activePaymentMode === "DEPOSIT" ? setDepositPhone(event.target.value) : setWithdrawPhone(event.target.value)}
+                  placeholder={method === "VISA" ? "Card number" : "07X XXX XXXX"}
+                />
+              </Field>
+>>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
 
               <PrimaryButton type="submit" disabled={submitting} className="min-h-12 w-full justify-between px-5">
                 <span>
@@ -427,10 +453,8 @@ export default function WalletPage() {
                   </svg>
                 ) : null}
               </PrimaryButton>
-              <p className="text-center text-xs text-muted">
-                {activePaymentMode === "DEPOSIT"
-                  ? "The displayed balance updates immediately. No provider payment is requested."
-                  : "The displayed balance updates immediately. No external transfer is started."}
+              <p className="text-center text-sm text-muted">
+                Wallet movement uses Visa, Airtel Money, or MTN MoMo only.
               </p>
             </form>
           </section>
@@ -459,19 +483,13 @@ export default function WalletPage() {
                 <div className="flex items-start justify-between gap-4">
                   <dt className="text-muted">Method</dt>
                   <dd className="text-right font-medium text-navy">
-                    {activePaymentMode === "DEPOSIT" || method === "MOBILE_MONEY"
-                      ? "MTN Mobile Money"
-                      : "Rwanda bank account"}
+                    {paymentMethods.find((option) => option.value === method)?.label}
                   </dd>
                 </div>
                 <div className="flex items-start justify-between gap-4">
                   <dt className="text-muted">Destination</dt>
                   <dd className="max-w-48 wrap-break-word text-right font-medium text-navy">
-                    {activePaymentMode === "DEPOSIT"
-                      ? depositPhone || "Mobile Money number"
-                      : method === "MOBILE_MONEY"
-                        ? withdrawPhone || "Mobile Money number"
-                        : selectedBank?.name ?? "Bank account"}
+                    {(activePaymentMode === "DEPOSIT" ? depositPhone : withdrawPhone) || "Account number"}
                   </dd>
                 </div>
               </dl>
@@ -482,12 +500,12 @@ export default function WalletPage() {
               <ol className="mt-4 space-y-3">
                 {(activePaymentMode === "DEPOSIT"
                   ? [
-                      "Enter an amount and sample mobile number.",
+                      "Choose Visa, Airtel Money, or MTN MoMo.",
                       "Submit to add funds to this wallet.",
                       "Review the updated balance and activity.",
                     ]
                   : [
-                      "Choose a sample mobile or bank destination.",
+                      "Choose Visa, Airtel Money, or MTN MoMo.",
                       "Submit to deduct the amount from this wallet.",
                       "Review the transaction in recent activity.",
                     ]).map((step, index) => (

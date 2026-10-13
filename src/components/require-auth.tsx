@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { WorkspaceLoading } from "@/components/loading";
 import { dashboardPath, useIbanga } from "@/lib/store";
 import type { Role } from "@/lib/types";
 
@@ -28,11 +29,7 @@ export function RequireAuth({
   }, [ready, currentUser, role, router, pathname]);
 
   if (!ready || !currentUser || (role && currentUser.role !== role)) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center text-muted">
-        Loading workspace…
-      </div>
-    );
+    return <WorkspaceLoading />;
   }
 
   return <>{children}</>;

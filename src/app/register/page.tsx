@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useState } from "react";
 import { AuthShell } from "@/components/auth-shell";
+import { useToast } from "@/components/toast";
 import { Field, inputClass, PrimaryButton } from "@/components/ui";
 import { dashboardPath, useIbanga } from "@/lib/store";
 import type { Role } from "@/lib/types";
 
 function RegisterForm() {
   const { register } = useIbanga();
+  const toast = useToast();
   const router = useRouter();
   const params = useSearchParams();
   const preset = params.get("role") === "TRUCK_OWNER" ? "TRUCK_OWNER" : "IMPORTER";
@@ -25,17 +27,26 @@ function RegisterForm() {
     password: "",
   });
   const [busy, setBusy] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const err = await register({ ...form, role });
+    if (!acceptedTerms) {
+      setBusy(false);
+      setError("Accept the iBanga terms and conditions to create an account.");
+      toast("Accept the terms and conditions to continue.", "warn");
+      return;
+    }
+    const err = await register({ ...form, role, termsAccepted: true });
     setBusy(false);
     if (err) {
       setError(err);
+      toast(err, "bad");
       return;
     }
+    toast("Account created.", "good");
     router.push(dashboardPath(role));
   }
 
@@ -380,6 +391,23 @@ function RegisterForm() {
                 </button>
               </div>
             </Field>
+
+            <label className="flex items-start gap-3 rounded-xl border border-line bg-background px-3 py-3 text-sm text-navy">
+              <input
+                type="checkbox"
+                className="mt-1 accent-brand"
+                checked={acceptedTerms}
+                onChange={(event) => setAcceptedTerms(event.target.checked)}
+                required
+              />
+              <span>
+                I accept the{" "}
+                <Link href="/terms" className="font-semibold text-brand hover:text-brand-dark">
+                  terms and conditions
+                </Link>{" "}
+                governing the iBanga system, including escrow, delivery confirmation, and live cargo tracking.
+              </span>
+            </label>
 
             {error ? (
               <p className="flex items-center gap-2 rounded-xl border border-bad/20 bg-bad-soft px-3.5 py-2.5 text-sm text-bad">

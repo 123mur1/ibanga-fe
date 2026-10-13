@@ -6,14 +6,15 @@ import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { BookingBadge } from "@/components/status-badge";
 import { Avatar } from "@/components/photos";
-import { GhostButton, PrimaryButton, formatDate } from "@/components/ui";
+import { LiveTrack } from "@/components/live-track";
+import { PaymentReceipt } from "@/components/payment-receipt";
+import { TripActions } from "@/components/trip-actions";
+import { formatDate } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
-import type { BookingStatus } from "@/lib/types";
-import { useState } from "react";
 
 export default function OwnerTripDetail() {
   const { id } = useParams<{ id: string }>();
-  const { currentUser, bookings, trucks, users, setBookingStatus } = useIbanga();
+  const { currentUser, bookings, trucks, users, pings, notices } = useIbanga();
   const mine = trucks.filter((t) => t.ownerId === currentUser?.id);
   const booking = bookings.find(
     (b) => b.id === id && mine.some((t) => t.id === b.truckId),
@@ -22,13 +23,6 @@ export default function OwnerTripDetail() {
   const importer = booking
     ? users.find((u) => u.id === booking.importerId)
     : undefined;
-
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  async function act(status: BookingStatus) {
-    const err = await setBookingStatus(id, status);
-    setActionError(err);
-  }
 
   return (
     <RequireAuth role="TRUCK_OWNER">
@@ -166,31 +160,17 @@ export default function OwnerTripDetail() {
               </section>
             ) : null}
 
-            {booking.status === "PENDING" ? (
-              <div className="mt-4 flex items-start gap-3 rounded-2xl bg-warn-soft px-4 py-3.5 text-sm font-medium text-warn ring-1 ring-warn/10">
-                <svg className="mt-0.5 shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <circle cx="12" cy="12" r="9" />
-                  <path d="M12 8v4.5M12 16h.01" />
-                </svg>
-                This booking holds the truck at its listed RWF price. Accept to
-                proceed or reject to make it available again.
-              </div>
-            ) : null}
-
-            <div className="mt-5 border-y border-line py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">
-                Listed booking price
-              </p>
-              <p className="mt-1 font-display text-2xl text-navy">
-                {booking.agreedPriceRwf == null
-                  ? "No price set"
-                  : `RWF ${booking.agreedPriceRwf.toLocaleString("en-RW")}`}
-              </p>
-              <p className="mt-1 text-xs text-muted">
-                Price is copied from this truck&apos;s listing and cannot be changed per booking.
-              </p>
+            <div className="mt-4 space-y-4">
+              <PaymentReceipt booking={booking} plate={truck?.plateNumber} />
+              <TripActions booking={booking} />
+              <LiveTrack
+                booking={booking}
+                pings={pings.filter((ping) => ping.bookingId === booking.id)}
+                notices={notices.filter((notice) => notice.bookingId === booking.id)}
+              />
             </div>
 
+<<<<<<< HEAD
             <div className="mt-5 flex flex-wrap gap-3">
               {booking.status === "PENDING" ? (
                 <>
@@ -271,6 +251,8 @@ export default function OwnerTripDetail() {
               </p>
             ) : null}
 
+=======
+>>>>>>> dd35b1a (feat: addressing comments regarding payments and dashboads refinment)
             {booking.status === "REJECTED" ? (
               <div className="mt-4 flex items-start gap-3 rounded-2xl bg-good-soft px-4 py-3.5 text-sm font-medium text-good ring-1 ring-good/10">
                 <svg className="mt-0.5 shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

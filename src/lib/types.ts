@@ -10,6 +10,9 @@ export type BookingStatus =
   | "REJECTED";
 export type DisputeStatus = "OPEN" | "RESOLVED";
 
+export type PaymentMethod = "VISA" | "AIRTEL" | "MTN";
+export type PaymentStatus = "AUTHORIZED" | "HELD" | "RELEASED" | "REFUNDED";
+
 export type User = {
   id: string;
   name: string;
@@ -21,6 +24,7 @@ export type User = {
   active: boolean;
   company?: string;
   photo?: string;
+  termsAcceptedAt?: string;
 };
 
 export type TruckOwnerContact = {
@@ -68,12 +72,66 @@ export type Booking = {
 };
 
 export type BookingPayment = {
-  status: "PENDING" | "FUNDED" | "RELEASED" | "REFUNDED";
+  status: PaymentStatus;
+  method: PaymentMethod;
   amountRwf: number;
   commissionRwf: number;
   ownerAmountRwf: number;
-  fundedAt?: string | null;
+  paidAt: string;
+  receiptNumber: string;
+  payerName: string;
+  accountMask: string;
+  heldAt?: string | null;
   releasedAt?: string | null;
+  refundedAt?: string | null;
+  ownerConfirmedAt?: string | null;
+  importerConfirmedAt?: string | null;
+};
+
+export type CheckoutDetails = {
+  method: PaymentMethod;
+  payerName: string;
+  accountMask: string;
+};
+
+export type CargoPing = {
+  id: string;
+  bookingId: string;
+  kmFromStart: number;
+  lat: number;
+  lng: number;
+  label: string;
+  recordedAt: string;
+  kind: "DEPARTURE" | "CHECKPOINT" | "REST" | "DELIVERY";
+  note?: string;
+};
+
+export type TripNotice = {
+  id: string;
+  bookingId: string;
+  kind: "DEPARTURE" | "REST" | "RESUME";
+  at: string;
+  place: string;
+  note: string;
+};
+
+export type AppNotification = {
+  id: string;
+  userId: string;
+  title: string;
+  body: string;
+  href?: string;
+  tone: "info" | "good" | "warn" | "bad";
+  read: boolean;
+  createdAt: string;
+};
+
+export type ActivityEntry = {
+  id: string;
+  actorName: string;
+  action: string;
+  detail: string;
+  createdAt: string;
 };
 
 export type WalletTransaction = {

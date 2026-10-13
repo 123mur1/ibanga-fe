@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { BookingBadge } from "@/components/status-badge";
-import { DataTable, StatCard, formatDate } from "@/components/ui";
+import { DataTable, StatCard, formatDate, formatDateTime } from "@/components/ui";
 import type { Booking, Truck, User } from "@/lib/types";
 
 export function BookingManagementTable({
@@ -32,8 +32,10 @@ export function BookingManagementTable({
       </div>
       <div className="mt-5">
         <DataTable
-          columns={[{ label: "Route" }, { label: counterparty === "IMPORTER" ? "Truck owner" : "Importer" }, { label: "Vehicle" }, { label: "Pickup" }, { label: "Cargo" }, { label: "Status" }, { label: "Details" }]}
+          columns={[{ label: "Route" }, { label: counterparty === "IMPORTER" ? "Truck owner" : "Importer" }, { label: "Vehicle" }, { label: "Pickup" }, { label: "Cargo" }, { label: "Paid" }, { label: "Amount" }, { label: "Payment" }, { label: "Status" }, { label: "Details" }]}
           filterLabel="All booking statuses"
+          extraFilterLabel="All payment states"
+          exportName="ibanga-bookings"
           rows={bookings.map((booking) => {
             const truck = trucks.find((item) => item.id === booking.truckId);
             const partyId = counterparty === "IMPORTER" ? truck?.ownerId : booking.importerId;
@@ -41,17 +43,21 @@ export function BookingManagementTable({
             const route = `${booking.pickupLocation} to ${booking.destination}`;
             return {
               id: booking.id,
-              searchText: `${route} ${person?.name ?? ""} ${truck?.plateNumber ?? ""} ${booking.cargoType} ${booking.status}`,
+              searchText: `${route} ${person?.name ?? ""} ${truck?.plateNumber ?? ""} ${booking.cargoType} ${booking.status} ${booking.payment?.receiptNumber ?? ""}`,
               filterValue: booking.status,
-              exportValues: [route, person?.name ?? "", truck?.plateNumber ?? "", formatDate(booking.pickupDate), `${booking.cargoType} ${booking.cargoWeight}`, booking.status, ""],
+              extraFilterValue: booking.payment?.status,
+              exportValues: [route, person?.name ?? "", truck?.plateNumber ?? "", formatDate(booking.pickupDate), `${booking.cargoType} ${booking.cargoWeight}`, booking.payment ? formatDateTime(booking.payment.paidAt) : "", booking.payment ? String(booking.payment.amountRwf) : "", booking.payment?.status ?? "", booking.status, ""],
               cells: [
                 <span key={`${booking.id}-route`} className="font-semibold">{route}</span>,
                 person?.name ?? "—",
                 truck?.plateNumber ?? "—",
                 formatDate(booking.pickupDate),
                 `${booking.cargoType} · ${booking.cargoWeight}`,
+                booking.payment ? formatDateTime(booking.payment.paidAt) : "—",
+                booking.payment ? booking.payment.amountRwf.toLocaleString("en-RW") : "—",
+                booking.payment?.status ?? "—",
                 <span key={`${booking.id}-status`}><BookingBadge status={booking.status} /></span>,
-                <Link key={`${booking.id}-details`} className="font-semibold text-brand hover:text-brand-dark" href={detailPath(booking)}>View</Link>,
+                <span key={`${booking.id}-details`} className="flex gap-3"><Link className="font-semibold text-brand hover:text-brand-dark" href={detailPath(booking)}>View</Link><Link className="font-semibold text-accent-dark hover:text-brand" href={`/dashboard/tracking/${booking.id}`}>Track</Link></span>,
               ],
             };
           })}
