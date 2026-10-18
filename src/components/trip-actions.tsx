@@ -41,7 +41,7 @@ export function TripActions({ booking }: { booking: Booking }) {
   if (booking.status === "ACCEPTED") {
     return (
       <p className="rounded-xl border border-warn/30 bg-warn-soft px-4 py-3 text-sm text-warn">
-        Waiting for the importer to pay from their wallet before this trip can start.
+        Waiting for the importer to pay before this trip can start.
       </p>
     );
   }

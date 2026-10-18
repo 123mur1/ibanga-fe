@@ -30,7 +30,7 @@ export default function OwnerHistoryPage() {
             </svg>
           }
         />
-        <BookingManagementTable bookings={history} trucks={mine} users={users} counterparty="TRUCK_OWNER" detailPath={(booking) => `/dashboard/owner/trips/${booking.id}`} />
+        <BookingManagementTable bookings={history} trucks={mine} users={users} counterparty="TRUCK_OWNER" detailPath={(booking) => `/dashboard/owner/bookings/${booking.id}`} />
       </DashboardShell>
     </RequireAuth>
   );

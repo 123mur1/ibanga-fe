@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { BookingBadge } from "@/components/status-badge";
-import { DataTable, StatCard, formatDate, formatDateTime } from "@/components/ui";
+import { DataTable, StatCard, ViewLink, formatDate, formatDateTime } from "@/components/ui";
 import type { Booking, Truck, User } from "@/lib/types";
 
 export function BookingManagementTable({
@@ -57,7 +57,7 @@ export function BookingManagementTable({
                 booking.payment ? booking.payment.amountRwf.toLocaleString("en-RW") : "—",
                 booking.payment?.status ?? "—",
                 <span key={`${booking.id}-status`}><BookingBadge status={booking.status} /></span>,
-                <span key={`${booking.id}-details`} className="flex gap-3"><Link className="font-semibold text-brand hover:text-brand-dark" href={detailPath(booking)}>View</Link><Link className="font-semibold text-accent-dark hover:text-brand" href={`/dashboard/tracking/${booking.id}`}>Track</Link></span>,
+                <span key={`${booking.id}-details`} className="flex items-center gap-3"><ViewLink href={detailPath(booking)} label={`View booking ${route}`} /><Link className="font-semibold text-accent-dark hover:text-brand" href={`/dashboard/tracking/${booking.id}`}>Track</Link></span>,
               ],
             };
           })}

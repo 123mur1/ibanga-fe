@@ -6,7 +6,8 @@ import { FormEvent, Suspense, useState } from "react";
 import { AuthShell } from "@/components/auth-shell";
 import { useToast } from "@/components/toast";
 import { Field, inputClass, PrimaryButton } from "@/components/ui";
-import { dashboardPath, useIbanga } from "@/lib/store";
+import { postAuthPath, withNext } from "@/lib/redirect";
+import { useIbanga } from "@/lib/store";
 import type { Role } from "@/lib/types";
 
 function RegisterForm() {
@@ -47,7 +48,7 @@ function RegisterForm() {
       return;
     }
     toast("Account created.", "good");
-    router.push(dashboardPath(role));
+    router.push(postAuthPath(role, params.get("next")));
   }
 
   return (
@@ -439,7 +440,7 @@ function RegisterForm() {
             <span className="h-px flex-1 bg-line" />
           </div>
           <Link
-            href="/login"
+            href={withNext("/login", params.get("next"))}
             className="mt-4 block w-full rounded-xl border border-brand/25 bg-brand-soft/60 px-4 py-2.5 text-center text-sm font-semibold text-brand-dark transition hover:-translate-y-0.5 hover:border-brand/40 hover:bg-brand-soft"
           >
             Log in instead

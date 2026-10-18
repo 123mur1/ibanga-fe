@@ -3,14 +3,17 @@
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { TruckBadge } from "@/components/status-badge";
-import { DataTable, PageHeader, StatCard } from "@/components/ui";
+import { useToast } from "@/components/toast";
+import { ConfirmDialog, DataTable, PageHeader, StatCard } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
 import { ACTIVE_BOOKING_STATUSES } from "@/lib/types";
 import { useState } from "react";
 
 export default function AdminTrucksPage() {
   const { trucks, bookings, setAvailability, deleteTruck } = useIbanga();
+  const toast = useToast();
   const [busyTruckId, setBusyTruckId] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<{ id: string; plateNumber: string } | null>(null);
 
   const available = trucks.filter((t) => t.status === "AVAILABLE").length;
   const heldTruckIds = new Set(
@@ -24,15 +27,16 @@ export default function AdminTrucksPage() {
     setBusyTruckId(id);
     const error = await setAvailability(id, status === "AVAILABLE" ? "UNAVAILABLE" : "AVAILABLE");
     setBusyTruckId(null);
-    if (error) window.alert(error);
+    if (error) toast(error, "bad");
+    else toast(`Truck ${status === "AVAILABLE" ? "disabled" : "enabled"}.`, "good");
   }
 
   async function removeTruck(id: string, plateNumber: string) {
-    if (!window.confirm(`Remove truck ${plateNumber}? This cannot be undone.`)) return;
     setBusyTruckId(id);
     const error = await deleteTruck(id);
     setBusyTruckId(null);
-    if (error) window.alert(error);
+    if (error) toast(error, "bad");
+    else toast(`Truck ${plateNumber} was removed.`, "good");
   }
 
   return (
@@ -84,7 +88,7 @@ export default function AdminTrucksPage() {
                   <button
                     type="button"
                     disabled={busyTruckId === truck.id || truckIdsWithHistory.has(truck.id)}
-                    onClick={() => void removeTruck(truck.id, truck.plateNumber)}
+                    onClick={() => setRemoving({ id: truck.id, plateNumber: truck.plateNumber })}
                     className="rounded-lg border border-bad/20 px-2.5 py-1.5 text-xs font-semibold text-bad hover:bg-bad-soft disabled:opacity-60"
                   >
                     {truckIdsWithHistory.has(truck.id) ? "Has bookings" : "Remove"}
@@ -94,6 +98,21 @@ export default function AdminTrucksPage() {
             }))}
           />
         </div>
+
+        {removing ? (
+          <ConfirmDialog
+            title="Remove truck"
+            message={`Remove truck ${removing.plateNumber}? This cannot be undone.`}
+            confirmLabel="Remove truck"
+            tone="danger"
+            busy={busyTruckId === removing.id}
+            onConfirm={() => {
+              const target = removing;
+              void removeTruck(target.id, target.plateNumber).finally(() => setRemoving(null));
+            }}
+            onCancel={() => setRemoving(null)}
+          />
+        ) : null}
       </DashboardShell>
     </RequireAuth>
   );

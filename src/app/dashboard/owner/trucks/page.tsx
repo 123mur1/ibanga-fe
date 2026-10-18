@@ -1,34 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { TruckBadge } from "@/components/status-badge";
-import { DataTable, PageHeader, StatCard } from "@/components/ui";
+import { TruckThumb } from "@/components/photos";
+import { DataTable, PageHeader, StatCard, ViewLink } from "@/components/ui";
+import { formatRwf } from "@/lib/payments";
 import { useIbanga } from "@/lib/store";
+import { ACTIVE_BOOKING_STATUSES } from "@/lib/types";
+
+const truckIcon = (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M3 6h11v10H3zM14 10h4l3 3v3h-7z" />
+    <circle cx="7.5" cy="17.5" r="1.8" />
+    <circle cx="17.5" cy="17.5" r="1.8" />
+  </svg>
+);
 
 export default function OwnerTrucksPage() {
-  const { trucks, trucksLoading, deleteTruck, setAvailability } =
-    useIbanga();
-  const [error, setError] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
-
-  async function onDelete(id: string) {
-    setError(null);
-    const err = await deleteTruck(id);
-    if (err) setError(err);
-  }
-
-  async function onToggleAvailability(id: string, status: "AVAILABLE" | "UNAVAILABLE") {
-    setError(null);
-    setBusyId(id);
-    const err = await setAvailability(id, status === "AVAILABLE" ? "UNAVAILABLE" : "AVAILABLE");
-    setBusyId(null);
-    if (err) setError(err);
-  }
-
-  const availableCount = trucks.filter((t) => t.status === "AVAILABLE").length;
+  const { currentUser, trucks, bookings, trucksLoading } = useIbanga();
+  const mine = trucks.filter((truck) => truck.ownerId === currentUser?.id);
+  const available = mine.filter((truck) => truck.status === "AVAILABLE").length;
+  const onTrip = new Set(
+    bookings.filter((booking) => ACTIVE_BOOKING_STATUSES.includes(booking.status)).map((booking) => booking.truckId),
+  );
+  const totalCapacity = mine.reduce((sum, truck) => sum + truck.capacity, 0);
 
   return (
     <RequireAuth role="TRUCK_OWNER">
@@ -36,14 +33,8 @@ export default function OwnerTrucksPage() {
         <PageHeader
           eyebrow="Fleet"
           title="My trucks"
-          subtitle={`${availableCount} of ${trucks.length} currently available to importers.`}
-          icon={
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M3 6h11v10H3zM14 10h4l3 3v3h-7z" />
-              <circle cx="7.5" cy="17.5" r="1.8" />
-              <circle cx="17.5" cy="17.5" r="1.8" />
-            </svg>
-          }
+          subtitle={`${available} of ${mine.length} currently available to importers.`}
+          icon={truckIcon}
           actions={
             <Link
               href="/dashboard/owner/trucks/new"
@@ -57,38 +48,59 @@ export default function OwnerTrucksPage() {
           }
         />
 
-        {error ? (
-          <p className="mt-4 flex items-center gap-2 rounded-xl border border-bad/20 bg-bad-soft px-3.5 py-2.5 text-sm text-bad">
-            {error}
-          </p>
-        ) : null}
-
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          <StatCard label="Fleet vehicles" value={trucks.length} hint="In your account" />
-          <StatCard label="Available" value={availableCount} hint="Ready to book" accent="good" />
-          <StatCard label="Unavailable" value={trucks.length - availableCount} hint="On a trip or paused" accent="warn" />
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard label="Fleet vehicles" value={mine.length} hint="In your account" icon={truckIcon} />
+          <StatCard label="Available" value={available} hint="Ready to book" accent="good" />
+          <StatCard label="On a booking" value={mine.filter((truck) => onTrip.has(truck.id)).length} hint="Held by an importer" accent="accent" />
+          <StatCard label="Total capacity" value={`${totalCapacity} t`} hint="Across the fleet" accent="warn" />
         </div>
+
         <div className="mt-5">
-          {trucksLoading ? <p className="text-muted">Loading your fleet…</p> : (
+          {trucksLoading ? (
+            <p className="text-muted">Loading your fleet…</p>
+          ) : (
             <DataTable
-              columns={[{ label: "Vehicle" }, { label: "Capacity" }, { label: "Location" }, { label: "Route" }, { label: "Price" }, { label: "Availability" }, { label: "Actions" }]}
+              columns={[
+                { label: "Vehicle" },
+                { label: "Capacity" },
+                { label: "Location" },
+                { label: "Route" },
+                { label: "Price" },
+                { label: "Availability" },
+                { label: "Details", className: "text-right" },
+              ]}
+              emptyMessage="You have not added any trucks yet."
               filterLabel="All availability"
-              rows={trucks.map((truck) => ({
+              exportName="ibanga-my-trucks"
+              rows={mine.map((truck) => ({
                 id: truck.id,
                 searchText: `${truck.plateNumber} ${truck.truckType} ${truck.currentLocation} ${truck.preferredRoute}`,
                 filterValue: truck.status,
-                exportValues: [truck.plateNumber, truck.truckType, `${truck.capacity} tons`, truck.currentLocation, truck.preferredRoute, truck.priceRwf == null ? "" : `RWF ${truck.priceRwf.toLocaleString()}`, truck.status],
-                cells: [
-                  <span key={`${truck.id}-vehicle`}><strong className="block">{truck.plateNumber}</strong><span className="text-xs text-muted">{truck.truckType}</span></span>,
+                extraFilterValue: truck.truckType,
+                exportValues: [
+                  truck.plateNumber,
                   `${truck.capacity} tons`,
                   truck.currentLocation,
                   truck.preferredRoute,
-                  truck.priceRwf == null ? "Price not set" : `RWF ${truck.priceRwf.toLocaleString()}`,
+                  truck.priceRwf == null ? "" : formatRwf(truck.priceRwf),
+                  truck.status,
+                  "",
+                ],
+                cells: [
+                  <div key={`${truck.id}-vehicle`} className="flex min-w-48 items-center gap-3">
+                    <TruckThumb photos={truck.photos} alt={truck.plateNumber} className="h-12 w-16 shrink-0 rounded-lg" />
+                    <span>
+                      <strong className="block">{truck.plateNumber}</strong>
+                      <span className="text-xs text-muted">{truck.truckType}</span>
+                    </span>
+                  </div>,
+                  `${truck.capacity} tons`,
+                  truck.currentLocation,
+                  truck.preferredRoute,
+                  truck.priceRwf == null ? "Price not set" : formatRwf(truck.priceRwf),
                   <span key={`${truck.id}-status`}><TruckBadge status={truck.status} /></span>,
-                  <div key={`${truck.id}-actions`} className="flex flex-wrap gap-1.5">
-                    <Link href={`/dashboard/owner/trucks/${truck.id}/edit`} className="rounded-lg border border-line px-2 py-1 text-xs font-semibold text-navy">Edit</Link>
-                    <button type="button" disabled={busyId === truck.id} onClick={() => void onToggleAvailability(truck.id, truck.status)} className="rounded-lg border border-line px-2 py-1 text-xs font-semibold text-navy disabled:opacity-50">{truck.status === "AVAILABLE" ? "Pause" : "Activate"}</button>
-                    <button type="button" onClick={() => void onDelete(truck.id)} className="rounded-lg border border-bad/20 px-2 py-1 text-xs font-semibold text-bad">Delete</button>
+                  <div key={`${truck.id}-actions`} className="flex justify-end">
+                    <ViewLink href={`/dashboard/owner/trucks/${truck.id}`} label={`View truck ${truck.plateNumber}`} />
                   </div>,
                 ],
               }))}

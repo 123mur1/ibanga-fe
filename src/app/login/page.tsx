@@ -6,25 +6,8 @@ import { FormEvent, Suspense, useEffect, useState } from "react";
 import { AuthShell } from "@/components/auth-shell";
 import { Field, inputClass, PrimaryButton } from "@/components/ui";
 import { demoAccounts, demoEnabled } from "@/lib/demo";
-import { dashboardPath, useIbanga } from "@/lib/store";
-import type { Role } from "@/lib/types";
-
-function getPostLoginPath(role: Role, requestedPath: string | null) {
-  const roleHome = dashboardPath(role);
-  if (requestedPath === roleHome || requestedPath?.startsWith(`${roleHome}/`)) {
-    return requestedPath;
-  }
-  if (requestedPath === "/dashboard/wallet" || requestedPath === "/trucks") {
-    return requestedPath;
-  }
-  if (role === "IMPORTER" && requestedPath && /^\/trucks\/[^/]+$/.test(requestedPath)) {
-    return requestedPath;
-  }
-  if (role === "IMPORTER" && requestedPath === "/bookings/new") {
-    return requestedPath;
-  }
-  return roleHome;
-}
+import { postAuthPath, withNext } from "@/lib/redirect";
+import { useIbanga } from "@/lib/store";
 
 function LoginForm() {
   const { login, currentUser } = useIbanga();
@@ -38,36 +21,54 @@ function LoginForm() {
 
   useEffect(() => {
     if (currentUser) {
-      router.replace(getPostLoginPath(currentUser.role, params.get("next")));
+      router.replace(postAuthPath(currentUser.role, params.get("next")));
     }
   }, [currentUser, params, router]);
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function signIn(emailValue: string, passwordValue: string) {
     setBusy(true);
     setError(null);
-    const result = await login(email, password);
+    const result = await login(emailValue, passwordValue);
     setBusy(false);
     if (result.error || !result.user) {
       setError(result.error ?? "Could not sign in.");
       return;
     }
     router.push(
-      getPostLoginPath(result.user.role, params.get("next")),
+      postAuthPath(result.user.role, params.get("next")),
     );
   }
 
+  function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    void signIn(email, password);
+  }
+
+  function signInAsDemo(account: { email: string; password: string }) {
+    setEmail(account.email);
+    setPassword(account.password);
+    void signIn(account.email, account.password);
+  }
+
   return (
-    <div className="mx-auto w-full max-w-md">
-      <div className="overflow-hidden rounded-xl border border-line bg-card shadow-soft">
-        <div className="border-b-4 border-brand px-8 pb-5 pt-8">
-          <p className="text-sm font-semibold text-brand">iBanga</p>
-          <h1 className="mt-1 text-2xl font-semibold text-navy">Welcome back</h1>
-          <p className="mt-1 text-sm text-muted">Sign in to manage bookings, trucks, and payments.</p>
+    <div className="mx-auto flex max-h-full min-h-0 w-full max-w-md flex-col">
+      <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-card">
+        <div className="flex shrink-0 items-center gap-4 bg-brand px-6 py-4 text-white">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M3 6h11v10H3zM14 10h4l3 3v3h-7z" />
+              <circle cx="7.5" cy="17.5" r="1.8" />
+              <circle cx="17.5" cy="17.5" r="1.8" />
+            </svg>
+          </span>
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight">Welcome back</h1>
+            <p className="text-sm text-white/80">Sign in to manage bookings, trucks, and payments.</p>
+          </div>
         </div>
 
-        <div className="p-8">
-          <form onSubmit={onSubmit} className="space-y-5">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
+          <form onSubmit={onSubmit} className="shrink-0 space-y-4">
             <Field label="Email">
               <div className="relative">
                 <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-muted">
@@ -174,21 +175,6 @@ function LoginForm() {
               </Link>
             </div>
 
-            {demoEnabled ? (
-              <section className="rounded-lg border border-line bg-background px-3 py-3">
-                <p className="text-sm font-semibold text-navy">Demo accounts</p>
-                <p className="mt-1 text-sm text-muted">Local data only. No server is required.</p>
-                <ul className="mt-2 space-y-1.5 text-sm text-navy">
-                  {demoAccounts.map((account) => (
-                    <li key={account.email} className="flex flex-wrap justify-between gap-x-3 gap-y-0.5">
-                      <span className="font-medium">{account.role}</span>
-                      <span className="text-muted">{account.email} · {account.password}</span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
-
             {error ? (
               <p className="flex items-center gap-2 rounded-xl border border-bad/20 bg-bad-soft px-3.5 py-2.5 text-sm text-bad">
                 <svg
@@ -248,17 +234,40 @@ function LoginForm() {
             </PrimaryButton>
           </form>
 
-          <div className="mt-6 flex items-center gap-3">
-            <span className="h-px flex-1 bg-line" />
-            <span className="text-xs font-medium text-muted">New to iBanga?</span>
-            <span className="h-px flex-1 bg-line" />
-          </div>
-          <Link
-            href="/register"
-            className="mt-4 block w-full rounded-xl border border-brand/25 bg-brand-soft/60 px-4 py-2.5 text-center text-sm font-semibold text-brand-dark transition hover:-translate-y-0.5 hover:border-brand/40 hover:bg-brand-soft"
-          >
-            Create an account
-          </Link>
+          {demoEnabled ? (
+            <section className="mt-4 flex min-h-0 flex-col rounded-xl border border-line bg-background/70 p-3">
+              <div className="flex shrink-0 items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-navy">Demo accounts</p>
+                <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-semibold text-brand-dark">Local data</span>
+              </div>
+              <p className="mt-1 shrink-0 text-xs text-muted">Pick a role to sign in instantly. No server is required.</p>
+              <ul className="mt-2 min-h-14 space-y-2 overflow-y-auto pr-1">
+                {demoAccounts.map((account) => (
+                  <li key={account.email} className="flex items-center justify-between gap-3 rounded-lg border border-line bg-white px-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-navy">{account.role}</p>
+                      <p className="truncate text-xs text-muted">{account.email}</p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => signInAsDemo(account)}
+                      className="shrink-0 rounded-lg bg-brand-soft px-3 py-1.5 text-xs font-semibold text-brand-dark transition hover:bg-brand hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50"
+                    >
+                      Use this
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          <p className="mt-4 shrink-0 text-center text-sm text-muted">
+            New to iBanga?{" "}
+            <Link href={withNext("/register", params.get("next"))} className="font-semibold text-brand hover:text-brand-dark">
+              Create an account
+            </Link>
+          </p>
         </div>
       </div>
     </div>
@@ -267,7 +276,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <AuthShell showImage={false}>
+    <AuthShell image="/photos/ibanga-container-highway.png" fitScreen>
       <Suspense>
         <LoginForm />
       </Suspense>

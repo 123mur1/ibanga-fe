@@ -83,7 +83,7 @@ export const seedNotifications: AppNotification[] = [
     userId: "u-owner",
     title: "New booking paid",
     body: "Kigali dry port to Mombasa is paid and waiting for you to confirm the truck.",
-    href: "/dashboard/owner/trips/b1",
+    href: "/dashboard/owner/bookings/b1",
     tone: "warn",
     read: false,
     createdAt: "2026-10-07T08:12:00.000Z",

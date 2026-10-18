@@ -19,11 +19,15 @@ import {
 import {
   commissionFor,
   demoAddTruck,
+  demoAddReview,
+  demoAddUser,
   demoAuthenticate,
   demoCreateBooking,
   demoDeposit,
   demoEnabled,
   demoPayBooking,
+  demoProcessRefund,
+  demoRequestRefund,
   demoRegister,
   demoReportProblem,
   demoResolveDispute,
@@ -41,7 +45,10 @@ import type {
   Booking,
   BookingPayment,
   BookingStatus,
+  CheckoutDetails,
   Dispute,
+  RefundRequest,
+  Review,
   Role,
   Truck,
   TruckStatus,
@@ -142,6 +149,8 @@ type Store = {
   users: User[];
   bookings: Booking[];
   disputes: Dispute[];
+  refunds: RefundRequest[];
+  reviews: Review[];
   trucks: Truck[];
   trucksLoading: boolean;
   walletBalance: number;
@@ -161,6 +170,15 @@ type Store = {
     role: Exclude<Role, "ADMIN">;
   }) => Promise<string | null>;
   logout: () => void;
+  addUser: (input: {
+    name: string;
+    email: string;
+    phone: string;
+    role: Role;
+    location: string;
+    company: string;
+    password: string;
+  }) => Promise<string | null>;
   updateProfile: (patch: Partial<Pick<User, "name" | "phone" | "location" | "company" | "photo">>) => Promise<string | null>;
   fetchTruck: (id: string) => Promise<Truck>;
   addTruck: (input: NewTruckInput) => Promise<string | null>;
@@ -186,7 +204,13 @@ type Store = {
     branchCode?: string;
     accountNumber?: string;
   }) => Promise<string | null>;
-  payBooking: (bookingId: string) => Promise<string | null>;
+  payBooking: (bookingId: string, checkout?: CheckoutDetails) => Promise<string | null>;
+  addReview: (truckId: string, input: { rating: number; comment: string }) => Promise<string | null>;
+  requestRefund: (
+    bookingId: string,
+    input: { reason: string; details: string; amountRwf: number; refundTo: string },
+  ) => Promise<string | null>;
+  processRefund: (refundId: string, decision: "APPROVED" | "REJECTED", note: string) => Promise<string | null>;
 };
 
 const StoreContext = createContext<Store | null>(null);
@@ -257,6 +281,8 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
   const [users, setUsers] = useState<User[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [disputes, setDisputes] = useState<Dispute[]>([]);
+  const [refunds, setRefunds] = useState<RefundRequest[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [trucks, setTrucks] = useState<Truck[]>([]);
   const [trucksLoading, setTrucksLoading] = useState(true);
   const [walletBalance, setWalletBalance] = useState(0);
@@ -274,6 +300,8 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     setUsers(session.users);
     setBookings(session.bookings);
     setDisputes(session.disputes);
+    setRefunds(session.refunds ?? []);
+    setReviews(session.reviews ?? []);
     setTrucks(session.trucks);
     setWalletBalance(user ? walletBalanceFor(session, user.id) : 0);
     setTransactions(user ? session.transactions.filter((transaction) => transaction.userId === user.id) : []);
@@ -286,8 +314,12 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
   const loadPublicTrucks = useCallback(async () => {
     setTrucksLoading(true);
     try {
-      const records = await api<ApiTruck[]>("/trucks");
+      const [records, reviewRecords] = await Promise.all([
+        api<ApiTruck[]>("/trucks"),
+        api<Review[]>("/reviews").catch(() => [] as Review[]),
+      ]);
       setTrucks(records.map(mapTruck));
+      setReviews(reviewRecords);
       setConnectionError(null);
     } catch (error) {
       const message = errorMessage(error, "Could not load available trucks.");
@@ -302,7 +334,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     setTrucksLoading(true);
     try {
       const truckPath = user.role === "TRUCK_OWNER" ? "/trucks?mine=true" : "/trucks";
-      const [truckRecords, bookingRecords, disputeRecords, wallet, adminUsers, adminWalletAccounts, commissionSummary] =
+      const [truckRecords, bookingRecords, disputeRecords, wallet, adminUsers, adminWalletAccounts, commissionSummary, refundRecords, reviewRecords] =
         await Promise.all([
           api<ApiTruck[]>(truckPath),
           api<ApiBooking[]>("/bookings"),
@@ -315,6 +347,8 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
           user.role === "ADMIN"
             ? api<AdminCommission>("/wallet/admin/commission")
             : Promise.resolve(null),
+          api<RefundRequest[]>("/refunds").catch(() => [] as RefundRequest[]),
+          api<Review[]>("/reviews").catch(() => [] as Review[]),
         ]);
 
       const mappedBookings = bookingRecords.map(mapBooking);
@@ -342,6 +376,8 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
       setUsers(allUsers);
       setBookings(mappedBookings);
       setDisputes(mappedDisputes);
+      setRefunds(refundRecords);
+      setReviews(reviewRecords);
       setTrucks(allTrucks);
       setWalletBalance(wallet.balanceRwf);
       setTransactions(
@@ -372,6 +408,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         setUsers([]);
         setBookings([]);
         setDisputes([]);
+        setRefunds([]);
         setTrucks([]);
         setWalletBalance(0);
         setTransactions([]);
@@ -551,6 +588,25 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     setAdminCommission(null);
     void loadPublicTrucks();
   }, [loadPublicTrucks]);
+
+  const addUser = useCallback<Store["addUser"]>(async (input) => {
+    if (demoEnabled && demoSession.current && currentUser) {
+      const result = demoAddUser(demoSession.current, input);
+      if ("error" in result) return result.error;
+      publishDemo(result.session, currentUser.id);
+      return null;
+    }
+    try {
+      await api("/users", {
+        method: "POST",
+        body: JSON.stringify(input),
+      });
+      await refreshAfterMutation();
+      return null;
+    } catch (error) {
+      return errorMessage(error, "Could not create the account.");
+    }
+  }, [currentUser, publishDemo, refreshAfterMutation]);
 
   const updateProfile = useCallback<Store["updateProfile"]>(async (patch) => {
     if (!currentUser) return "Sign in to update your profile.";
@@ -810,9 +866,9 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentUser, publishDemo, refreshAfterMutation]);
 
-  const payBooking = useCallback<Store["payBooking"]>(async (bookingId) => {
+  const payBooking = useCallback<Store["payBooking"]>(async (bookingId, checkout) => {
     if (demoEnabled && demoSession.current && currentUser) {
-      const result = demoPayBooking(demoSession.current, currentUser, bookingId);
+      const result = demoPayBooking(demoSession.current, currentUser, bookingId, checkout);
       if ("error" in result) return result.error;
       publishDemo(result.session, currentUser.id);
       return null;
@@ -820,11 +876,63 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     try {
       await api(`/wallet/bookings/${encodeURIComponent(bookingId)}/pay`, {
         method: "POST",
+        body: checkout ? JSON.stringify(checkout) : undefined,
       });
       await refreshAfterMutation();
       return null;
     } catch (error) {
       return errorMessage(error, "Could not pay for the booking.");
+    }
+  }, [currentUser, publishDemo, refreshAfterMutation]);
+
+  const addReview = useCallback<Store["addReview"]>(async (truckId, input) => {
+    if (demoEnabled && demoSession.current && currentUser) {
+      const result = demoAddReview(demoSession.current, currentUser, truckId, input);
+      if ("error" in result) return result.error;
+      publishDemo(result.session, currentUser.id);
+      return null;
+    }
+    try {
+      await api(`/trucks/${encodeURIComponent(truckId)}/reviews`, { method: "POST", body: JSON.stringify(input) });
+      await refreshAfterMutation();
+      return null;
+    } catch (error) {
+      return errorMessage(error, "Could not post your review.");
+    }
+  }, [currentUser, publishDemo, refreshAfterMutation]);
+
+  const requestRefund = useCallback<Store["requestRefund"]>(async (bookingId, input) => {
+    if (demoEnabled && demoSession.current && currentUser) {
+      const result = demoRequestRefund(demoSession.current, currentUser, bookingId, input);
+      if ("error" in result) return result.error;
+      publishDemo(result.session, currentUser.id);
+      return null;
+    }
+    try {
+      await api("/refunds", { method: "POST", body: JSON.stringify({ bookingId, ...input }) });
+      await refreshAfterMutation();
+      return null;
+    } catch (error) {
+      return errorMessage(error, "Could not send the refund request.");
+    }
+  }, [currentUser, publishDemo, refreshAfterMutation]);
+
+  const processRefund = useCallback<Store["processRefund"]>(async (refundId, decision, note) => {
+    if (demoEnabled && demoSession.current && currentUser) {
+      const result = demoProcessRefund(demoSession.current, refundId, decision, note);
+      if ("error" in result) return result.error;
+      publishDemo(result.session, currentUser.id);
+      return null;
+    }
+    try {
+      await api(`/refunds/${encodeURIComponent(refundId)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: decision, ownerNote: note }),
+      });
+      await refreshAfterMutation();
+      return null;
+    } catch (error) {
+      return errorMessage(error, "Could not process the refund request.");
     }
   }, [currentUser, publishDemo, refreshAfterMutation]);
 
@@ -835,6 +943,8 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     users,
     bookings,
     disputes,
+    refunds,
+    reviews,
     trucks,
     trucksLoading,
     walletBalance,
@@ -846,6 +956,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     resetPassword,
     register,
     logout,
+    addUser,
     updateProfile,
     fetchTruck,
     addTruck,
@@ -861,13 +972,16 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     depositFunds,
     withdrawFunds,
     payBooking,
+    addReview,
+    requestRefund,
+    processRefund,
   }), [
-    ready, connectionError, currentUser, users, bookings, disputes, trucks,
+    ready, connectionError, currentUser, users, bookings, disputes, refunds, reviews, trucks,
     trucksLoading, walletBalance, transactions, walletAccounts, adminCommission, login, requestPasswordReset,
-    resetPassword, register, logout, updateProfile, fetchTruck, addTruck,
+    resetPassword, register, logout, addUser, updateProfile, fetchTruck, addTruck,
     updateTruck, deleteTruck, setAvailability, createBooking, setBookingStatus,
     reportProblem, resolveDispute, setUserActive, deleteUser,
-    depositFunds, withdrawFunds, payBooking,
+    depositFunds, withdrawFunds, payBooking, addReview, requestRefund, processRefund,
   ]);
 
   return (

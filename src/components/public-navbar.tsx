@@ -11,7 +11,7 @@ import { dashboardPath, useIbanga } from "@/lib/store";
 const links = [
   { href: "/#home", label: "Home" },
   { href: "/#available-trucks", label: "Available trucks" },
-  { href: "/#about", label: "About us" },
+  { href: "/about", label: "About us" },
   { href: "/#contact", label: "Contacts" },
 ];
 

@@ -20,7 +20,8 @@ export function RequireAuth({
   useEffect(() => {
     if (!ready) return;
     if (!currentUser) {
-      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+      const here = `${pathname}${window.location.search}`;
+      router.replace(`/login?next=${encodeURIComponent(here)}`);
       return;
     }
     if (role && currentUser.role !== role) {

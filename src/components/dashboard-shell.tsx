@@ -15,19 +15,19 @@ type NavItem = { href: string; label: string; icon: string };
 const nav: Record<Role, NavItem[]> = {
   IMPORTER: [
     { href: "/dashboard/importer", label: "Overview", icon: "grid" },
-    { href: "/trucks", label: "Find trucks", icon: "search" },
     { href: "/dashboard/importer/bookings", label: "My bookings", icon: "calendar" },
     { href: "/dashboard/tracking", label: "Live cargo", icon: "pin" },
-    { href: "/dashboard/wallet", label: "Wallet", icon: "wallet" },
+    { href: "/dashboard/importer/payments", label: "Payments", icon: "card" },
+    { href: "/dashboard/importer/refunds", label: "Refunds", icon: "refund" },
   ],
   TRUCK_OWNER: [
     { href: "/dashboard/owner", label: "Dashboard", icon: "grid" },
     { href: "/dashboard/owner/trucks", label: "My trucks", icon: "truck" },
-    { href: "/dashboard/owner/requests", label: "Requests", icon: "inbox" },
-    { href: "/dashboard/owner/trips", label: "Active trips", icon: "route" },
+    { href: "/dashboard/owner/bookings", label: "Bookings", icon: "calendar" },
     { href: "/dashboard/owner/history", label: "History", icon: "history" },
     { href: "/dashboard/tracking", label: "Live cargo", icon: "pin" },
-    { href: "/dashboard/wallet", label: "Wallet", icon: "wallet" },
+    { href: "/dashboard/owner/payments", label: "Payments", icon: "card" },
+    { href: "/dashboard/owner/refunds", label: "Refunds", icon: "refund" },
   ],
   ADMIN: [
     { href: "/dashboard/admin", label: "Dashboard", icon: "grid" },
@@ -35,9 +35,10 @@ const nav: Record<Role, NavItem[]> = {
     { href: "/dashboard/admin/trucks", label: "Trucks", icon: "truck" },
     { href: "/dashboard/admin/bookings", label: "Bookings", icon: "calendar" },
     { href: "/dashboard/admin/disputes", label: "Disputes", icon: "alert" },
+    { href: "/dashboard/admin/payments", label: "Payments", icon: "card" },
     { href: "/dashboard/admin/wallets", label: "Wallets", icon: "wallet" },
     { href: "/dashboard/tracking", label: "Live cargo", icon: "pin" },
-    { href: "/dashboard/wallet", label: "Withdraw funds", icon: "wallet" },
+    { href: "/dashboard/wallet", label: "Wallet", icon: "wallet" },
   ],
 };
 
@@ -134,6 +135,19 @@ const iconPaths: Record<string, React.ReactNode> = {
       <path d="M12 17.5h.01" />
     </>
   ),
+  card: (
+    <>
+      <rect x="2.5" y="5" width="19" height="14" rx="2.5" />
+      <path d="M2.5 9.5h19M6.5 15h4" />
+    </>
+  ),
+  refund: (
+    <>
+      <path d="M3 12a9 9 0 1 0 3-6.7" />
+      <path d="M3 4v5h5" />
+      <path d="M12 8v4l2.5 1.5" />
+    </>
+  ),
   home: (
     <>
       <path d="m3 11 9-8 9 8" />
@@ -180,14 +194,6 @@ function roleLabel(role: Role) {
   if (role === "TRUCK_OWNER") return "Truck owner";
   if (role === "ADMIN") return "Admin";
   return "Importer";
-}
-
-function roleTip(role: Role) {
-  if (role === "TRUCK_OWNER")
-    return "Confirm the truck to move the payment into escrow. Log departure, rests, and a position every 2 km.";
-  if (role === "ADMIN")
-    return "Escrow stays held until the owner confirms delivery and the importer confirms receipt. Otherwise refund it.";
-  return "You pay when you book. Funds move into escrow after the owner confirms the truck.";
 }
 
 export function DashboardShell({
@@ -278,33 +284,6 @@ export function DashboardShell({
               );
             })}
           </nav>
-
-          {!collapsed ? (
-            <div className="mx-3 mb-3 rounded-lg bg-background px-3 py-3">
-              <p className="text-sm font-semibold text-navy">How payment works</p>
-              <p className="mt-1 text-sm leading-5 text-muted">{roleTip(role)}</p>
-            </div>
-          ) : null}
-
-          <div className={`mt-auto border-t border-line p-3 ${collapsed ? "px-2" : ""}`}>
-            <Link
-              href="/"
-              title={collapsed ? "Home" : undefined}
-              className={`flex items-center rounded-xl py-2.5 text-sm font-medium text-muted transition hover:bg-background hover:text-navy ${collapsed ? "justify-center px-2" : "gap-3 px-3.5"}`}
-            >
-              <NavIcon name="home" />
-              {!collapsed ? "Home" : null}
-            </Link>
-            <button
-              type="button"
-              title={collapsed ? "Log out" : undefined}
-              onClick={handleLogout}
-              className={`mt-1 flex w-full items-center rounded-xl py-2.5 text-left text-sm font-medium text-bad transition hover:bg-bad-soft ${collapsed ? "justify-center px-2" : "gap-3 px-3.5"}`}
-            >
-              <NavIcon name="logout" />
-              {!collapsed ? "Log out" : null}
-            </button>
-          </div>
         </aside>
 
         <div className="min-w-0 flex-1">
@@ -421,24 +400,6 @@ export function DashboardShell({
                     );
                   })}
                 </nav>
-                <div className="space-y-1 border-t border-line px-3 py-4">
-                  <Link
-                    href="/"
-                    onClick={() => setOpen(false)}
-                    className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium text-navy hover:bg-background"
-                  >
-                    <NavIcon name="home" />
-                    Home
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-medium text-bad hover:bg-bad-soft"
-                  >
-                    <NavIcon name="logout" />
-                    Log out
-                  </button>
-                </div>
               </div>
             </div>
           ) : null}

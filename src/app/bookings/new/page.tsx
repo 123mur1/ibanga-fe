@@ -38,7 +38,7 @@ function BookingForm() {
   const [form, setForm] = useState({
     cargoType: "",
     cargoDescription: "",
-    cargoWeight: "",
+    cargoWeight: params.get("quantity") ?? "",
     pickupLocation: "",
     destination: "",
     pickupDate: "",
@@ -67,7 +67,7 @@ function BookingForm() {
         toast(err, "bad");
         return;
       }
-      toast("Request sent. Pay from your wallet after the owner confirms the truck.", "good");
+      toast("Request sent. Pay after the owner confirms the truck.", "good");
       router.push("/dashboard/importer/bookings");
     } finally {
       setSubmitting(false);
@@ -83,7 +83,7 @@ function BookingForm() {
       <div className="rounded-xl border border-line bg-background p-5 text-center">
         <p className="font-semibold text-navy">Choose a truck to continue</p>
         <p className="mt-1 text-sm text-muted">Select an available truck before starting a booking.</p>
-        <Link href="/trucks" className="mt-4 inline-flex text-sm font-semibold text-brand hover:text-brand-dark">
+        <Link href="/" className="mt-4 inline-flex text-sm font-semibold text-brand hover:text-brand-dark">
           Browse available trucks
         </Link>
       </div>
@@ -197,7 +197,7 @@ function BookingForm() {
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-bold text-white">3</span>
                 <div>
                   <h2 id="payment-heading" className="text-xl font-semibold text-navy">Payment follows confirmation</h2>
-                  <p className="mt-1 max-w-xl text-sm text-muted">The owner confirms the truck first. You then pay the listed price from your wallet. Funds stay with iBanga until delivery is confirmed.</p>
+                  <p className="mt-1 max-w-xl text-sm text-muted">The owner confirms the truck first. You then pay the listed price by card or mobile money. Funds stay with iBanga until delivery is confirmed.</p>
                 </div>
               </div>
               <p className="text-2xl font-semibold tabular-nums text-navy">{truck.priceRwf ? formatRwf(truck.priceRwf) : "Price unavailable"}</p>
@@ -214,7 +214,7 @@ function BookingForm() {
           {error ? <p role="alert" className="mt-5 rounded-xl border border-bad/20 bg-bad-soft px-4 py-3 text-sm text-bad">{error}</p> : null}
 
           <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <Link href="/trucks" className="rounded-xl px-4 py-3 text-center text-sm font-semibold text-muted transition hover:bg-background hover:text-navy">Back to trucks</Link>
+            <Link href="/" className="rounded-xl px-4 py-3 text-center text-sm font-semibold text-muted transition hover:bg-background hover:text-navy">Back to trucks</Link>
             <PrimaryButton className="w-full py-3 sm:w-auto sm:min-w-60" type="submit" disabled={submitting}>
               {submitting ? "Sending request…" : "Send request"}
               {!submitting ? <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" /></svg> : null}
@@ -233,10 +233,10 @@ export default function NewBookingPage() {
             <p className="text-sm font-semibold text-brand">Booking request</p>
             <h1 className="text-2xl font-semibold text-navy sm:text-3xl">Request a freight booking</h1>
             <p className="mt-1 max-w-2xl text-base text-muted">
-              Share the cargo and route. You pay from your wallet after the owner confirms the truck.
+              Share the cargo and route. You pay after the owner confirms the truck.
             </p>
           </div>
-          <Link href="/trucks" className="text-sm font-semibold text-brand">Cancel</Link>
+          <Link href="/" className="text-sm font-semibold text-brand">Cancel</Link>
         </div>
         <Suspense fallback={null}>
           <BookingForm />

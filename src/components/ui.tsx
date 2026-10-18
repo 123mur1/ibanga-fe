@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { downloadExcel } from "@/lib/excel";
 
 export function Field({
@@ -48,6 +49,259 @@ export function GhostButton({
     >
       {children}
     </button>
+  );
+}
+
+export function Modal({
+  title,
+  description,
+  onClose,
+  children,
+  footer,
+  wide = false,
+}: {
+  title: string;
+  description?: string;
+  onClose: () => void;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+  wide?: boolean;
+}) {
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 py-8 sm:items-center">
+      <div className="fixed inset-0 bg-navy/45 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className={`animate-fade-in relative w-full ${wide ? "max-w-2xl" : "max-w-lg"} overflow-hidden rounded-2xl border border-line bg-white shadow-card`}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-line bg-brand px-5 py-4 text-white sm:px-6">
+          <div>
+            <h2 className="font-display text-xl font-semibold">{title}</h2>
+            {description ? <p className="mt-1 text-sm text-white/80">{description}</p> : null}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close dialog"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/15 text-white transition hover:bg-white/25"
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true">
+              <path d="M6 6l12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div className="max-h-[65vh] overflow-y-auto px-5 py-5 sm:px-6">{children}</div>
+        {footer ? (
+          <div className="flex flex-wrap justify-end gap-3 border-t border-line bg-background/60 px-5 py-4 sm:px-6">
+            {footer}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+export function ViewLink({ href, label = "View details" }: { href: string; label?: string }) {
+  return (
+    <Link
+      href={href}
+      aria-label={label}
+      title={label}
+      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-white text-brand transition hover:border-brand hover:bg-brand hover:text-white"
+    >
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
+        <circle cx="12" cy="12" r="3" />
+      </svg>
+    </Link>
+  );
+}
+
+export function ConfirmDialog({
+  title,
+  message,
+  confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
+  tone = "brand",
+  busy = false,
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  tone?: "brand" | "danger";
+  busy?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <Modal
+      title={title}
+      onClose={onCancel}
+      footer={
+        <>
+          <GhostButton type="button" onClick={onCancel} disabled={busy}>
+            {cancelLabel}
+          </GhostButton>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={busy}
+            className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition disabled:opacity-50 ${
+              tone === "danger" ? "bg-navy hover:bg-navy/90" : "bg-brand hover:bg-brand-dark"
+            }`}
+          >
+            {busy ? "Working…" : confirmLabel}
+          </button>
+        </>
+      }
+    >
+      <p className="text-sm leading-6 text-navy">{message}</p>
+    </Modal>
+  );
+}
+
+export type RowAction = {
+  label: string;
+  onSelect: () => void | Promise<void>;
+  tone?: "default" | "danger";
+  disabled?: boolean;
+  confirm?: {
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    tone?: "brand" | "danger";
+  };
+};
+
+export function RowActions({ actions, label = "More actions" }: { actions: RowAction[]; label?: string }) {
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, right: 0 });
+  const [pending, setPending] = useState<RowAction | null>(null);
+  const [busy, setBusy] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event: MouseEvent) {
+      if (menuRef.current?.contains(event.target as Node)) return;
+      if (buttonRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  function toggle() {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setCoords({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+    }
+    setOpen((value) => !value);
+  }
+
+  function run(action: RowAction) {
+    setOpen(false);
+    if (action.confirm) {
+      setPending(action);
+      return;
+    }
+    void action.onSelect();
+  }
+
+  async function confirmPending() {
+    if (!pending) return;
+    setBusy(true);
+    try {
+      await pending.onSelect();
+    } finally {
+      setBusy(false);
+      setPending(null);
+    }
+  }
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={label}
+        title={label}
+        onClick={toggle}
+        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-white text-navy transition hover:border-brand hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+      >
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="12" cy="5" r="1.9" />
+          <circle cx="12" cy="12" r="1.9" />
+          <circle cx="12" cy="19" r="1.9" />
+        </svg>
+      </button>
+      {open ? (
+        <div
+          ref={menuRef}
+          role="menu"
+          style={{ top: coords.top, right: coords.right }}
+          className="fixed z-[60] w-44 overflow-hidden rounded-xl border border-line bg-white p-1.5 shadow-card"
+        >
+          {actions.map((action) => (
+            <button
+              key={action.label}
+              type="button"
+              role="menuitem"
+              disabled={action.disabled}
+              onClick={() => run(action)}
+              className={`flex w-full items-center rounded-lg px-3 py-2 text-left text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                action.tone === "danger"
+                  ? "text-brand-dark hover:bg-brand-soft"
+                  : "text-navy hover:bg-background"
+              }`}
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {pending?.confirm ? (
+        <ConfirmDialog
+          title={pending.confirm.title}
+          message={pending.confirm.message}
+          confirmLabel={pending.confirm.confirmLabel}
+          tone={pending.confirm.tone}
+          busy={busy}
+          onConfirm={() => void confirmPending()}
+          onCancel={() => {
+            if (!busy) setPending(null);
+          }}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -220,24 +474,24 @@ const statAccents: Record<
     icon: "bg-brand-soft text-brand",
   },
   accent: {
-    bar: "bg-accent",
-    chip: "bg-accent-soft text-accent-dark",
-    icon: "bg-accent-soft text-accent",
+    bar: "bg-brand/60",
+    chip: "bg-brand-soft text-brand-dark",
+    icon: "bg-brand-soft text-brand",
   },
   good: {
-    bar: "bg-good",
-    chip: "bg-good-soft text-good",
-    icon: "bg-good-soft text-good",
+    bar: "bg-brand",
+    chip: "bg-brand-soft text-brand-dark",
+    icon: "bg-brand-soft text-brand",
   },
   warn: {
-    bar: "bg-warn",
-    chip: "bg-warn-soft text-warn",
-    icon: "bg-warn-soft text-warn",
+    bar: "bg-brand/45",
+    chip: "bg-brand-soft text-brand-dark",
+    icon: "bg-brand-soft text-brand",
   },
   bad: {
-    bar: "bg-bad",
-    chip: "bg-bad-soft text-bad",
-    icon: "bg-bad-soft text-bad",
+    bar: "bg-navy",
+    chip: "bg-navy text-white",
+    icon: "bg-navy text-white",
   },
 };
 

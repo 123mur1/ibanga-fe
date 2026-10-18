@@ -1,11 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { BookingBadge } from "@/components/status-badge";
 import { WorkspaceLoading } from "@/components/loading";
-import { PageHeader } from "@/components/ui";
+import { DataTable, PageHeader, StatCard, ViewLink, formatDate } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
 import type { Booking, Role, Truck, User } from "@/lib/types";
 
@@ -19,9 +18,10 @@ function visibleBookings(user: User, bookings: Booking[], trucks: Truck[]) {
 const liveStatuses = new Set(["ACCEPTED", "IN_PROGRESS", "DELIVERED"]);
 
 export default function TrackingIndexPage() {
-  const { currentUser, bookings, trucks } = useIbanga();
+  const { currentUser, bookings, trucks, users } = useIbanga();
   if (!currentUser) return <WorkspaceLoading />;
   const rows = visibleBookings(currentUser, bookings, trucks).filter((booking) => liveStatuses.has(booking.status));
+  const countByStatus = (status: Booking["status"]) => rows.filter((booking) => booking.status === status).length;
 
   return (
     <RequireAuth>
@@ -30,22 +30,64 @@ export default function TrackingIndexPage() {
           eyebrow="Cargo"
           title="Live location"
           subtitle="Follow cargo you are allowed to see. Positions are recorded at least every 2 km, with departure and rest times on the same trail."
+          icon={
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11Z" />
+              <circle cx="12" cy="10" r="2.4" />
+            </svg>
+          }
         />
-        <div className="mt-6 grid gap-3">
-          {rows.length === 0 ? (
-            <p className="rounded-2xl border border-line bg-card px-5 py-8 text-center text-muted">No cargo is on the road for your account right now.</p>
-          ) : rows.map((booking) => {
-            const truck = trucks.find((item) => item.id === booking.truckId);
-            return (
-              <Link key={booking.id} href={`/dashboard/tracking/${booking.id}`} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-card px-5 py-4 shadow-soft hover:border-brand/30">
-                <div>
-                  <p className="font-semibold text-navy">{booking.pickupLocation} to {booking.destination}</p>
-                  <p className="mt-1 text-sm text-muted">{booking.cargoType} · {truck?.plateNumber ?? "Truck"} · {booking.payment?.status === "HELD" ? "Payment held" : booking.payment?.status ?? "Payment"}</p>
-                </div>
-                <BookingBadge status={booking.status} />
-              </Link>
-            );
-          })}
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard label="Cargo on the road" value={rows.length} hint="Live shipments" />
+          <StatCard label="Awaiting pickup" value={countByStatus("ACCEPTED")} hint="Truck confirmed" />
+          <StatCard label="In transit" value={countByStatus("IN_PROGRESS")} hint="Moving now" />
+          <StatCard label="Delivered" value={countByStatus("DELIVERED")} hint="Awaiting confirmation" />
+        </div>
+
+        <div className="mt-5">
+          <DataTable
+            columns={[
+              { label: "Route" },
+              { label: "Cargo" },
+              { label: "Truck" },
+              { label: "Importer" },
+              { label: "Pickup date" },
+              { label: "Status" },
+              { label: "Actions", className: "text-right" },
+            ]}
+            emptyMessage="No cargo is on the road for your account right now."
+            filterLabel="All cargo statuses"
+            exportName="ibanga-live-cargo"
+            rows={rows.map((booking) => {
+              const truck = trucks.find((item) => item.id === booking.truckId);
+              const importer = users.find((item) => item.id === booking.importerId);
+              const route = `${booking.pickupLocation} to ${booking.destination}`;
+              return {
+                id: booking.id,
+                searchText: `${route} ${booking.cargoType} ${truck?.plateNumber ?? ""} ${importer?.name ?? ""}`,
+                filterValue: booking.status,
+                exportValues: [route, `${booking.cargoType} · ${booking.cargoWeight}`, truck?.plateNumber ?? "", importer?.name ?? "", formatDate(booking.pickupDate), booking.status, ""],
+                cells: [
+                  <span key={`${booking.id}-route`}>
+                    <strong className="block">{route}</strong>
+                    <span className="text-xs text-muted">{booking.payment?.status === "HELD" ? "Payment held" : booking.payment?.status ?? "Payment"}</span>
+                  </span>,
+                  <span key={`${booking.id}-cargo`} className="min-w-40">
+                    <strong className="block">{booking.cargoType}</strong>
+                    <span className="text-xs text-muted">{booking.cargoWeight}</span>
+                  </span>,
+                  truck?.plateNumber ?? "—",
+                  importer?.name ?? "—",
+                  formatDate(booking.pickupDate),
+                  <BookingBadge key={`${booking.id}-status`} status={booking.status} />,
+                  <div key={`${booking.id}-action`} className="flex justify-end">
+                    <ViewLink href={`/dashboard/tracking/${booking.id}`} label={`Track cargo ${route}`} />
+                  </div>,
+                ],
+              };
+            })}
+          />
         </div>
       </DashboardShell>
     </RequireAuth>

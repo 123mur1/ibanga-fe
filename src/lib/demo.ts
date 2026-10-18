@@ -12,7 +12,11 @@ import { formatRwf, hydrateBooking } from "./payments";
 import type {
   Booking,
   BookingStatus,
+  CheckoutDetails,
   Dispute,
+  PaymentStatus,
+  RefundRequest,
+  Review,
   Role,
   Truck,
   TruckStatus,
@@ -63,6 +67,10 @@ export type DemoSession = {
   disputes: Dispute[];
   trucks: Truck[];
   transactions: WalletTransaction[];
+  /** Absent in sessions saved before refunds existed. */
+  refunds?: RefundRequest[];
+  /** Absent in sessions saved before reviews existed. */
+  reviews?: Review[];
   credentials: Record<string, string>;
 };
 
@@ -124,6 +132,26 @@ export function freshDemoSession(): DemoSession {
     disputes: seedDisputes.map((dispute) => ({ ...dispute })),
     trucks: seedTrucks.map((truck) => ({ ...truck, photos: [...truck.photos] })),
     transactions: seedWalletTransactions.map((transaction) => ({ ...transaction })),
+    reviews: [
+      { id: "rv1", truckId: "t1", authorId: "u-importer", authorName: "Jeanine Uwase", authorPhoto: "/photos/ibanga-importer-jeanine.png", rating: 5, comment: "Arrived on time and the driver kept me updated all the way to Mombasa. Cargo was handled carefully.", createdAt: "2026-09-12T10:00:00.000Z" },
+      { id: "rv2", truckId: "t1", authorId: "u-importer-2", authorName: "David Okello", authorPhoto: "/photos/ibanga-importer-david.png", rating: 4, comment: "Good truck and fair price. Loading started a little late but everything arrived intact.", createdAt: "2026-09-28T14:20:00.000Z" },
+      { id: "rv3", truckId: "truck-u-owner-11", authorId: "u-importer", authorName: "Jeanine Uwase", authorPhoto: "/photos/ibanga-importer-jeanine.png", rating: 5, comment: "Clean truck, professional owner and clear communication. Would book again.", createdAt: "2026-10-02T08:45:00.000Z" },
+      { id: "rv4", truckId: "t2", authorId: "u-importer-2", authorName: "David Okello", authorPhoto: "/photos/ibanga-importer-david.png", rating: 5, comment: "The refrigeration held the right temperature for the whole trip.", createdAt: "2026-09-18T09:10:00.000Z" },
+    ],
+    refunds: [
+      {
+        id: "r1",
+        bookingId: "b1",
+        importerId: "u-importer",
+        reason: "Cargo plans changed",
+        details: "The containers were rescheduled by the shipping line, so we no longer need the truck on 12 October.",
+        amountRwf: bookings.find((booking) => booking.id === "b1")?.payment?.amountRwf ?? 850000,
+        refundTo: "Original payment method",
+        status: "REQUESTED",
+        ownerNote: "",
+        createdAt: "2026-10-08T09:30:00.000Z",
+      },
+    ],
     credentials: Object.fromEntries(
       users.map((user) => [
         user.email.toLowerCase(),
@@ -250,6 +278,48 @@ export function demoRegister(
   };
 }
 
+export function demoAddUser(
+  session: DemoSession,
+  input: {
+    name: string;
+    email: string;
+    phone: string;
+    location: string;
+    company: string;
+    password: string;
+    role: Role;
+  },
+): { session: DemoSession; user: User } | { error: string } {
+  const email = input.email.trim().toLowerCase();
+  if (!input.name.trim()) return { error: "Enter the account holder's name." };
+  if (!email.includes("@")) return { error: "Enter a valid email address." };
+  if (input.password.length < 6) return { error: "Use a password of at least 6 characters." };
+  if (session.users.some((user) => user.email.toLowerCase() === email)) {
+    return { error: "An account with that email already exists." };
+  }
+  const user: User = {
+    id: nextId("user"),
+    name: input.name.trim(),
+    email,
+    phone: input.phone,
+    location: input.location,
+    company: input.company.trim() || undefined,
+    role: input.role,
+    active: true,
+    createdAt: new Date().toISOString(),
+    termsAcceptedAt: new Date().toISOString(),
+    photo: input.role === "IMPORTER" ? "/photos/ibanga-importer-jeanine.png" : "/photos/ibanga-owner-eric.png",
+  };
+  return {
+    user,
+    session: {
+      ...session,
+      users: [user, ...session.users],
+      credentials: { ...session.credentials, [email]: input.password },
+    },
+  };
+}
+
 export function demoCreateBooking(
   session: DemoSession,
   user: User,
@@ -292,7 +362,12 @@ export function demoSetBookingStatus(session: DemoSession, id: string, status: B
   };
 }
 
-export function demoPayBooking(session: DemoSession, user: User, bookingId: string): { session: DemoSession } | { error: string } {
+export function demoPayBooking(
+  session: DemoSession,
+  user: User,
+  bookingId: string,
+  checkout?: CheckoutDetails,
+): { session: DemoSession } | { error: string } {
   const booking = session.bookings.find((item) => item.id === bookingId);
   if (!booking || booking.importerId !== user.id) return { error: "Booking not found." };
   if (booking.status !== "ACCEPTED") return { error: "Pay after the owner confirms the truck." };
@@ -301,27 +376,119 @@ export function demoPayBooking(session: DemoSession, user: User, bookingId: stri
   }
   const amount = booking.agreedPriceRwf ?? 0;
   if (amount <= 0) return { error: "This booking has no price." };
-  if (walletBalanceFor(session, user.id) < amount) return { error: "The wallet balance does not cover this booking." };
   const paid = hydrateBooking({ ...booking, status: "ACCEPTED", agreedPriceRwf: amount });
+  const now = new Date().toISOString();
   const payment = paid.payment
-    ? { ...paid.payment, status: "FUNDED" as const, payerName: user.name, paidAt: new Date().toISOString(), heldAt: new Date().toISOString() }
+    ? {
+        ...paid.payment,
+        ...(checkout ? { method: checkout.method, accountMask: checkout.accountMask } : {}),
+        status: "FUNDED" as const,
+        payerName: checkout?.payerName || user.name,
+        paidAt: now,
+        heldAt: now,
+        releasedAt: null,
+        refundedAt: null,
+      }
     : null;
-  const transaction: WalletTransaction = {
-    id: nextId("tx"),
-    userId: user.id,
-    type: "BOOKING_PAYMENT",
-    status: "SUCCEEDED",
-    direction: "DEBIT",
-    amountRwf: amount,
-    reference: payment?.receiptNumber ?? booking.id,
-    description: `${booking.pickupLocation} to ${booking.destination}`,
-    createdAt: new Date().toISOString(),
-  };
   return {
     session: {
       ...session,
       bookings: session.bookings.map((item) => item.id === bookingId ? { ...item, payment } : item),
-      transactions: [transaction, ...session.transactions],
+    },
+  };
+}
+
+export function demoAddReview(
+  session: DemoSession,
+  user: User,
+  truckId: string,
+  input: { rating: number; comment: string },
+): { session: DemoSession } | { error: string } {
+  if (!session.trucks.some((truck) => truck.id === truckId)) return { error: "Truck not found." };
+  if (!Number.isInteger(input.rating) || input.rating < 1 || input.rating > 5) return { error: "Choose a rating from 1 to 5 stars." };
+  if (input.comment.trim().length < 10) return { error: "Write at least a short sentence about your experience." };
+  if ((session.reviews ?? []).some((item) => item.truckId === truckId && item.authorId === user.id)) {
+    return { error: "You have already reviewed this truck." };
+  }
+  const review: Review = {
+    id: nextId("review"),
+    truckId,
+    authorId: user.id,
+    authorName: user.name,
+    authorPhoto: user.photo,
+    rating: input.rating,
+    comment: input.comment.trim(),
+    createdAt: new Date().toISOString(),
+  };
+  return { session: { ...session, reviews: [review, ...(session.reviews ?? [])] } };
+}
+
+export const REFUNDABLE_STATUSES: PaymentStatus[] = ["AUTHORIZED", "FUNDED", "HELD"];
+
+export function demoRequestRefund(
+  session: DemoSession,
+  user: User,
+  bookingId: string,
+  input: { reason: string; details: string; amountRwf: number; refundTo: string },
+): { session: DemoSession } | { error: string } {
+  const booking = session.bookings.find((item) => item.id === bookingId);
+  const payment = booking?.payment;
+  if (!booking || !payment || booking.importerId !== user.id) return { error: "Payment not found." };
+  if (!REFUNDABLE_STATUSES.includes(payment.status)) return { error: "This payment can no longer be refunded." };
+  if ((session.refunds ?? []).some((item) => item.bookingId === bookingId && item.status === "REQUESTED")) {
+    return { error: "A refund request is already waiting for the truck owner." };
+  }
+  if (!input.reason) return { error: "Choose a reason for the refund." };
+  if (input.details.trim().length < 10) return { error: "Describe what happened in a few words." };
+  if (!Number.isFinite(input.amountRwf) || input.amountRwf <= 0 || input.amountRwf > payment.amountRwf) {
+    return { error: `Enter an amount between RWF 1 and ${formatRwf(payment.amountRwf)}.` };
+  }
+  const refund: RefundRequest = {
+    id: nextId("refund"),
+    bookingId,
+    importerId: user.id,
+    reason: input.reason,
+    details: input.details.trim(),
+    amountRwf: Math.round(input.amountRwf),
+    refundTo: input.refundTo,
+    status: "REQUESTED",
+    ownerNote: "",
+    createdAt: new Date().toISOString(),
+  };
+  return { session: { ...session, refunds: [refund, ...(session.refunds ?? [])] } };
+}
+
+export function demoProcessRefund(
+  session: DemoSession,
+  refundId: string,
+  decision: "APPROVED" | "REJECTED",
+  note: string,
+): { session: DemoSession } | { error: string } {
+  const refund = (session.refunds ?? []).find((item) => item.id === refundId);
+  if (!refund) return { error: "Refund request not found." };
+  if (refund.status !== "REQUESTED") return { error: "This request has already been processed." };
+  const now = new Date().toISOString();
+  const approved = decision === "APPROVED";
+  const booking = session.bookings.find((item) => item.id === refund.bookingId);
+  // A refunded booking that has not started is cancelled and its truck goes back on the market.
+  const cancel = approved && booking?.status === "ACCEPTED";
+  return {
+    session: {
+      ...session,
+      refunds: (session.refunds ?? []).map((item) =>
+        item.id === refundId ? { ...item, status: decision, ownerNote: note, resolvedAt: now } : item,
+      ),
+      bookings: session.bookings.map((item) => {
+        if (item.id !== refund.bookingId || !approved || !item.payment) return item;
+        return {
+          ...item,
+          status: cancel ? ("REJECTED" as const) : item.status,
+          payment: { ...item.payment, status: "REFUNDED" as const, refundedAt: now },
+        };
+      }),
+      trucks: cancel && booking
+        ? session.trucks.map((truck) => truck.id === booking.truckId ? { ...truck, status: "AVAILABLE" as const } : truck)
+        : session.trucks,
     },
   };
 }

@@ -13,32 +13,32 @@ const methodLabel: Record<BookingPayment["method"], string> = {
 const statusCopy: Record<BookingPayment["status"], { label: string; tone: string; note: string }> = {
   PENDING: {
     label: "Waiting for payment",
-    tone: "bg-warn-soft text-warn",
-    note: "The booking is open. Pay from the wallet after the owner confirms the truck.",
+    tone: "bg-brand-soft text-brand-dark",
+    note: "The booking is open. Pay after the owner confirms the truck.",
   },
   FUNDED: {
-    label: "Paid from wallet",
+    label: "Payment received",
     tone: "bg-brand-soft text-brand-dark",
     note: "The listed price has been paid and is held until the trip is completed.",
   },
   AUTHORIZED: {
     label: "Paid, waiting for the truck",
-    tone: "bg-warn-soft text-warn",
+    tone: "bg-brand-soft text-brand-dark",
     note: "Collected from the payer. It moves into the iBanga account when the owner confirms the truck.",
   },
   HELD: {
     label: "Held in the iBanga account",
-    tone: "bg-brand-soft text-brand-dark",
+    tone: "bg-brand text-white",
     note: "Released only after the owner confirms delivery and the importer confirms receipt.",
   },
   RELEASED: {
     label: "Released to the truck owner",
-    tone: "bg-good-soft text-good",
+    tone: "bg-navy text-white",
     note: "Both delivery confirmations are recorded. The owner share has been paid out.",
   },
   REFUNDED: {
     label: "Refunded to the original method",
-    tone: "bg-warn-soft text-warn",
+    tone: "bg-line text-muted",
     note: "The trip did not complete. The amount is returned to the Visa, Airtel, or MTN account used at booking.",
   },
 };

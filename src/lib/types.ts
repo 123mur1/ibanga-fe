@@ -157,6 +157,43 @@ export type Dispute = {
   resolvedAt?: string;
 };
 
+export type Review = {
+  id: string;
+  truckId: string;
+  authorId: string;
+  authorName: string;
+  authorPhoto?: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+};
+
+export type RefundStatus = "REQUESTED" | "APPROVED" | "REJECTED";
+
+export const REFUND_REASONS = [
+  "Truck did not arrive",
+  "Cargo plans changed",
+  "Booking details were wrong",
+  "Cargo was damaged or lost",
+  "Charged more than the listed price",
+  "Other",
+] as const;
+
+export type RefundRequest = {
+  id: string;
+  bookingId: string;
+  importerId: string;
+  reason: string;
+  details: string;
+  amountRwf: number;
+  /** Where the importer wants the money returned, e.g. "MTN MoMo · 078 ••• 220". */
+  refundTo: string;
+  status: RefundStatus;
+  ownerNote: string;
+  createdAt: string;
+  resolvedAt?: string;
+};
+
 export const TRUCK_TYPES = [
   "Container",
   "Flatbed",

@@ -1,8 +1,14 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { positionAt } from "@/lib/geo";
 import type { Booking, CargoPing, TripNotice } from "@/lib/types";
 import { formatDateTime } from "./ui";
+
+const TruckMap = dynamic(() => import("./truck-map").then((module) => module.TruckMap), {
+  ssr: false,
+  loading: () => <div className="h-[26rem] w-full animate-pulse rounded-xl border border-line bg-background" />,
+});
 
 const kindLabel: Record<CargoPing["kind"] | TripNotice["kind"], string> = {
   DEPARTURE: "Departure",
@@ -16,90 +22,56 @@ export function LiveTrack({
   booking,
   pings,
   notices,
+  coveredKm,
 }: {
   booking: Booking;
   pings: CargoPing[];
   notices: TripNotice[];
+  /** Overrides the last recorded ping so the map can follow a live position. */
+  coveredKm?: number;
 }) {
   const route = positionAt(booking.pickupLocation, booking.destination, 0);
   const ordered = [...pings].sort((a, b) => a.kmFromStart - b.kmFromStart || a.recordedAt.localeCompare(b.recordedAt));
-  const latest = ordered.at(-1);
-  const covered = latest?.kmFromStart ?? 0;
-  const progress = Math.min(100, Math.round((covered / route.totalKm) * 100));
-  const samples = Array.from({ length: 24 }, (_, index) => {
-    const point = positionAt(booking.pickupLocation, booking.destination, (route.totalKm * index) / 23);
-    return point;
-  });
-  const project = (lat: number, lng: number) => {
-    const lats = samples.map((point) => point.lat);
-    const lngs = samples.map((point) => point.lng);
-    const minLat = Math.min(...lats);
-    const maxLat = Math.max(...lats);
-    const minLng = Math.min(...lngs);
-    const maxLng = Math.max(...lngs);
-    const x = 28 + ((lng - minLng) / Math.max(0.0001, maxLng - minLng)) * 520;
-    const y = 150 - ((lat - minLat) / Math.max(0.0001, maxLat - minLat)) * 112;
-    return { x, y };
-  };
-  const planned = samples.map((point) => project(point.lat, point.lng));
-  const plannedPath = planned.map((point, index) => `${index === 0 ? "M" : "L"}${point.x},${point.y}`).join(" ");
-  const recorded = ordered.map((ping) => project(ping.lat, ping.lng));
-  const recordedPath = recorded.map((point, index) => `${index === 0 ? "M" : "L"}${point.x},${point.y}`).join(" ");
+  const covered = coveredKm ?? ordered.at(-1)?.kmFromStart ?? 0;
+  const progress = Math.min(1, covered / route.totalKm);
+  const moving = booking.status === "IN_PROGRESS";
   const timeline = [
     ...notices.map((notice) => ({
       id: notice.id,
       at: notice.at,
       title: `${kindLabel[notice.kind]} · ${notice.place}`,
       detail: notice.note,
-      tone: notice.kind === "REST" ? "bg-warn" : "bg-brand",
+      tone: notice.kind === "REST" ? "bg-brand-dark" : "bg-brand",
     })),
     ...ordered.map((ping) => ({
       id: ping.id,
       at: ping.recordedAt,
       title: `${kindLabel[ping.kind]} · ${ping.label}`,
       detail: ping.note || `${ping.kmFromStart} km recorded`,
-      tone: ping.kind === "REST" ? "bg-warn" : ping.kind === "DELIVERY" ? "bg-good" : "bg-accent",
+      tone: ping.kind === "REST" ? "bg-brand-dark" : ping.kind === "DELIVERY" ? "bg-navy" : "bg-brand",
     })),
   ].sort((a, b) => a.at.localeCompare(b.at));
 
   return (
-    <section className="overflow-hidden rounded-xl border border-line bg-card shadow-soft">
+    <section className="overflow-hidden rounded-2xl border border-line bg-card shadow-soft">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-5 py-4">
         <div>
-          <h2 className="text-lg font-semibold text-navy">Live cargo location</h2>
+          <h2 className="font-display text-lg text-navy">Live cargo location</h2>
           <p className="mt-1 text-sm text-muted">
-            Positions are stored at least every 2 km, with departure and rest times on the same trail.
+            {booking.pickupLocation} to {booking.destination}
           </p>
         </div>
-        <p className="rounded-full bg-accent-soft px-3 py-1 text-sm font-semibold text-accent-dark">
+        <p className="inline-flex items-center gap-2 rounded-full bg-brand-soft px-3 py-1 text-sm font-semibold text-brand-dark">
+          {moving ? <span className="h-2 w-2 animate-pulse rounded-full bg-brand" /> : null}
           {covered} km of {route.totalKm} km
         </p>
       </div>
-      <div className="px-5 py-4">
-        <div className="h-2 overflow-hidden rounded-full bg-line">
-          <div className="h-full rounded-full bg-accent" style={{ width: `${progress}%` }} />
-        </div>
-        <div className="mt-2 flex justify-between text-sm font-medium text-navy">
-          <span>{booking.pickupLocation}</span>
-          <span>{booking.destination}</span>
-        </div>
-        <svg viewBox="0 0 576 176" className="mt-4 h-44 w-full" role="img" aria-label={`Route from ${booking.pickupLocation} to ${booking.destination}, ${covered} kilometres recorded`}>
-          <path d={plannedPath} fill="none" stroke="#d5e3ea" strokeWidth="6" strokeLinecap="round" />
-          {recordedPath ? <path d={recordedPath} fill="none" stroke="#00628b" strokeWidth="4" strokeLinecap="round" /> : null}
-          {ordered.filter((_, index) => index % 1 === 0).map((ping) => {
-            const point = project(ping.lat, ping.lng);
-            const rest = ping.kind === "REST";
-            return (
-              <circle key={ping.id} cx={point.x} cy={point.y} r={rest ? 5 : 3.5} fill={rest ? "#ea580c" : "#ffffff"} stroke={rest ? "#ea580c" : "#00628b"} strokeWidth="2">
-                <title>{`${ping.label} · ${formatDateTime(ping.recordedAt)}`}</title>
-              </circle>
-            );
-          })}
-        </svg>
-        <div className="mt-2 flex flex-wrap gap-4 text-sm text-muted">
-          <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-brand" /> Recorded position</span>
-          <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-warn" /> Rest stop</span>
-          <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-line" /> Planned route</span>
+      <div className="p-4">
+        <TruckMap pickup={booking.pickupLocation} destination={booking.destination} progress={progress} moving={moving} />
+        <div className="mt-3 flex flex-wrap gap-4 text-sm text-muted">
+          <span className="inline-flex items-center gap-2"><span className="h-2.5 w-6 rounded-full bg-brand" /> Travelled</span>
+          <span className="inline-flex items-center gap-2"><span className="h-0.5 w-6 border-t-2 border-dashed border-brand/40" /> Remaining</span>
+          <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-brand ring-4 ring-brand/20" /> Truck</span>
         </div>
       </div>
       <ol className="max-h-72 divide-y divide-line overflow-y-auto border-t border-line">
