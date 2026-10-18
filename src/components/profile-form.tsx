@@ -5,12 +5,13 @@ import { RequireAuth } from "@/components/require-auth";
 import { Field, inputClass, PrimaryButton, PageHeader } from "@/components/ui";
 import { Avatar, readImageFile } from "@/components/photos";
 import { useIbanga } from "@/lib/store";
+import type { Role } from "@/lib/types";
 import { FormEvent, useEffect, useState } from "react";
 
 export default function ProfilePage({
   role,
 }: {
-  role: "IMPORTER" | "TRUCK_OWNER";
+  role: Role;
 }) {
   const { currentUser, updateProfile } = useIbanga();
   const [saved, setSaved] = useState(false);

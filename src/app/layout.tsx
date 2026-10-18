@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
-import { DM_Sans } from "next/font/google";
+import { Source_Sans_3 } from "next/font/google";
+import { ToastProvider } from "@/components/toast";
 import { IbangaProvider } from "@/lib/store";
 import "./globals.css";
 
-const sans = DM_Sans({
+const sans = Source_Sans_3({
   variable: "--font-ibanga-sans",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -25,7 +27,9 @@ export default function RootLayout({
       className={`${sans.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-ink">
-        <IbangaProvider>{children}</IbangaProvider>
+        <IbangaProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </IbangaProvider>
       </body>
     </html>
   );

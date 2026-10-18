@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { downloadExcel } from "@/lib/excel";
 
 export function Field({
   label,
@@ -18,7 +20,7 @@ export function Field({
 }
 
 export const inputClass =
-  "w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-ink shadow-soft outline-none ring-brand/20 placeholder:text-muted/70 transition hover:border-navy/20 focus:border-brand/50 focus:ring-2";
+  "w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-base text-ink outline-none ring-brand/15 placeholder:text-muted/80 transition hover:border-brand/30 focus:border-brand focus:ring-2";
 
 export function PrimaryButton({
   children,
@@ -28,7 +30,7 @@ export function PrimaryButton({
   return (
     <button
       {...props}
-      className={`inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-brand-dark hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-soft ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:opacity-50 ${className}`}
     >
       {children}
     </button>
@@ -43,10 +45,263 @@ export function GhostButton({
   return (
     <button
       {...props}
-      className={`inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-semibold text-navy shadow-soft transition hover:-translate-y-0.5 hover:border-navy/20 hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-soft ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-semibold text-navy transition hover:border-brand/40 hover:bg-brand-soft/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:opacity-50 ${className}`}
     >
       {children}
     </button>
+  );
+}
+
+export function Modal({
+  title,
+  description,
+  onClose,
+  children,
+  footer,
+  wide = false,
+}: {
+  title: string;
+  description?: string;
+  onClose: () => void;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+  wide?: boolean;
+}) {
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 py-8 sm:items-center">
+      <div className="fixed inset-0 bg-navy/45 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className={`animate-fade-in relative w-full ${wide ? "max-w-2xl" : "max-w-lg"} overflow-hidden rounded-2xl border border-line bg-white shadow-card`}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-line bg-brand px-5 py-4 text-white sm:px-6">
+          <div>
+            <h2 className="font-display text-xl font-semibold">{title}</h2>
+            {description ? <p className="mt-1 text-sm text-white/80">{description}</p> : null}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close dialog"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/15 text-white transition hover:bg-white/25"
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true">
+              <path d="M6 6l12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div className="max-h-[65vh] overflow-y-auto px-5 py-5 sm:px-6">{children}</div>
+        {footer ? (
+          <div className="flex flex-wrap justify-end gap-3 border-t border-line bg-background/60 px-5 py-4 sm:px-6">
+            {footer}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+export function ViewLink({ href, label = "View details" }: { href: string; label?: string }) {
+  return (
+    <Link
+      href={href}
+      aria-label={label}
+      title={label}
+      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-white text-brand transition hover:border-brand hover:bg-brand hover:text-white"
+    >
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
+        <circle cx="12" cy="12" r="3" />
+      </svg>
+    </Link>
+  );
+}
+
+export function ConfirmDialog({
+  title,
+  message,
+  confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
+  tone = "brand",
+  busy = false,
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  tone?: "brand" | "danger";
+  busy?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <Modal
+      title={title}
+      onClose={onCancel}
+      footer={
+        <>
+          <GhostButton type="button" onClick={onCancel} disabled={busy}>
+            {cancelLabel}
+          </GhostButton>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={busy}
+            className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition disabled:opacity-50 ${
+              tone === "danger" ? "bg-navy hover:bg-navy/90" : "bg-brand hover:bg-brand-dark"
+            }`}
+          >
+            {busy ? "Working…" : confirmLabel}
+          </button>
+        </>
+      }
+    >
+      <p className="text-sm leading-6 text-navy">{message}</p>
+    </Modal>
+  );
+}
+
+export type RowAction = {
+  label: string;
+  onSelect: () => void | Promise<void>;
+  tone?: "default" | "danger";
+  disabled?: boolean;
+  confirm?: {
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    tone?: "brand" | "danger";
+  };
+};
+
+export function RowActions({ actions, label = "More actions" }: { actions: RowAction[]; label?: string }) {
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, right: 0 });
+  const [pending, setPending] = useState<RowAction | null>(null);
+  const [busy, setBusy] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event: MouseEvent) {
+      if (menuRef.current?.contains(event.target as Node)) return;
+      if (buttonRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  function toggle() {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setCoords({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+    }
+    setOpen((value) => !value);
+  }
+
+  function run(action: RowAction) {
+    setOpen(false);
+    if (action.confirm) {
+      setPending(action);
+      return;
+    }
+    void action.onSelect();
+  }
+
+  async function confirmPending() {
+    if (!pending) return;
+    setBusy(true);
+    try {
+      await pending.onSelect();
+    } finally {
+      setBusy(false);
+      setPending(null);
+    }
+  }
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={label}
+        title={label}
+        onClick={toggle}
+        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-white text-navy transition hover:border-brand hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+      >
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="12" cy="5" r="1.9" />
+          <circle cx="12" cy="12" r="1.9" />
+          <circle cx="12" cy="19" r="1.9" />
+        </svg>
+      </button>
+      {open ? (
+        <div
+          ref={menuRef}
+          role="menu"
+          style={{ top: coords.top, right: coords.right }}
+          className="fixed z-[60] w-44 overflow-hidden rounded-xl border border-line bg-white p-1.5 shadow-card"
+        >
+          {actions.map((action) => (
+            <button
+              key={action.label}
+              type="button"
+              role="menuitem"
+              disabled={action.disabled}
+              onClick={() => run(action)}
+              className={`flex w-full items-center rounded-lg px-3 py-2 text-left text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                action.tone === "danger"
+                  ? "text-brand-dark hover:bg-brand-soft"
+                  : "text-navy hover:bg-background"
+              }`}
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {pending?.confirm ? (
+        <ConfirmDialog
+          title={pending.confirm.title}
+          message={pending.confirm.message}
+          confirmLabel={pending.confirm.confirmLabel}
+          tone={pending.confirm.tone}
+          busy={busy}
+          onConfirm={() => void confirmPending()}
+          onCancel={() => {
+            if (!busy) setPending(null);
+          }}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -55,6 +310,7 @@ export type DataTableRow = {
   cells: React.ReactNode[];
   searchText: string;
   filterValue?: string;
+  extraFilterValue?: string;
   exportValues: string[];
 };
 
@@ -63,52 +319,62 @@ export function DataTable({
   rows,
   emptyMessage = "There are no records to display.",
   filterLabel = "All statuses",
+  extraFilterLabel = "All types",
+  exportName = "ibanga-export",
 }: {
   columns: { label: string; className?: string }[];
   rows: DataTableRow[];
   emptyMessage?: string;
   filterLabel?: string;
+  extraFilterLabel?: string;
+  exportName?: string;
 }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("");
+  const [extraFilter, setExtraFilter] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const filterOptions = useMemo(
     () => [...new Set(rows.map((row) => row.filterValue).filter((value): value is string => Boolean(value)))].sort(),
     [rows],
   );
+  const extraOptions = useMemo(
+    () => [...new Set(rows.map((row) => row.extraFilterValue).filter((value): value is string => Boolean(value)))].sort(),
+    [rows],
+  );
   const visibleRows = useMemo(() => rows.filter((row) =>
     row.searchText.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())
-    && (!filter || row.filterValue === filter),
-  ), [filter, rows, search]);
-  const allVisibleSelected = visibleRows.length > 0 && visibleRows.every((row) => selected.has(row.id));
+    && (!filter || row.filterValue === filter)
+    && (!extraFilter || row.extraFilterValue === extraFilter),
+  ), [extraFilter, filter, rows, search]);
+  const pageCount = Math.max(1, Math.ceil(visibleRows.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const pageRows = visibleRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const allVisibleSelected = pageRows.length > 0 && pageRows.every((row) => selected.has(row.id));
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, filter, extraFilter, pageSize]);
 
   const exportRows = (data: DataTableRow[]) => {
-    const escape = (value: string) => {
-      const safeValue = /^[=+\-@]/.test(value) ? `'${value}` : value;
-      return `"${safeValue.replaceAll('"', '""')}"`;
-    };
-    const csv = [
-      columns.map((column) => escape(column.label)).join(","),
-      ...data.map((row) => row.exportValues.map(escape).join(",")),
-    ].join("\r\n");
-    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }));
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "ibanga-export.csv";
-    anchor.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    downloadExcel(
+      exportName,
+      columns.map((column) => column.label),
+      data.map((row) => row.exportValues),
+    );
   };
 
   return (
     <div className="overflow-hidden rounded-2xl border border-line bg-white shadow-soft">
-      <div className="flex flex-col gap-3 border-b border-line p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 border-b border-line bg-background/60 p-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-1 flex-col gap-2 sm:flex-row">
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search records..."
+            placeholder="Search records"
             aria-label="Search records"
-            className="w-full rounded-lg border border-line px-3 py-2 text-sm text-navy outline-none focus:border-brand sm:max-w-sm"
+            className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-navy outline-none focus:border-brand sm:max-w-xs"
           />
           {filterOptions.length > 0 ? (
             <select aria-label={filterLabel} value={filter} onChange={(event) => setFilter(event.target.value)} className="rounded-lg border border-line bg-white px-3 py-2 text-sm text-navy outline-none focus:border-brand">
@@ -116,16 +382,22 @@ export function DataTable({
               {filterOptions.map((option) => <option key={option} value={option}>{option.replaceAll("_", " ")}</option>)}
             </select>
           ) : null}
+          {extraOptions.length > 0 ? (
+            <select aria-label={extraFilterLabel} value={extraFilter} onChange={(event) => setExtraFilter(event.target.value)} className="rounded-lg border border-line bg-white px-3 py-2 text-sm text-navy outline-none focus:border-brand">
+              <option value="">{extraFilterLabel}</option>
+              {extraOptions.map((option) => <option key={option} value={option}>{option.replaceAll("_", " ")}</option>)}
+            </select>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-1 text-xs text-muted">{selected.size} selected</span>
-          <button type="button" disabled={!selected.size} onClick={() => exportRows(rows.filter((row) => selected.has(row.id)))} className="rounded-lg border border-line px-3 py-2 text-xs font-semibold text-navy transition hover:border-brand disabled:cursor-not-allowed disabled:opacity-50">Export selected</button>
-          <button type="button" onClick={() => exportRows(rows)} className="rounded-lg bg-brand px-3 py-2 text-xs font-semibold text-white transition hover:bg-brand-dark">Export all</button>
+          <span className="mr-1 text-sm text-muted">{selected.size} selected</span>
+          <button type="button" disabled={!selected.size} onClick={() => exportRows(rows.filter((row) => selected.has(row.id)))} className="rounded-lg border border-line px-3 py-2 text-sm font-semibold text-navy transition hover:border-brand disabled:cursor-not-allowed disabled:opacity-50">Export selected</button>
+          <button type="button" onClick={() => exportRows(visibleRows)} className="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark">Export Excel</button>
         </div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] border-collapse text-left text-sm">
-          <thead className="bg-background text-xs uppercase tracking-wide text-muted">
+          <thead className="border-b border-line bg-background text-sm text-muted">
             <tr>
               <th scope="col" className="w-12 px-4 py-3.5">
                 <input
@@ -134,7 +406,7 @@ export function DataTable({
                   checked={allVisibleSelected}
                   onChange={() => setSelected((current) => {
                     const next = new Set(current);
-                    visibleRows.forEach((row) => allVisibleSelected ? next.delete(row.id) : next.add(row.id));
+                    pageRows.forEach((row) => allVisibleSelected ? next.delete(row.id) : next.add(row.id));
                     return next;
                   })}
                   className="accent-brand"
@@ -148,7 +420,7 @@ export function DataTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {visibleRows.map((row) => (
+            {pageRows.map((row) => (
               <tr key={row.id} className={`transition hover:bg-background/70 ${selected.has(row.id) ? "bg-brand-soft/40" : ""}`}>
                 <td className="px-4 py-4">
                   <input type="checkbox" aria-label={`Select row ${row.id}`} checked={selected.has(row.id)} onChange={() => setSelected((current) => {
@@ -170,39 +442,56 @@ export function DataTable({
       </div>
       {visibleRows.length === 0 ? (
         <p className="px-5 py-12 text-center text-sm text-muted">{emptyMessage}</p>
-      ) : null}
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-4 py-3 text-sm text-muted">
+          <p>
+            Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, visibleRows.length)} of {visibleRows.length}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-2">
+              Rows
+              <select aria-label="Rows per page" value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))} className="rounded-lg border border-line bg-white px-2 py-1 text-navy">
+                {[10, 25, 50].map((size) => <option key={size} value={size}>{size}</option>)}
+              </select>
+            </label>
+            <button type="button" disabled={currentPage === 1} onClick={() => setPage((value) => Math.max(1, value - 1))} className="rounded-lg border border-line px-3 py-1.5 font-semibold text-navy disabled:opacity-40">Previous</button>
+            <span className="tabular-nums">{currentPage} / {pageCount}</span>
+            <button type="button" disabled={currentPage === pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))} className="rounded-lg border border-line px-3 py-1.5 font-semibold text-navy disabled:opacity-40">Next</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 const statAccents: Record<
   string,
-  { gradient: string; chip: string; icon: string }
+  { bar: string; chip: string; icon: string }
 > = {
   brand: {
-    gradient: "from-brand to-accent",
+    bar: "bg-brand",
     chip: "bg-brand-soft text-brand-dark",
     icon: "bg-brand-soft text-brand",
   },
   accent: {
-    gradient: "from-accent to-teal-500",
-    chip: "bg-accent-soft text-accent-dark",
-    icon: "bg-accent-soft text-accent",
+    bar: "bg-brand/60",
+    chip: "bg-brand-soft text-brand-dark",
+    icon: "bg-brand-soft text-brand",
   },
   good: {
-    gradient: "from-good to-accent",
-    chip: "bg-good-soft text-good",
-    icon: "bg-good-soft text-good",
+    bar: "bg-brand",
+    chip: "bg-brand-soft text-brand-dark",
+    icon: "bg-brand-soft text-brand",
   },
   warn: {
-    gradient: "from-warn to-brand",
-    chip: "bg-warn-soft text-warn",
-    icon: "bg-warn-soft text-warn",
+    bar: "bg-brand/45",
+    chip: "bg-brand-soft text-brand-dark",
+    icon: "bg-brand-soft text-brand",
   },
   bad: {
-    gradient: "from-bad to-warn",
-    chip: "bg-bad-soft text-bad",
-    icon: "bg-bad-soft text-bad",
+    bar: "bg-navy",
+    chip: "bg-navy text-white",
+    icon: "bg-navy text-white",
   },
 };
 
@@ -221,29 +510,22 @@ export function StatCard({
 }) {
   const tone = statAccents[accent];
   return (
-    <article className="group relative overflow-hidden rounded-2xl border border-line bg-card p-4 shadow-soft transition duration-200 hover:-translate-y-0.5 hover:shadow-card">
-      <span
-        className={`absolute inset-x-0 top-0 h-0.5 bg-linear-to-r ${tone.gradient}`}
-      />
-      <div className="flex items-center gap-3">
+    <article className="flex min-h-[132px] flex-col rounded-xl border border-line bg-card p-4 shadow-soft">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-medium text-muted">{label}</p>
         {icon ? (
-          <span
-            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition duration-200 group-hover:scale-110 group-hover:-rotate-3 [&_svg]:h-4 [&_svg]:w-4 ${tone.icon}`}
-          >
+          <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg [&_svg]:h-4 [&_svg]:w-4 ${tone.icon}`}>
             {icon}
           </span>
-        ) : null}
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">
-          {label}
-        </p>
+        ) : (
+          <span className={`h-2 w-2 rounded-full ${tone.bar}`} />
+        )}
       </div>
-      <p className="mt-2 font-display text-3xl tracking-tight text-navy">
+      <p className="mt-3 text-2xl font-semibold leading-tight tracking-tight text-navy tabular-nums">
         {value}
       </p>
       {hint ? (
-        <p
-          className={`mt-2 inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${tone.chip}`}
-        >
+        <p className={`mt-auto pt-3 text-sm font-medium ${tone.chip} w-fit rounded-md px-2 py-0.5`}>
           {hint}
         </p>
       ) : null}
@@ -265,24 +547,24 @@ export function PageHeader({
   icon?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-4">
-      <div className="flex items-start gap-4">
+    <div className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
+      <div className="flex items-start gap-3">
         {icon ? (
-          <span className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-linear-to-br from-brand to-brand-dark text-white shadow-soft [&_svg]:h-4 [&_svg]:w-4 sm:flex">
+          <span className="mt-1 hidden h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand text-white [&_svg]:h-5 [&_svg]:w-5 sm:flex">
             {icon}
           </span>
         ) : null}
         <div>
           {eyebrow ? (
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand">
+            <p className="text-sm font-semibold text-brand">
               {eyebrow}
             </p>
           ) : null}
-          <h1 className="mt-1 font-display text-2xl tracking-tight text-navy">
+          <h1 className="text-2xl font-semibold tracking-tight text-navy sm:text-3xl">
             {title}
           </h1>
           {subtitle ? (
-            <p className="mt-1.5 max-w-2xl text-sm text-muted">{subtitle}</p>
+            <p className="mt-1.5 max-w-2xl text-base text-muted">{subtitle}</p>
           ) : null}
         </div>
       </div>
@@ -299,7 +581,6 @@ export function DashboardWelcomeCard({
   actions,
   metric,
   metricLabel,
-  metricIcon,
 }: {
   title: string;
   description: string;
@@ -309,27 +590,18 @@ export function DashboardWelcomeCard({
   metricIcon?: React.ReactNode;
 }) {
   return (
-    <section className="relative overflow-hidden rounded-3xl bg-linear-to-br from-brand to-brand-dark p-5 text-white shadow-card sm:p-6">
-      <div className="paper-grid absolute inset-0 opacity-20" />
-      <div aria-hidden="true" className="absolute -right-16 -top-24 h-64 w-64 rounded-full border-24 border-white/10" />
-      <div className="relative flex flex-wrap items-center justify-between gap-5">
+    <section className="rounded-xl bg-brand px-5 py-5 text-white sm:px-6">
+      <div className="flex flex-wrap items-end justify-between gap-5">
         <div className="max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/70">Workspace</p>
-          <h1 className="mt-2 font-display text-2xl leading-tight sm:text-3xl">{title}</h1>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-white/80">{description}</p>
+          <p className="text-sm font-medium text-white/75">Workspace</p>
+          <h1 className="mt-1 text-2xl font-semibold leading-tight sm:text-3xl">{title}</h1>
+          <p className="mt-2 max-w-xl text-base leading-6 text-white/85">{description}</p>
           <div className="mt-4 flex flex-wrap gap-3">{actions}</div>
         </div>
         {metric !== undefined && metricLabel ? (
-          <div className="flex items-center gap-3 rounded-2xl bg-white/10 px-5 py-4 ring-1 ring-white/20 backdrop-blur-sm">
-            {metricIcon ? (
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15 text-white [&_svg]:h-5 [&_svg]:w-5">
-                {metricIcon}
-              </span>
-            ) : null}
-            <div>
-              <p className="font-display text-2xl leading-none">{metric}</p>
-              <p className="mt-1 text-xs text-white/70">{metricLabel}</p>
-            </div>
+          <div className="min-w-40 rounded-lg bg-white/15 px-4 py-3 ring-1 ring-white/25">
+            <p className="text-2xl font-semibold leading-none tabular-nums">{metric}</p>
+            <p className="mt-1 text-sm text-white/75">{metricLabel}</p>
           </div>
         ) : null}
       </div>
@@ -349,13 +621,9 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-dashed border-line bg-card px-6 py-16 text-center">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-20 left-1/2 h-48 w-96 -translate-x-1/2 rounded-full bg-linear-to-r from-brand/10 via-accent/10 to-transparent blur-2xl"
-      />
-      <div className="relative">
-        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-linear-to-br from-brand-soft to-accent-soft text-brand shadow-soft ring-1 ring-brand/10 [&_svg]:h-4.5 [&_svg]:w-4.5">
+    <div className="rounded-xl border border-dashed border-line bg-card px-6 py-14 text-center">
+      <div>
+        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg bg-brand-soft text-brand [&_svg]:h-4.5 [&_svg]:w-4.5">
           {icon ?? (
             <svg
               width="24"
@@ -382,9 +650,24 @@ export function EmptyState({
 }
 
 export function formatDate(value: string) {
-  return new Date(value).toLocaleDateString("en-GB", {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",
+  });
+}
+
+export function formatDateTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
   });
 }

@@ -5,20 +5,31 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
-import { DataTable, GhostButton, PageHeader, StatCard, formatDate } from "@/components/ui";
+import { StatusBars } from "@/components/charts";
+import { DashboardWelcomeCard, GhostButton, StatCard } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
 import type { Booking, BookingStatus, Role } from "@/lib/types";
 import Link from "next/link";
 
 const STATUS_FLOW: { status: BookingStatus; label: string; tone: string }[] = [
-  { status: "PENDING", label: "Pending", tone: "bg-warn text-white" },
-  { status: "ACCEPTED", label: "Accepted", tone: "bg-brand text-white" },
-  { status: "IN_PROGRESS", label: "In progress", tone: "bg-accent text-white" },
+  { status: "PENDING", label: "Pending", tone: "bg-brand/40 text-white" },
+  { status: "ACCEPTED", label: "Accepted", tone: "bg-brand/60 text-white" },
+  { status: "IN_PROGRESS", label: "In progress", tone: "bg-brand/80 text-white" },
   { status: "DELIVERED", label: "Delivered", tone: "bg-brand text-white" },
-  { status: "COMPLETED", label: "Completed", tone: "bg-good text-white" },
-  { status: "DISPUTED", label: "Disputed", tone: "bg-bad text-white" },
+  { status: "COMPLETED", label: "Completed", tone: "bg-brand-dark text-white" },
+  { status: "DISPUTED", label: "Disputed", tone: "bg-navy text-white" },
   { status: "REJECTED", label: "Rejected", tone: "bg-line text-muted" },
 ];
+
+const STATUS_COLORS: Record<BookingStatus, string> = {
+  PENDING: "#cfe6ef",
+  ACCEPTED: "#a3cfe0",
+  IN_PROGRESS: "#5aa3c0",
+  DELIVERED: "#00628b",
+  COMPLETED: "#0a3d50",
+  DISPUTED: "#122832",
+  REJECTED: "#d5e0e7",
+};
 
 type AdminReportUser = {
   id: string;
@@ -57,38 +68,6 @@ function getMonthlyBookingCounts(bookings: Booking[]) {
       firstMonth.getUTCMonth();
     if (monthIndex >= 0 && monthIndex < months.length) {
       months[monthIndex].count += 1;
-    }
-  }
-
-  return months;
-}
-
-function getMonthlyCommissionTotals(bookings: Booking[]) {
-  const now = new Date();
-  const firstMonth = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1),
-  );
-  const months = Array.from({ length: 6 }, (_, index) => {
-    const date = new Date(
-      Date.UTC(firstMonth.getUTCFullYear(), firstMonth.getUTCMonth() + index, 1),
-    );
-    return {
-      label: date.toLocaleDateString("en", { month: "short", timeZone: "UTC" }),
-      totalRwf: 0,
-    };
-  });
-
-  for (const booking of bookings) {
-    const payment = booking.payment;
-    if (payment?.status !== "RELEASED" || !payment.releasedAt) continue;
-    const releasedAt = new Date(payment.releasedAt);
-    if (Number.isNaN(releasedAt.getTime())) continue;
-    const monthIndex =
-      (releasedAt.getUTCFullYear() - firstMonth.getUTCFullYear()) * 12 +
-      releasedAt.getUTCMonth() -
-      firstMonth.getUTCMonth();
-    if (monthIndex >= 0 && monthIndex < months.length) {
-      months[monthIndex].totalRwf += payment.commissionRwf;
     }
   }
 
@@ -151,7 +130,15 @@ function downloadCsv(
 }
 
 export default function AdminHome() {
-  const { trucks, bookings, disputes, users: accountUsers, resetWorkspace } = useIbanga();
+  const {
+    trucks,
+    bookings,
+    disputes,
+    users: accountUsers,
+    adminCommission: commission,
+    currentUser,
+  } = useIbanga();
+  const firstName = (currentUser?.name ?? "").split(" ")[0] || "there";
   const users: AdminReportUser[] = accountUsers.map((user) => ({
     ...user,
     phone: user.phone || null,
@@ -161,34 +148,46 @@ export default function AdminHome() {
   }));
   const userCount = users.length;
   const [reportKind, setReportKind] = useState<ReportKind>("overview");
-  const commission = bookings.reduce(
-    (totals, booking) => {
-      const payment = booking.payment;
-      if (payment?.status === "FUNDED") totals.availableRwf += payment.commissionRwf;
-      if (payment?.status === "RELEASED") totals.totalEarnedRwf += payment.commissionRwf;
-      return totals;
-    },
-    { availableRwf: 0, totalEarnedRwf: 0 },
-  );
   const userCountError = false;
-  const [resetting, setResetting] = useState(false);
-  const [resetError, setResetError] = useState<string | null>(null);
   const openDisputes = disputes.filter((d) => d.status === "OPEN").length;
   const availableTrucks = trucks.filter((truck) => truck.status === "AVAILABLE").length;
   const monthlyBookings = getMonthlyBookingCounts(bookings);
   const maxMonthlyBookings = Math.max(1, ...monthlyBookings.map((month) => month.count));
-  const monthlyCommissions = getMonthlyCommissionTotals(bookings);
+  const monthlyCommissions = (commission?.monthlyHistory ?? []).map(
+    ({ month, totalRwf }) => ({
+      label: new Date(`${month}-01T00:00:00Z`).toLocaleDateString("en", {
+        month: "short",
+        timeZone: "UTC",
+      }),
+      totalRwf,
+    }),
+  );
   const maxMonthlyCommission = Math.max(
     1,
     ...monthlyCommissions.map((month) => month.totalRwf),
   );
   const monthlyUserRegistrations = getMonthlyUserRegistrations(users);
-  const maxMonthlyRegistrations = Math.max(
+  const maxRegistrations = Math.max(
     1,
-    ...monthlyUserRegistrations.map(
-      (month) => month.IMPORTER + month.TRUCK_OWNER + month.ADMIN,
-    ),
+    ...monthlyUserRegistrations.flatMap((month) => [month.IMPORTER, month.TRUCK_OWNER, month.ADMIN]),
   );
+  const registrationSeries = [
+    { key: "IMPORTER", label: "Importers", color: "#00628b" },
+    { key: "TRUCK_OWNER", label: "Truck owners", color: "#3f86a5" },
+    { key: "ADMIN", label: "Admins", color: "#8fbdd0" },
+  ] as const;
+  const registrationX = (index: number) =>
+    44 + (index * 552) / Math.max(1, monthlyUserRegistrations.length - 1);
+  const registrationY = (value: number) => 166 - (value / maxRegistrations) * 126;
+  const registrationLines = registrationSeries.map((series) => ({
+    ...series,
+    points: monthlyUserRegistrations.map((month, index) => ({
+      x: registrationX(index),
+      y: registrationY(month[series.key]),
+      value: month[series.key],
+      label: month.label,
+    })),
+  }));
   const chartPoints = monthlyBookings.map((month, index) => ({
     ...month,
     x: 44 + (index * 552) / (monthlyBookings.length - 1),
@@ -199,14 +198,38 @@ export default function AdminHome() {
     .join(" ");
   const bookingAreaPath = `${bookingLinePath} L596,166 L44,166 Z`;
 
-  async function handleReset() {
-    if (!window.confirm("Restore marketplace records and balances to their initial values? This will discard current changes.")) return;
-    setResetting(true);
-    setResetError(null);
-    const error = await resetWorkspace();
-    if (error) setResetError(error);
-    setResetting(false);
-  }
+  const liveTrips = bookings.filter((booking) =>
+    ["ACCEPTED", "IN_PROGRESS", "DELIVERED"].includes(booking.status),
+  ).length;
+  const payments = bookings.filter((booking) => booking.payment);
+  const totalPayments = payments.length;
+  const heldPayments = payments.filter((booking) => booking.payment?.status === "HELD").length;
+  const openDisputeList = disputes.filter((dispute) => dispute.status === "OPEN");
+  const totalPaymentsAmount = payments.reduce(
+    (sum, booking) => sum + (booking.payment?.amountRwf ?? 0),
+    0,
+  );
+
+  const statusSlices = STATUS_FLOW.map((step) => ({
+    ...step,
+    count: bookings.filter((booking) => booking.status === step.status).length,
+    color: STATUS_COLORS[step.status],
+  }));
+  const statusTotal = Math.max(1, statusSlices.reduce((sum, slice) => sum + slice.count, 0));
+  const donutRadius = 54;
+  const donutCircumference = 2 * Math.PI * donutRadius;
+  const activeSlices = statusSlices.filter((slice) => slice.count > 0);
+  const donutSlices = activeSlices.map((slice, index) => {
+    const precedingFraction = activeSlices
+      .slice(0, index)
+      .reduce((sum, previous) => sum + previous.count / statusTotal, 0);
+    const fraction = slice.count / statusTotal;
+    return {
+      ...slice,
+      dash: fraction * donutCircumference,
+      offset: precedingFraction * donutCircumference,
+    };
+  });
 
   function handleGenerateReport(format: "csv" | "pdf") {
     const generatedAt = new Date().toISOString();
@@ -344,11 +367,11 @@ export default function AdminHome() {
         overflow: "linebreak",
         valign: "middle",
       },
-      headStyles: { fillColor: [29, 42, 58], textColor: 255, fontStyle: "bold" },
-      alternateRowStyles: { fillColor: [245, 247, 251] },
+      headStyles: { fillColor: [0, 98, 139], textColor: 255, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [238, 242, 245] },
       didDrawPage: ({ pageNumber }) => {
         pdf.setFontSize(8);
-        pdf.setTextColor(100, 116, 139);
+        pdf.setTextColor(77, 100, 112);
         pdf.text(
           `iBanga marketplace report · Page ${pageNumber} of ${pdf.getNumberOfPages()}`,
           pdf.internal.pageSize.getWidth() - 36,
@@ -363,48 +386,37 @@ export default function AdminHome() {
   return (
     <RequireAuth role="ADMIN">
       <DashboardShell role="ADMIN">
-        <PageHeader
-          eyebrow="Marketplace overview"
-          title="Admin dashboard"
-          subtitle="Keep the marketplace fair — users, trucks, bookings and disputes, all in one place."
-          icon={
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <rect x="3" y="3" width="7.5" height="7.5" rx="1.5" />
-              <rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5" />
-              <rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5" />
-              <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5" />
-            </svg>
+        <DashboardWelcomeCard
+          title={`Hello, ${firstName}.`}
+          description={
+            openDisputes
+              ? "Disputes are waiting for a decision. Resolve them to keep the marketplace fair."
+              : "No open disputes. Keep an eye on payments, trucks and bookings from here."
           }
           actions={
             <>
               <Link
                 href="/dashboard/admin/disputes"
-                className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-brand-dark hover:shadow-card"
+                className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-brand-dark transition hover:bg-brand-soft"
               >
                 Review disputes
                 {openDisputes ? (
-                  <span className="rounded-full bg-white px-2 py-0.5 text-xs font-bold text-brand-dark">
-                    {openDisputes}
-                  </span>
+                  <span className="rounded-full bg-brand px-2 py-0.5 text-xs font-bold text-white">{openDisputes}</span>
                 ) : null}
               </Link>
-              <GhostButton
-                type="button"
-                disabled={resetting}
-                onClick={() => void handleReset()}
+              <Link
+                href="/dashboard/admin/payments"
+                className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-white/25 transition hover:bg-white/15"
               >
-                {resetting ? "Restoring…" : "Restore initial data"}
-              </GhostButton>
+                Payments
+              </Link>
             </>
           }
+          metric={String(liveTrips)}
+          metricLabel="trips in motion"
         />
-        {resetError ? (
-          <p className="mt-4 flex items-center gap-2 rounded-xl border border-bad/20 bg-bad-soft px-3.5 py-2.5 text-sm text-bad">
-            {resetError}
-          </p>
-        ) : null}
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             label="Commission available"
             value={commission ? `RWF ${commission.availableRwf.toLocaleString("en-RW")}` : "—"}
@@ -414,7 +426,19 @@ export default function AdminHome() {
                 <path d="M12 2v20M17 5.5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
               </svg>
             }
-            accent="good"
+            accent="brand"
+          />
+          <StatCard
+            label="Payment volume"
+            value={`RWF ${totalPaymentsAmount.toLocaleString("en-RW")}`}
+            hint={`${totalPayments} payment${totalPayments === 1 ? "" : "s"} recorded`}
+            icon={
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="2.5" y="5" width="19" height="14" rx="2.5" />
+                <path d="M2.5 9.5h19M6 15h4" />
+              </svg>
+            }
+            accent="accent"
           />
           <StatCard
             label="Users"
@@ -430,29 +454,6 @@ export default function AdminHome() {
             accent="brand"
           />
           <StatCard
-            label="Trucks"
-            value={trucks.length}
-            icon={
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M3 6h11v10H3zM14 10h4l3 3v3h-7z" />
-                <circle cx="7.5" cy="17.5" r="1.8" />
-                <circle cx="17.5" cy="17.5" r="1.8" />
-              </svg>
-            }
-            accent="accent"
-          />
-          <StatCard
-            label="Bookings"
-            value={bookings.length}
-            icon={
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <rect x="3" y="5" width="18" height="16" rx="2.5" />
-                <path d="M3 9.5h18M8 3v4m8-4v4" />
-              </svg>
-            }
-            accent="good"
-          />
-          <StatCard
             label="Open disputes"
             value={openDisputes}
             hint="Needs review"
@@ -463,44 +464,51 @@ export default function AdminHome() {
                 <path d="M12 17.5h.01" />
               </svg>
             }
-            accent="bad"
+            accent="warn"
           />
         </div>
 
-        <section className="mt-8">
-          <div className="mb-4">
-            <h2 className="font-display text-xl text-navy">Booking register</h2>
-            <p className="mt-1 text-sm text-muted">Filter, select, and export marketplace booking records.</p>
-          </div>
-          <DataTable
-            columns={[{ label: "Route" }, { label: "Importer" }, { label: "Truck" }, { label: "Created" }, { label: "Cargo" }, { label: "Status" }]}
-            filterLabel="All booking statuses"
-            rows={bookings.map((booking) => {
-              const truck = trucks.find((item) => item.id === booking.truckId);
-              const importer = users.find((user) => user.id === booking.importerId);
-              const route = `${booking.pickupLocation} to ${booking.destination}`;
-              return {
-                id: booking.id,
-                searchText: `${route} ${importer?.name ?? ""} ${truck?.plateNumber ?? ""} ${booking.cargoType}`,
-                filterValue: booking.status,
-                exportValues: [route, importer?.name ?? "", truck?.plateNumber ?? "", formatDate(booking.createdAt), booking.cargoType, booking.status],
-                cells: [
-                  <span key={`${booking.id}-route`} className="font-semibold">{route}</span>,
-                  importer?.name ?? "—",
-                  truck?.plateNumber ?? "—",
-                  formatDate(booking.createdAt),
-                  `${booking.cargoType} · ${booking.cargoWeight}`,
-                  <span key={`${booking.id}-status`} className="rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand-dark">{booking.status.replace("_", " ")}</span>,
-                ],
-              };
-            })}
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          <StatusBars
+            title="Marketplace workload"
+            caption="Cases, trips, held payments and fleet availability."
+            items={[
+              { label: "Disputes to review", value: openDisputes, tone: "warn" },
+              { label: "Trips on the road", value: liveTrips, tone: "accent" },
+              { label: "Payments held", value: heldPayments, tone: "brand" },
+              { label: "Trucks available", value: availableTrucks, tone: "good" },
+            ]}
           />
-        </section>
+          <section className="rounded-2xl border border-line bg-card p-5 shadow-soft">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-navy">Open disputes</h2>
+              <Link href="/dashboard/admin/disputes" className="text-sm font-semibold text-brand">View all</Link>
+            </div>
+            <ul className="mt-4 space-y-3">
+              {openDisputeList.length === 0 ? (
+                <li className="text-sm text-muted">No disputes need your attention.</li>
+              ) : openDisputeList.slice(0, 4).map((dispute) => {
+                const booking = bookings.find((item) => item.id === dispute.bookingId);
+                return (
+                  <li key={dispute.id}>
+                    <Link href={`/dashboard/admin/disputes/${dispute.id}`} className="font-semibold text-navy hover:text-brand">
+                      {booking ? `${booking.pickupLocation} to ${booking.destination}` : dispute.bookingId}
+                    </Link>
+                    <p className="truncate text-sm text-muted">{dispute.reason}</p>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="mt-4 text-sm text-muted">
+              {trucks.length} trucks · {bookings.length} bookings across the marketplace.
+            </p>
+          </section>
+        </div>
 
-        <section className="mt-10">
+        <section className="mt-8">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="font-display text-xl text-navy">Marketplace analytics</h2>
+              <h2 className="font-display text-xl tracking-tight text-navy">Marketplace analytics</h2>
               <p className="mt-1 text-sm text-muted">
                 Trends and fleet availability from stored marketplace records.
               </p>
@@ -533,22 +541,22 @@ export default function AdminHome() {
                     x2="596"
                     y1={y}
                     y2={y}
-                    stroke="#e4e9f0"
+                    stroke="#d5e0e7"
                     strokeDasharray={y === 166 ? undefined : "4 5"}
                   />
                 ))}
-                <text x="8" y="44" fill="#64748b" fontSize="11">
+                <text x="8" y="44" fill="#4d6470" fontSize="11">
                   {maxMonthlyBookings}
                 </text>
-                <text x="8" y="107" fill="#64748b" fontSize="11">
+                <text x="8" y="107" fill="#4d6470" fontSize="11">
                   {Math.ceil(maxMonthlyBookings / 2)}
                 </text>
-                <text x="8" y="170" fill="#64748b" fontSize="11">0</text>
-                <path d={bookingAreaPath} fill="#eef0ff" />
+                <text x="8" y="170" fill="#4d6470" fontSize="11">0</text>
+                <path d={bookingAreaPath} fill="#e5f2f7" />
                 <path
                   d={bookingLinePath}
                   fill="none"
-                  stroke="#4f46e5"
+                  stroke="#00628b"
                   strokeWidth="3"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -560,7 +568,7 @@ export default function AdminHome() {
                     cy={point.y}
                     r="4.5"
                     fill="#ffffff"
-                    stroke="#4f46e5"
+                    stroke="#00628b"
                     strokeWidth="3"
                   >
                     <title>{`${point.label}: ${point.count} bookings`}</title>
@@ -585,18 +593,18 @@ export default function AdminHome() {
                 aria-label={`${availableTrucks} available and ${trucks.length - availableTrucks} unavailable trucks`}
               >
                 <span
-                  className="bg-accent transition-all"
+                  className="bg-brand transition-all"
                   style={{ width: `${trucks.length ? (availableTrucks / trucks.length) * 100 : 0}%` }}
                 />
                 <span
-                  className="bg-navy-soft transition-all"
+                  className="bg-brand/25 transition-all"
                   style={{ width: `${trucks.length ? ((trucks.length - availableTrucks) / trucks.length) * 100 : 0}%` }}
                 />
               </div>
               <div className="mt-6 space-y-5">
                 {[
-                  { label: "Available", count: availableTrucks, color: "bg-accent" },
-                  { label: "Unavailable", count: trucks.length - availableTrucks, color: "bg-navy-soft" },
+                  { label: "Available", count: availableTrucks, color: "bg-brand" },
+                  { label: "Unavailable", count: trucks.length - availableTrucks, color: "bg-brand/25" },
                 ].map((item) => (
                   <div key={item.label}>
                     <div className="flex items-center justify-between gap-3 text-sm">
@@ -626,7 +634,7 @@ export default function AdminHome() {
                   <h3 className="font-display text-lg text-navy">Commission earned</h3>
                   <p className="mt-1 text-sm text-muted">Released booking commissions by month</p>
                 </div>
-                <span className="rounded-lg bg-good-soft px-3 py-1.5 text-xs font-semibold text-good">
+                <span className="rounded-lg bg-brand-soft px-3 py-1.5 text-xs font-semibold text-brand-dark">
                   {commission
                     ? `Total ${new Intl.NumberFormat("en-RW", { notation: "compact", maximumFractionDigits: 1 }).format(commission.totalEarnedRwf)} RWF`
                     : "Loading total"}
@@ -649,7 +657,7 @@ export default function AdminHome() {
                       </span>
                       <div className="flex h-32 w-full items-end rounded-lg bg-background px-1.5">
                         <span
-                          className="block w-full rounded-t-md bg-accent transition-all"
+                          className="block w-full rounded-t-md bg-brand transition-all"
                           style={{ height: `${month.totalRwf ? Math.max(4, (month.totalRwf / maxMonthlyCommission) * 100) : 1}%` }}
                           title={`${month.label}: RWF ${month.totalRwf.toLocaleString("en-RW")}`}
                         />
@@ -659,7 +667,11 @@ export default function AdminHome() {
                   );
                 })}
               </div>
-              {!monthlyCommissions.some((month) => month.totalRwf > 0) ? (
+              {!commission ? (
+                <p className="mt-4 text-sm text-muted">
+                  Loading commission history…
+                </p>
+              ) : !monthlyCommissions.some((month) => month.totalRwf > 0) ? (
                 <p className="mt-4 text-sm text-muted">
                   No released commissions in the last six months.
                 </p>
@@ -672,46 +684,70 @@ export default function AdminHome() {
                 <p className="mt-1 text-sm text-muted">New accounts by role and month</p>
               </div>
               <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium text-muted">
-                {[
-                  { role: "IMPORTER", label: "Importers", color: "bg-brand" },
-                  { role: "TRUCK_OWNER", label: "Truck owners", color: "bg-accent" },
-                  { role: "ADMIN", label: "Admins", color: "bg-warn" },
-                ].map((item) => (
-                  <span key={item.role} className="inline-flex items-center gap-2">
-                    <span className={`h-2.5 w-2.5 rounded-sm ${item.color}`} />
-                    {item.label}
+                {registrationSeries.map((series) => (
+                  <span key={series.key} className="inline-flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: series.color }} />
+                    {series.label}
                   </span>
                 ))}
               </div>
-              <div
-                className="mt-4 grid grid-cols-6 gap-2"
+              <svg
+                className="mt-4 h-52 w-full overflow-visible"
+                viewBox="0 0 620 190"
                 role="img"
                 aria-label={`Monthly registrations by role: ${monthlyUserRegistrations.map((month) => `${month.label}: ${month.IMPORTER} importers, ${month.TRUCK_OWNER} truck owners, ${month.ADMIN} admins`).join("; ")}`}
+                preserveAspectRatio="none"
               >
-                {monthlyUserRegistrations.map((month) => {
-                  const total = month.IMPORTER + month.TRUCK_OWNER + month.ADMIN;
-                  const roles = [
-                    { role: "Importer", count: month.IMPORTER, color: "bg-brand" },
-                    { role: "Truck owner", count: month.TRUCK_OWNER, color: "bg-accent" },
-                    { role: "Admin", count: month.ADMIN, color: "bg-warn" },
-                  ];
-                  return (
-                    <div key={month.label} className="flex min-w-0 flex-col items-center gap-2 text-center">
-                      <span className="h-4 text-xs font-semibold tabular-nums text-navy">{total}</span>
-                      <div className="flex h-32 w-full flex-col justify-end overflow-hidden rounded-lg bg-background px-1.5">
-                        {roles.map((item) => (
-                          <span
-                            key={item.role}
-                            className={`block w-full ${item.color}`}
-                            style={{ height: `${item.count ? (item.count / maxMonthlyRegistrations) * 100 : 0}%` }}
-                            title={`${month.label}: ${item.count} ${item.role.toLowerCase()} registrations`}
-                          />
-                        ))}
-                      </div>
-                      <span className="text-xs font-medium text-muted">{month.label}</span>
-                    </div>
-                  );
-                })}
+                {[40, 103, 166].map((y) => (
+                  <line
+                    key={y}
+                    x1="44"
+                    x2="596"
+                    y1={y}
+                    y2={y}
+                    stroke="#d5e0e7"
+                    strokeDasharray={y === 166 ? undefined : "4 5"}
+                  />
+                ))}
+                <text x="8" y="44" fill="#4d6470" fontSize="11">
+                  {maxRegistrations}
+                </text>
+                <text x="8" y="107" fill="#4d6470" fontSize="11">
+                  {Math.ceil(maxRegistrations / 2)}
+                </text>
+                <text x="8" y="170" fill="#4d6470" fontSize="11">0</text>
+                {registrationLines.map((series) => (
+                  <g key={series.key}>
+                    <path
+                      d={series.points
+                        .map((point, index) => `${index === 0 ? "M" : "L"}${point.x},${point.y}`)
+                        .join(" ")}
+                      fill="none"
+                      stroke={series.color}
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    {series.points.map((point) => (
+                      <circle
+                        key={`${series.key}-${point.label}`}
+                        cx={point.x}
+                        cy={point.y}
+                        r="4"
+                        fill="#ffffff"
+                        stroke={series.color}
+                        strokeWidth="3"
+                      >
+                        <title>{`${point.label}: ${point.value} ${series.label.toLowerCase()}`}</title>
+                      </circle>
+                    ))}
+                  </g>
+                ))}
+              </svg>
+              <div className="ml-11 mt-1 grid grid-cols-6 text-center text-xs font-medium text-muted">
+                {monthlyUserRegistrations.map((month) => (
+                  <span key={month.label}>{month.label}</span>
+                ))}
               </div>
               {!users.length ? (
                 <p className="mt-4 text-sm text-muted">
@@ -723,13 +759,66 @@ export default function AdminHome() {
                 </p>
               ) : null}
             </article>
+
+            <article className="min-w-0 rounded-2xl border border-line bg-card p-5 shadow-soft sm:p-6">
+              <div>
+                <h3 className="font-display text-lg text-navy">Bookings by status</h3>
+                <p className="mt-1 text-sm text-muted">Where every freight request sits today</p>
+              </div>
+              <div className="mt-5 flex flex-col items-center gap-6 sm:flex-row sm:justify-center">
+                <svg
+                  className="h-44 w-44 shrink-0"
+                  viewBox="0 0 140 140"
+                  role="img"
+                  aria-label={`Bookings by status: ${statusSlices.map((slice) => `${slice.label} ${slice.count}`).join(", ")}`}
+                >
+                  <circle cx="70" cy="70" r={donutRadius} fill="none" stroke="#eef4f7" strokeWidth="20" />
+                  {donutSlices.map((slice) => (
+                    <circle
+                      key={slice.status}
+                      cx="70"
+                      cy="70"
+                      r={donutRadius}
+                      fill="none"
+                      stroke={slice.color}
+                      strokeWidth="20"
+                      strokeDasharray={`${slice.dash} ${donutCircumference - slice.dash}`}
+                      strokeDashoffset={-slice.offset}
+                      transform="rotate(-90 70 70)"
+                    >
+                      <title>{`${slice.label}: ${slice.count}`}</title>
+                    </circle>
+                  ))}
+                  <text x="70" y="66" textAnchor="middle" fill="#122832" fontSize="24" fontWeight="700">
+                    {bookings.length}
+                  </text>
+                  <text x="70" y="84" textAnchor="middle" fill="#4d6470" fontSize="10">
+                    bookings
+                  </text>
+                </svg>
+                <ul className="w-full space-y-2.5">
+                  {statusSlices.map((slice) => (
+                    <li key={slice.status} className="flex items-center justify-between gap-3 text-sm">
+                      <span className="flex items-center gap-2 font-medium text-navy">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: slice.color }} />
+                        {slice.label}
+                      </span>
+                      <span className="tabular-nums text-muted">{slice.count}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              {!bookings.length ? (
+                <p className="mt-4 text-sm text-muted">No bookings have been recorded yet.</p>
+              ) : null}
+            </article>
           </div>
         </section>
 
         <section className="mt-8 rounded-2xl border border-line bg-card p-5 shadow-soft sm:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="font-display text-xl text-navy">Generate a report</h2>
+              <h2 className="font-display text-xl tracking-tight text-navy">Generate a report</h2>
               <p className="mt-1 text-sm text-muted">
                 Export current marketplace records as a spreadsheet-ready CSV.
               </p>
@@ -738,7 +827,7 @@ export default function AdminHome() {
               <label className="sr-only" htmlFor="report-kind">Report type</label>
               <select
                 id="report-kind"
-                className="min-h-11 min-w-52 rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm font-medium text-navy shadow-soft outline-none focus:border-brand/50 focus:ring-2 focus:ring-brand/20"
+                className="min-h-11 min-w-52 rounded-lg border border-line bg-white px-3.5 py-2.5 text-sm font-medium text-navy outline-none transition hover:border-brand/30 focus:border-brand focus:ring-2 focus:ring-brand/15"
                 value={reportKind}
                 onChange={(event) => setReportKind(event.target.value as ReportKind)}
               >
@@ -778,54 +867,6 @@ export default function AdminHome() {
             </p>
           ) : null}
         </section>
-
-        <div className="mt-10">
-          <h2 className="font-display text-xl tracking-tight text-navy">
-            Bookings by status
-          </h2>
-          <p className="mt-1 text-sm text-muted">
-            Where every freight request currently sits in its journey.
-          </p>
-
-          <div className="mt-4 flex h-3 overflow-hidden rounded-full bg-line">
-            {STATUS_FLOW.map((step) => {
-              const count = bookings.filter((b) => b.status === step.status).length;
-              if (!count) return null;
-              return (
-                <div
-                  key={step.status}
-                  className={`${step.tone} transition-all`}
-                  style={{ width: `${Math.round((count / (bookings.length || 1)) * 100)}%` }}
-                  title={`${step.label}: ${count}`}
-                />
-              );
-            })}
-          </div>
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {STATUS_FLOW.map((step) => {
-              const count = bookings.filter((b) => b.status === step.status).length;
-              return (
-                <div
-                  key={step.status}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-card px-4 py-3.5 shadow-soft"
-                >
-                  <span className="flex items-center gap-2 text-sm font-medium text-muted">
-                    <span className={`h-2 w-2 rounded-full ${step.tone}`} />
-                    {step.label}
-                  </span>
-                  <span
-                    className={`inline-flex min-w-8 items-center justify-center rounded-full px-2 py-0.5 text-sm font-semibold ${
-                      count === 0 ? "bg-line text-muted" : "bg-brand-soft text-brand-dark"
-                    }`}
-                  >
-                    {count}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
       </DashboardShell>
     </RequireAuth>
   );

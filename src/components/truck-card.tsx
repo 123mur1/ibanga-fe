@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { TruckBadge } from "./status-badge";
-import { Avatar, TruckThumb } from "./photos";
+import { TruckThumb } from "./photos";
 import type { Truck } from "@/lib/types";
 
 export function TruckCard({ truck }: { truck: Truck }) {
-  const owner = truck.owner;
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-soft transition duration-200 hover:-translate-y-1 hover:shadow-card">
       <div className="relative">
@@ -44,15 +43,6 @@ export function TruckCard({ truck }: { truck: Truck }) {
               {truck.preferredRoute}
             </dd>
           </div>
-          {owner ? (
-            <div className="flex items-center justify-between gap-3 border-t border-line pt-2.5">
-              <dt className="text-muted">Owner</dt>
-              <dd className="flex items-center gap-2 font-medium text-navy">
-                <Avatar src={owner.photo ?? undefined} name={owner.name} size="sm" />
-                {owner.name}
-              </dd>
-            </div>
-          ) : null}
         </dl>
         <p className="mt-4 line-clamp-2 text-sm text-muted">{truck.description}</p>
         <Link

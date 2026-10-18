@@ -1,11 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TruckCard } from "./truck-card";
 import { PublicNavbar } from "./public-navbar";
 import { useIbanga } from "@/lib/store";
-import { ACTIVE_BOOKING_STATUSES } from "@/lib/types";
+import { ACTIVE_BOOKING_STATUSES, LOCATIONS, TRUCK_TYPES } from "@/lib/types";
+
+const PAGE_SIZE = 6;
+
+type SortKey = "default" | "price-asc" | "price-desc" | "capacity-desc";
+
+const emptyFilters = { search: "", location: "", type: "", minCapacity: "", maxPrice: "", sort: "default" as SortKey };
+
+const filterLabel = "mb-1.5 block text-sm font-medium text-navy";
+const filterInput =
+  "w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink outline-none transition placeholder:text-muted/70 hover:border-brand/30 focus:border-brand focus:ring-2 focus:ring-brand/15";
 
 const heroSlides = [
   {
@@ -31,7 +41,8 @@ const heroSlides = [
 export function LandingPage() {
   const { trucks, bookings } = useIbanga();
   const [activeSlide, setActiveSlide] = useState(0);
-  const [visibleTruckCount, setVisibleTruckCount] = useState(6);
+  const [visibleTruckCount, setVisibleTruckCount] = useState(PAGE_SIZE);
+  const [filters, setFilters] = useState(emptyFilters);
 
   useEffect(() => {
     const timer = window.setInterval(
@@ -42,12 +53,58 @@ export function LandingPage() {
   }, []);
 
   const availableTrucks = trucks.filter((truck) => truck.status === "AVAILABLE");
-  const featuredTrucks = availableTrucks.slice(0, visibleTruckCount);
+  const query = filters.search.trim().toLowerCase();
+  const minCapacity = Number(filters.minCapacity) || 0;
+  const maxPrice = Number(filters.maxPrice) || 0;
+  const filteredTrucks = availableTrucks
+    .filter((truck) =>
+      (!query || `${truck.plateNumber} ${truck.truckType} ${truck.currentLocation} ${truck.preferredRoute} ${truck.description}`.toLowerCase().includes(query))
+      && (!filters.location || truck.currentLocation.toLowerCase().includes(filters.location.toLowerCase()))
+      && (!filters.type || truck.truckType === filters.type)
+      && truck.capacity >= minCapacity
+      && (!maxPrice || (truck.priceRwf != null && truck.priceRwf <= maxPrice)),
+    )
+    .sort((a, b) => {
+      if (filters.sort === "price-asc") return (a.priceRwf ?? Infinity) - (b.priceRwf ?? Infinity);
+      if (filters.sort === "price-desc") return (b.priceRwf ?? -1) - (a.priceRwf ?? -1);
+      if (filters.sort === "capacity-desc") return b.capacity - a.capacity;
+      return 0;
+    });
+  const featuredTrucks = filteredTrucks.slice(0, visibleTruckCount);
+  const filtersActive = JSON.stringify(filters) !== JSON.stringify(emptyFilters);
+
+  function updateFilter(patch: Partial<typeof emptyFilters>) {
+    setFilters((current) => ({ ...current, ...patch }));
+    setVisibleTruckCount(PAGE_SIZE);
+  }
+
+  function clearFilters() {
+    setFilters(emptyFilters);
+    setVisibleTruckCount(PAGE_SIZE);
+  }
   const availableTruckCount = availableTrucks.length;
+  const hasMore = featuredTrucks.length < filteredTrucks.length;
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const activeLoadCount = bookings.filter((booking) =>
     ACTIVE_BOOKING_STATUSES.includes(booking.status),
   ).length;
   const slide = heroSlides[activeSlide];
+
+  // Reveal the next batch of trucks when the loading marker scrolls into view.
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node || !hasMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setVisibleTruckCount((count) => count + PAGE_SIZE);
+        }
+      },
+      { rootMargin: "400px 0px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, visibleTruckCount]);
 
   return (
     <div className="min-h-screen bg-white text-foreground">
@@ -132,159 +189,123 @@ export function LandingPage() {
 
         <section id="available-trucks" className="scroll-mt-24 bg-slate-50 py-16 sm:py-20">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">Ready to move</p>
-                <h2 className="mt-2 font-display text-3xl tracking-tight text-navy sm:text-4xl">Available trucks</h2>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-muted sm:text-base">
-                  Explore transport options, review their routes and listed rates, and choose the right fit for your cargo.
-                </p>
-              </div>
-            </div>
-            {featuredTrucks.length ? (
-              <>
-                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                  {featuredTrucks.map((truck) => <TruckCard key={truck.id} truck={truck} />)}
-                </div>
-                {featuredTrucks.length < availableTrucks.length ? (
-                  <div className="mt-8 text-center">
-                    <button
-                      type="button"
-                      onClick={() => setVisibleTruckCount((count) => count + 6)}
-                      className="inline-flex items-center gap-2 rounded-full border border-brand px-6 py-3 text-sm font-semibold text-brand transition hover:bg-brand hover:text-white"
-                    >
-                      Browse more trucks
-                      <span aria-hidden="true">↓</span>
-                    </button>
-                  </div>
-                ) : null}
-              </>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-line bg-white px-6 py-14 text-center text-sm text-muted">
-                New trucks are being added to the marketplace.
-              </div>
-            )}
-          </div>
-        </section>
-
-        <section id="about" className="scroll-mt-24 bg-white py-16 sm:py-20">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-end">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">About iBanga</p>
-                <h2 className="mt-3 max-w-xl font-display text-3xl leading-tight tracking-tight text-navy sm:text-4xl">
-                  Built to simplify cargo movement.
-                </h2>
-                <p className="mt-5 max-w-xl text-base leading-7 text-muted">
-                  iBanga brings importers and truck owners together to find transport, arrange bookings, and follow each trip through delivery.
-                </p>
-              </div>
-              <p className="max-w-2xl text-sm leading-6 text-muted sm:text-base">
-                One clear path from listing to confirmed delivery, with cargo details, listed prices, and booking progress available in one place.
+            <div className="mb-8">
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">Ready to move</p>
+              <h2 className="mt-2 font-display text-3xl tracking-tight text-navy sm:text-4xl">Available trucks</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-muted sm:text-base">
+                Explore transport options, review their routes and listed rates, and choose the right fit for your cargo.
               </p>
             </div>
 
-            <div className="mt-10">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand">How it works</p>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {[
-                  {
-                    title: "Owner lists a truck",
-                    description: "The truck stays available until someone books it.",
-                    action: "List a truck",
-                    href: "/register?role=TRUCK_OWNER",
-                  },
-                  {
-                    title: "Importer books it",
-                    description: "Cargo and journey details are sent. The truck becomes unavailable right away.",
-                    action: "Browse available trucks",
-                    href: "/#available-trucks",
-                  },
-                  {
-                    title: "Pay the listed price",
-                    description: "The owner sets a fixed price. Pay from your iBanga wallet after acceptance.",
-                    action: "Go to your wallet",
-                    href: "/dashboard/wallet",
-                  },
-                  {
-                    title: "Owner accepts or rejects",
-                    description: "Accepting keeps the truck locked for the trip. Rejecting makes it available again.",
-                    action: "Review booking requests",
-                    href: "/dashboard/owner/requests",
-                  },
-                  {
-                    title: "Move the cargo",
-                    description: "The owner starts the trip and marks it delivered.",
-                    action: "Manage active trips",
-                    href: "/dashboard/owner/trips",
-                  },
-                  {
-                    title: "Confirm or dispute",
-                    description: "The importer confirms receipt or reports a problem. The truck is released after the trip is completed.",
-                    action: "Review your bookings",
-                    href: "/dashboard/importer/bookings",
-                  },
-                ].map((step, index) => (
-                  <article key={step.title} className="group rounded-2xl border border-line bg-slate-50 p-5 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-brand/30 hover:shadow-card">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-brand">{String(index + 1).padStart(2, "0")}</span>
-                      <Link
-                        href={step.href}
-                        aria-label={step.action}
-                        title={step.action}
-                        className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-soft text-sm text-brand transition duration-200 group-hover:translate-x-1 group-hover:bg-brand group-hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                      >
-                        <span aria-hidden="true">→</span>
-                      </Link>
-                    </div>
-                    <h3 className="mt-4 font-display text-lg text-navy">{step.title}</h3>
-                    <p className="mt-2 text-sm leading-6 text-muted">{step.description}</p>
-                    <p className="mt-4 text-xs font-semibold text-brand">{step.action}</p>
-                  </article>
-                ))}
-              </div>
-            </div>
+            <div className="grid gap-6 lg:grid-cols-[17rem_minmax(0,1fr)] lg:items-start">
+              <aside aria-label="Search and filters" className="lg:sticky lg:top-24">
+                <div className="rounded-2xl border border-line bg-white p-5 shadow-soft lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="font-display text-lg text-navy">Search &amp; filters</h3>
+                    {filtersActive ? (
+                      <button type="button" onClick={clearFilters} className="text-sm font-semibold text-brand hover:text-brand-dark">
+                        Clear
+                      </button>
+                    ) : null}
+                  </div>
 
-            <div className="mt-14">
-              <div className="text-center">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand">What partners say</p>
-                <h2 className="mt-2 font-display text-2xl tracking-tight text-navy sm:text-3xl">
-                  Trusted by teams moving cargo every day
-                </h2>
-              </div>
-              <div className="mt-7 grid gap-4 md:grid-cols-3">
-                {[
-                  {
-                    quote: "We needed a faster way to find available trucks without chasing calls all day. iBanga made the whole flow feel clearer and more reliable.",
-                    name: "Aline Uwamahoro",
-                    role: "Importer, Kigali",
-                  },
-                  {
-                    quote: "The process was simple enough for my team to keep listings updated, and the booking status gave us much more control over scheduling.",
-                    name: "Eric Ndayisaba",
-                    role: "Truck owner, Rusizi",
-                  },
-                  {
-                    quote: "The dashboard keeps everyone aligned. It reduces confusion between booking requests, confirmations, and exceptions — which matters in cargo logistics.",
-                    name: "Moses Kamanzi",
-                    role: "Operations lead",
-                  },
-                ].map((review) => (
-                  <article key={review.name} className="flex h-full flex-col rounded-3xl border border-line bg-white p-6 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-brand/30 hover:shadow-card">
-                    <div aria-label="5 out of 5 stars" className="flex gap-1 text-lg leading-none text-amber-500">
-                      {Array.from({ length: 5 }, (_, index) => (
-                        <span key={index} aria-hidden="true">★</span>
-                      ))}
+                  <div className="mt-4 space-y-4">
+                    <label className="block">
+                      <span className={filterLabel}>Search</span>
+                      <input
+                        type="search"
+                        value={filters.search}
+                        onChange={(event) => updateFilter({ search: event.target.value })}
+                        placeholder="Plate, route, owner…"
+                        className={filterInput}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className={filterLabel}>Location</span>
+                      <select value={filters.location} onChange={(event) => updateFilter({ location: event.target.value })} className={filterInput}>
+                        <option value="">Any location</option>
+                        {LOCATIONS.map((location) => <option key={location}>{location}</option>)}
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className={filterLabel}>Truck type</span>
+                      <select value={filters.type} onChange={(event) => updateFilter({ type: event.target.value })} className={filterInput}>
+                        <option value="">Any type</option>
+                        {TRUCK_TYPES.map((type) => <option key={type}>{type}</option>)}
+                      </select>
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="block">
+                        <span className={filterLabel}>Min. tons</span>
+                        <input
+                          type="number"
+                          min="0"
+                          inputMode="numeric"
+                          value={filters.minCapacity}
+                          onChange={(event) => updateFilter({ minCapacity: event.target.value })}
+                          placeholder="10"
+                          className={filterInput}
+                        />
+                      </label>
+                      <label className="block">
+                        <span className={filterLabel}>Max. price (RWF)</span>
+                        <input
+                          type="number"
+                          min="0"
+                          inputMode="numeric"
+                          value={filters.maxPrice}
+                          onChange={(event) => updateFilter({ maxPrice: event.target.value })}
+                          placeholder="1000000"
+                          className={filterInput}
+                        />
+                      </label>
                     </div>
-                    <blockquote className="mt-5 flex-1 text-sm leading-6 text-slate-700">
-                      “{review.quote}”
-                    </blockquote>
-                    <div className="mt-5 border-t border-line pt-4">
-                      <p className="text-sm font-semibold text-navy">{review.name}</p>
-                      <p className="mt-1 text-xs text-muted">{review.role}</p>
+                    <label className="block">
+                      <span className={filterLabel}>Sort by</span>
+                      <select value={filters.sort} onChange={(event) => updateFilter({ sort: event.target.value as SortKey })} className={filterInput}>
+                        <option value="default">Recommended</option>
+                        <option value="price-asc">Price: low to high</option>
+                        <option value="price-desc">Price: high to low</option>
+                        <option value="capacity-desc">Capacity: largest first</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <p className="mt-5 border-t border-line pt-4 text-sm text-muted" aria-live="polite">
+                    <span className="font-semibold text-navy">{filteredTrucks.length}</span> of {availableTrucks.length} available trucks
+                  </p>
+                </div>
+              </aside>
+
+              <div className="min-w-0">
+                {featuredTrucks.length ? (
+                  <>
+                    <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                      {featuredTrucks.map((truck) => <TruckCard key={truck.id} truck={truck} />)}
                     </div>
-                  </article>
-                ))}
+                    {hasMore ? (
+                      <div ref={sentinelRef} role="status" aria-live="polite" className="mt-8 flex items-center justify-center gap-3 py-6 text-sm text-muted">
+                        <span className="h-5 w-5 animate-spin rounded-full border-2 border-brand border-t-transparent" />
+                        Loading more trucks…
+                      </div>
+                    ) : filteredTrucks.length > PAGE_SIZE ? (
+                      <p className="mt-8 text-center text-sm text-muted">You have seen all {filteredTrucks.length} matching trucks.</p>
+                    ) : null}
+                  </>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-line bg-white px-6 py-14 text-center text-sm text-muted">
+                    {availableTrucks.length
+                      ? "No available trucks match these filters."
+                      : "New trucks are being added to the marketplace."}
+                    {filtersActive ? (
+                      <div className="mt-4">
+                        <button type="button" onClick={clearFilters} className="font-semibold text-brand hover:text-brand-dark">
+                          Clear filters
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
               </div>
             </div>
           </div>

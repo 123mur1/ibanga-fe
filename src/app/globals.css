@@ -1,26 +1,26 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f4f8fa;
-  --foreground: #16313e;
-  --navy: #00628b;
-  --navy-soft: #084d68;
+  --background: #eef2f5;
+  --foreground: #122832;
+  --navy: #122832;
+  --navy-soft: #1d3d4c;
   --brand: #00628b;
   --brand-dark: #004d6e;
-  --brand-soft: #e8f3f7;
-  --accent: #2487a8;
-  --accent-dark: #005a7c;
-  --accent-soft: #e8f3f7;
-  --good: #059669;
-  --good-soft: #eafaf4;
-  --warn: #ea580c;
-  --warn-soft: #fff1e6;
-  --bad: #dc2626;
-  --bad-soft: #fef2f2;
-  --ink: #16313e;
-  --muted: #647784;
+  --brand-soft: #e5f2f7;
+  --accent: #0f7f86;
+  --accent-dark: #0b6369;
+  --accent-soft: #e5f5f6;
+  --good: #0f7a4b;
+  --good-soft: #e7f6ee;
+  --warn: #b45309;
+  --warn-soft: #fff4e5;
+  --bad: #b42318;
+  --bad-soft: #fdecec;
+  --ink: #122832;
+  --muted: #4d6470;
   --card: #ffffff;
-  --line: #e5e7eb;
+  --line: #d5e0e7;
 }
 
 @theme {
@@ -61,6 +61,22 @@ body {
   background: var(--background);
   color: var(--ink);
   font-family: var(--font-ibanga-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+@keyframes load-slide {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(280%);
+  }
+}
+
+.loading-bar {
+  width: 42%;
+  animation: load-slide 1.05s ease-in-out infinite;
 }
 
 .font-display {
@@ -155,4 +171,37 @@ body {
   );
   transform: translateX(-120%);
   animation: shimmer 6s ease-in-out infinite;
+}
+
+.truck-pin {
+  position: relative;
+  display: flex;
+  height: 40px;
+  width: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--brand);
+  border: 3px solid #fff;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.35);
+}
+
+.truck-pin-live::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 9999px;
+  border: 2px solid var(--brand);
+  animation: truck-pulse 1.8s ease-out infinite;
+}
+
+@keyframes truck-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
 }

@@ -4,12 +4,15 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useState } from "react";
 import { AuthShell } from "@/components/auth-shell";
+import { useToast } from "@/components/toast";
 import { Field, inputClass, PrimaryButton } from "@/components/ui";
-import { dashboardPath, useIbanga } from "@/lib/store";
+import { postAuthPath, withNext } from "@/lib/redirect";
+import { useIbanga } from "@/lib/store";
 import type { Role } from "@/lib/types";
 
 function RegisterForm() {
   const { register } = useIbanga();
+  const toast = useToast();
   const router = useRouter();
   const params = useSearchParams();
   const preset = params.get("role") === "TRUCK_OWNER" ? "TRUCK_OWNER" : "IMPORTER";
@@ -25,62 +28,36 @@ function RegisterForm() {
     password: "",
   });
   const [busy, setBusy] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
+    if (!acceptedTerms) {
+      setBusy(false);
+      setError("Accept the iBanga terms and conditions to create an account.");
+      toast("Accept the terms and conditions to continue.", "warn");
+      return;
+    }
     const err = await register({ ...form, role });
     setBusy(false);
     if (err) {
       setError(err);
+      toast(err, "bad");
       return;
     }
-    router.push(dashboardPath(role));
+    toast("Account created.", "good");
+    router.push(postAuthPath(role, params.get("next")));
   }
 
   return (
-    <div className="relative mx-auto w-full max-w-2xl">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -inset-6 -z-10 rounded-full bg-linear-to-tr from-accent/20 via-brand/15 to-transparent blur-2xl"
-      />
-      <div className="overflow-hidden rounded-3xl border border-line bg-card shadow-card">
-        <div className="relative h-40 overflow-hidden bg-linear-to-br from-accent via-brand to-navy">
-          <div className="paper-grid absolute inset-0 opacity-40" />
-          <div
-            aria-hidden="true"
-            className="absolute -right-10 -top-14 h-44 w-44 rounded-full border-18 border-white/10"
-          />
-          <div
-            aria-hidden="true"
-            className="absolute -bottom-24 left-16 h-40 w-40 rounded-full border-18 border-brand/40"
-          />
-          <div className="relative flex h-full items-center justify-center gap-4 px-8">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 shadow-lg ring-1 ring-white/25 backdrop-blur-sm">
-              <svg
-                width="30"
-                height="30"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="white"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-            </div>
-            <div className="text-left">
-              <p className="font-display text-xl text-white">Join the network</p>
-              <p className="text-sm text-white/75">
-                Importer or truck owner — connect directly
-              </p>
-            </div>
-          </div>
-          <div className="absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-white/40 to-transparent" />
+    <div className="mx-auto w-full max-w-2xl">
+      <div className="overflow-hidden rounded-xl border border-line bg-card shadow-soft">
+        <div className="border-b-4 border-brand px-8 pb-5 pt-8">
+          <p className="text-sm font-semibold text-brand">iBanga</p>
+          <h1 className="mt-1 text-2xl font-semibold text-navy">Create an account</h1>
+          <p className="mt-1 text-sm text-muted">Join as an importer or a truck owner.</p>
         </div>
 
         <div className="p-8">
@@ -381,6 +358,23 @@ function RegisterForm() {
               </div>
             </Field>
 
+            <label className="flex items-start gap-3 rounded-xl border border-line bg-background px-3 py-3 text-sm text-navy">
+              <input
+                type="checkbox"
+                className="mt-1 accent-brand"
+                checked={acceptedTerms}
+                onChange={(event) => setAcceptedTerms(event.target.checked)}
+                required
+              />
+              <span>
+                I accept the{" "}
+                <Link href="/terms" className="font-semibold text-brand hover:text-brand-dark">
+                  terms and conditions
+                </Link>{" "}
+                governing the iBanga system, including escrow, delivery confirmation, and live cargo tracking.
+              </span>
+            </label>
+
             {error ? (
               <p className="flex items-center gap-2 rounded-xl border border-bad/20 bg-bad-soft px-3.5 py-2.5 text-sm text-bad">
                 <svg
@@ -446,7 +440,7 @@ function RegisterForm() {
             <span className="h-px flex-1 bg-line" />
           </div>
           <Link
-            href="/login"
+            href={withNext("/login", params.get("next"))}
             className="mt-4 block w-full rounded-xl border border-brand/25 bg-brand-soft/60 px-4 py-2.5 text-center text-sm font-semibold text-brand-dark transition hover:-translate-y-0.5 hover:border-brand/40 hover:bg-brand-soft"
           >
             Log in instead

@@ -4,17 +4,20 @@ export function AuthShell({
   children,
   image,
   showImage = true,
+  fitScreen = false,
 }: {
   children: React.ReactNode;
   image?: string;
   showImage?: boolean;
+  /** Lock the layout to the viewport so the page itself never scrolls. */
+  fitScreen?: boolean;
 }) {
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className={`flex flex-col bg-background ${fitScreen ? "h-dvh overflow-hidden" : "min-h-screen"}`}>
       <PublicNavbar />
 
-      <div className="flex flex-1">
-        <main className={`flex w-full flex-col items-center justify-center gap-6 px-5 pb-12 pt-4 ${showImage ? "lg:w-1/2 lg:px-10 lg:pb-0" : "lg:px-8 lg:py-10"}`}>
+      <div className={`flex flex-1 ${fitScreen ? "min-h-0" : ""}`}>
+        <main className={`flex w-full flex-col items-center justify-center gap-6 px-5 ${fitScreen ? "min-h-0 py-4 lg:px-10" : "pb-12 pt-4"} ${showImage ? (fitScreen ? "lg:w-1/2" : "lg:w-1/2 lg:px-10 lg:pb-0") : "lg:px-8 lg:py-10"}`}>
           {children}
         </main>
 

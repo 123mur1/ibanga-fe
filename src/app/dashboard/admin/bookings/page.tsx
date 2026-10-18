@@ -3,13 +3,21 @@
 import { BookingBadge } from "@/components/status-badge";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
-import { DataTable, PageHeader, StatCard, formatDate, inputClass } from "@/components/ui";
+import { useToast } from "@/components/toast";
+import { DataTable, PageHeader, StatCard, ViewLink, formatDate, inputClass } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
 import type { BookingStatus } from "@/lib/types";
 
 export default function AdminBookingsPage() {
   const { bookings, trucks, users, setBookingStatus } = useIbanga();
+  const toast = useToast();
   const statuses: BookingStatus[] = ["PENDING", "ACCEPTED", "IN_PROGRESS", "DELIVERED", "COMPLETED", "DISPUTED", "REJECTED"];
+
+  async function updateStatus(id: string, status: BookingStatus) {
+    const error = await setBookingStatus(id, status);
+    if (error) toast(error, "bad");
+    else toast("Booking status updated.", "good");
+  }
 
   return (
     <RequireAuth role="ADMIN">
@@ -50,17 +58,19 @@ export default function AdminBookingsPage() {
                   formatDate(booking.pickupDate),
                   `${booking.cargoType} · ${booking.cargoWeight}`,
                   <span key={`${booking.id}-status`}><BookingBadge status={booking.status} /></span>,
-                  <select
-                    key={`${booking.id}-manage`}
-                    aria-label={`Update booking status for ${booking.id}`}
-                    className={`${inputClass} min-w-36 py-2`}
-                    value={booking.status}
-                    onChange={(event) => void setBookingStatus(booking.id, event.target.value as BookingStatus)}
-                  >
-                    {statuses.map((status) => (
-                      <option key={status} value={status}>{status.replaceAll("_", " ")}</option>
-                    ))}
-                  </select>,
+                  <div key={`${booking.id}-manage`} className="flex items-center justify-end gap-2">
+                    <select
+                      aria-label={`Update booking status for ${booking.id}`}
+                      className={`${inputClass} min-w-36 py-2`}
+                      value={booking.status}
+                      onChange={(event) => void updateStatus(booking.id, event.target.value as BookingStatus)}
+                    >
+                      {statuses.map((status) => (
+                        <option key={status} value={status}>{status.replaceAll("_", " ")}</option>
+                      ))}
+                    </select>
+                    <ViewLink href={`/dashboard/admin/bookings/${booking.id}`} label={`View booking ${booking.id}`} />
+                  </div>,
                 ],
               };
             })}

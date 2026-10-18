@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import { NotificationsBell } from "./notifications-bell";
 import { BrandLink, LogoMark } from "./brand";
 import { LogoutConfirmationDialog } from "./logout-confirmation-dialog";
 import { Avatar } from "./photos";
@@ -14,17 +15,19 @@ type NavItem = { href: string; label: string; icon: string };
 const nav: Record<Role, NavItem[]> = {
   IMPORTER: [
     { href: "/dashboard/importer", label: "Overview", icon: "grid" },
-    { href: "/trucks", label: "Find trucks", icon: "search" },
     { href: "/dashboard/importer/bookings", label: "My bookings", icon: "calendar" },
-    { href: "/dashboard/wallet", label: "Wallet", icon: "wallet" },
+    { href: "/dashboard/tracking", label: "Live cargo", icon: "pin" },
+    { href: "/dashboard/importer/payments", label: "Payments", icon: "card" },
+    { href: "/dashboard/importer/refunds", label: "Refunds", icon: "refund" },
   ],
   TRUCK_OWNER: [
     { href: "/dashboard/owner", label: "Dashboard", icon: "grid" },
     { href: "/dashboard/owner/trucks", label: "My trucks", icon: "truck" },
-    { href: "/dashboard/owner/requests", label: "Requests", icon: "inbox" },
-    { href: "/dashboard/owner/trips", label: "Active trips", icon: "route" },
+    { href: "/dashboard/owner/bookings", label: "Bookings", icon: "calendar" },
     { href: "/dashboard/owner/history", label: "History", icon: "history" },
-    { href: "/dashboard/wallet", label: "Wallet", icon: "wallet" },
+    { href: "/dashboard/tracking", label: "Live cargo", icon: "pin" },
+    { href: "/dashboard/owner/payments", label: "Payments", icon: "card" },
+    { href: "/dashboard/owner/refunds", label: "Refunds", icon: "refund" },
   ],
   ADMIN: [
     { href: "/dashboard/admin", label: "Dashboard", icon: "grid" },
@@ -32,7 +35,10 @@ const nav: Record<Role, NavItem[]> = {
     { href: "/dashboard/admin/trucks", label: "Trucks", icon: "truck" },
     { href: "/dashboard/admin/bookings", label: "Bookings", icon: "calendar" },
     { href: "/dashboard/admin/disputes", label: "Disputes", icon: "alert" },
+    { href: "/dashboard/admin/payments", label: "Payments", icon: "card" },
     { href: "/dashboard/admin/wallets", label: "Wallets", icon: "wallet" },
+    { href: "/dashboard/tracking", label: "Live cargo", icon: "pin" },
+    { href: "/dashboard/wallet", label: "Wallet", icon: "wallet" },
   ],
 };
 
@@ -45,8 +51,18 @@ const iconPaths: Record<string, React.ReactNode> = {
       <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5" />
     </>
   ),
-  collapse: <path d="m15 18-6-6 6-6M20 4v16M4 4v16" />,
-  expand: <path d="m9 18 6-6-6-6M4 4v16M20 4v16" />,
+  collapse: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M9 4v16" />
+    </>
+  ),
+  expand: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M9 4v16M13 9l3 3-3 3" />
+    </>
+  ),
   chevron: <path d="m6 9 6 6 6-6" />,
   search: (
     <>
@@ -93,6 +109,12 @@ const iconPaths: Record<string, React.ReactNode> = {
       <path d="M12 7v5l3 2" />
     </>
   ),
+  pin: (
+    <>
+      <path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11Z" />
+      <circle cx="12" cy="10" r="2.4" />
+    </>
+  ),
   wallet: (
     <>
       <rect x="3" y="5" width="18" height="14" rx="2" />
@@ -111,6 +133,19 @@ const iconPaths: Record<string, React.ReactNode> = {
       <path d="M12 3 2.5 20h19L12 3Z" />
       <path d="M12 9.5V14" />
       <path d="M12 17.5h.01" />
+    </>
+  ),
+  card: (
+    <>
+      <rect x="2.5" y="5" width="19" height="14" rx="2.5" />
+      <path d="M2.5 9.5h19M6.5 15h4" />
+    </>
+  ),
+  refund: (
+    <>
+      <path d="M3 12a9 9 0 1 0 3-6.7" />
+      <path d="M3 4v5h5" />
+      <path d="M12 8v4l2.5 1.5" />
     </>
   ),
   home: (
@@ -161,14 +196,6 @@ function roleLabel(role: Role) {
   return "Importer";
 }
 
-function roleTip(role: Role) {
-  if (role === "TRUCK_OWNER")
-    return "To free a truck from a trip, the importer must confirm the delivery.";
-  if (role === "ADMIN")
-    return "After dispute review, only the importer can confirm receipt and release the held payment.";
-  return "Booking a truck holds it until the owner accepts or rejects.";
-}
-
 export function DashboardShell({
   role,
   children,
@@ -204,7 +231,7 @@ export function DashboardShell({
   return (
     <div className="min-h-screen bg-background">
       <div className="flex">
-        <aside className={`sticky top-0 hidden h-screen min-h-0 shrink-0 self-start flex-col overflow-y-auto border-r border-line bg-white transition-[width] duration-200 lg:flex ${collapsed ? "w-[76px]" : "w-[264px]"}`}>
+        <aside className={`sticky top-0 hidden h-screen min-h-0 shrink-0 self-start flex-col overflow-y-auto border-r border-line bg-card transition-[width] duration-200 lg:flex ${collapsed ? "w-[76px]" : "w-[240px]"}`}>
           <div className={`flex items-center ${collapsed ? "justify-center px-2" : "justify-between px-5"} pb-5 pt-6`}>
             {collapsed ? <Link href="/" aria-label="iBanga home"><LogoMark /></Link> : <BrandLink href="/" />}
             {!collapsed ? (
@@ -237,12 +264,12 @@ export function DashboardShell({
                   key={item.href}
                   href={item.href}
                   title={collapsed ? item.label : undefined}
-                  className={`group relative flex items-center rounded-xl py-2.5 text-sm transition ${
-                    collapsed ? "justify-center px-2" : "gap-3 px-3.5"
+                  className={`group relative flex items-center rounded-lg py-2 text-[15px] transition ${
+                    collapsed ? "justify-center px-2" : "gap-3 px-3"
                   } ${
                     active
                       ? "bg-brand-soft font-semibold text-brand-dark"
-                      : "text-muted hover:bg-background hover:text-navy"
+                      : "font-medium text-muted hover:bg-background hover:text-navy"
                   }`}
                 >
                   <NavIcon
@@ -257,43 +284,10 @@ export function DashboardShell({
               );
             })}
           </nav>
-
-          {!collapsed ? <div className="mx-4 mb-4 rounded-2xl border border-brand/15 bg-brand-soft/50 p-4">
-            <div className="flex items-center gap-2 text-brand-dark">
-              <NavIcon name="spark" className="h-4 w-4" />
-              <p className="text-xs font-semibold">Good to know</p>
-            </div>
-            <p className="mt-1.5 text-xs leading-relaxed text-navy/70">
-              {roleTip(role)}
-            </p>
-          </div> : null}
-
-          <div className={`mt-auto border-t border-line p-3 ${collapsed ? "px-2" : ""}`}>
-            <Link
-              href="/"
-              title={collapsed ? "Home" : undefined}
-              className={`flex items-center rounded-xl py-2.5 text-sm font-medium text-muted transition hover:bg-background hover:text-navy ${collapsed ? "justify-center px-2" : "gap-3 px-3.5"}`}
-            >
-              <NavIcon name="home" />
-              {!collapsed ? "Home" : null}
-            </Link>
-            <button
-              type="button"
-              title={collapsed ? "Log out" : undefined}
-              onClick={handleLogout}
-              className={`mt-1 flex w-full items-center rounded-xl py-2.5 text-left text-sm font-medium text-bad transition hover:bg-bad-soft ${collapsed ? "justify-center px-2" : "gap-3 px-3.5"}`}
-            >
-              <NavIcon name="logout" />
-              {!collapsed ? "Log out" : null}
-            </button>
-            <div className={`mt-2 px-1 pt-2 text-xs text-muted/70 ${collapsed ? "text-center" : ""}`}>
-              {collapsed ? "iB" : "iBanga"}
-            </div>
-          </div>
         </aside>
 
         <div className="min-w-0 flex-1">
-          <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-line bg-background/80 px-4 py-3.5 backdrop-blur lg:px-8">
+          <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-line bg-card px-4 py-3 lg:px-6">
             <div className="flex items-center gap-3 lg:hidden">
               <button
                 type="button"
@@ -321,7 +315,8 @@ export function DashboardShell({
               <span className="font-medium text-navy">Good {morning()}, {firstName}.</span>
             </div>
 
-            <div className="relative">
+            <div className="relative flex items-center gap-2">
+              <NotificationsBell />
               <button
                 type="button"
                 aria-expanded={profileOpen}
@@ -405,29 +400,11 @@ export function DashboardShell({
                     );
                   })}
                 </nav>
-                <div className="space-y-1 border-t border-line px-3 py-4">
-                  <Link
-                    href="/"
-                    onClick={() => setOpen(false)}
-                    className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium text-navy hover:bg-background"
-                  >
-                    <NavIcon name="home" />
-                    Home
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-medium text-bad hover:bg-bad-soft"
-                  >
-                    <NavIcon name="logout" />
-                    Log out
-                  </button>
-                </div>
               </div>
             </div>
           ) : null}
 
-          <main className="mx-0 w-full px-4 py-6 sm:px-5 lg:px-6 lg:py-7">{children}</main>
+          <main className="mx-auto w-full max-w-[1240px] px-4 py-6 sm:px-6 lg:py-8">{children}</main>
         </div>
       </div>
       {logoutConfirmationOpen ? (

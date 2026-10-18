@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { WorkspaceLoading } from "@/components/loading";
 import { dashboardPath, useIbanga } from "@/lib/store";
 import type { Role } from "@/lib/types";
 
@@ -19,7 +20,8 @@ export function RequireAuth({
   useEffect(() => {
     if (!ready) return;
     if (!currentUser) {
-      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+      const here = `${pathname}${window.location.search}`;
+      router.replace(`/login?next=${encodeURIComponent(here)}`);
       return;
     }
     if (role && currentUser.role !== role) {
@@ -28,11 +30,7 @@ export function RequireAuth({
   }, [ready, currentUser, role, router, pathname]);
 
   if (!ready || !currentUser || (role && currentUser.role !== role)) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center text-muted">
-        Loading workspace…
-      </div>
-    );
+    return <WorkspaceLoading />;
   }
 
   return <>{children}</>;
