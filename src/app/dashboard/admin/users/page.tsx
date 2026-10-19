@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { DashboardShell } from "@/components/dashboard-shell";
-import { RequireAuth } from "@/components/require-auth";
+import { AdminPage } from "@/features/admin-platform/admin-page";
 import { RoleBadge } from "@/components/status-badge";
 import { useToast } from "@/components/toast";
 import { DataTable, Field, GhostButton, inputClass, Modal, PageHeader, PrimaryButton, RowActions, StatCard } from "@/components/ui";
@@ -73,8 +72,8 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <RequireAuth role="ADMIN">
-      <DashboardShell role="ADMIN">
+    <AdminPage permission="users">
+      <>
         <PageHeader
           eyebrow="Community"
           title="Users"
@@ -306,7 +305,7 @@ export default function AdminUsersPage() {
             </form>
           </Modal>
         ) : null}
-      </DashboardShell>
-    </RequireAuth>
+      </>
+    </AdminPage>
   );
 }

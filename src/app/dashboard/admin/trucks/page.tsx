@@ -1,17 +1,23 @@
 "use client";
 
-import { DashboardShell } from "@/components/dashboard-shell";
-import { RequireAuth } from "@/components/require-auth";
+import { Suspense } from "react";
+import { LoadingBlock } from "@/components/common/async-state";
+import { AdminPage } from "@/features/admin-platform/admin-page";
 import { TruckBadge } from "@/components/status-badge";
 import { useToast } from "@/components/toast";
-import { ConfirmDialog, DataTable, PageHeader, StatCard } from "@/components/ui";
+import { StatusBadge } from "@/components/common/status-badge";
+import { ConfirmDialog, DataTable, PageHeader, StatCard, ViewLink } from "@/components/ui";
+import { useOps } from "@/hooks/use-ops";
 import { useIbanga } from "@/lib/store";
 import { ACTIVE_BOOKING_STATUSES } from "@/lib/types";
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 
-export default function AdminTrucksPage() {
+function AdminTrucksContent() {
+  const searchParams = useSearchParams();
   const { trucks, bookings, setAvailability, deleteTruck } = useIbanga();
   const toast = useToast();
+  const { truckProfiles } = useOps();
   const [busyTruckId, setBusyTruckId] = useState<string | null>(null);
   const [removing, setRemoving] = useState<{ id: string; plateNumber: string } | null>(null);
 
@@ -40,8 +46,8 @@ export default function AdminTrucksPage() {
   }
 
   return (
-    <RequireAuth role="ADMIN">
-      <DashboardShell role="ADMIN">
+    <AdminPage permission="trucks">
+      <>
         <PageHeader
           eyebrow="Marketplace"
           title="Trucks"
@@ -56,19 +62,20 @@ export default function AdminTrucksPage() {
         />
 
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          <StatCard label="Fleet size" value={trucks.length} hint="Registered vehicles" />
-          <StatCard label="Available" value={available} hint="Ready for bookings" accent="good" />
-          <StatCard label="Owners" value={new Set(trucks.map((truck) => truck.ownerId)).size} hint="Active fleet partners" accent="accent" />
+          <StatCard label="Fleet size" value={trucks.length} hint="Registered vehicles" href="/dashboard/admin/trucks" />
+          <StatCard label="Available" value={available} hint="Ready for bookings" accent="good" href="/dashboard/admin/trucks?status=AVAILABLE" />
+          <StatCard label="Owners" value={new Set(trucks.map((truck) => truck.ownerId)).size} hint="Active fleet partners" accent="accent" href="/dashboard/admin/trucks" />
         </div>
         <div className="mt-5">
           <DataTable
-            columns={[{ label: "Vehicle" }, { label: "Owner" }, { label: "Capacity" }, { label: "Location" }, { label: "Route" }, { label: "Status" }, { label: "Actions", className: "text-right" }]}
+            initialFilter={searchParams.get("status") ?? ""}
+            columns={[{ label: "Vehicle" }, { label: "Owner" }, { label: "Capacity" }, { label: "Location" }, { label: "Route" }, { label: "Status" }, { label: "Verification" }, { label: "Actions", className: "text-right" }]}
             filterLabel="All availability"
             rows={trucks.map((truck) => ({
               id: truck.id,
               searchText: `${truck.plateNumber} ${truck.truckType} ${truck.owner?.name ?? ""} ${truck.currentLocation} ${truck.preferredRoute}`,
               filterValue: truck.status,
-              exportValues: [truck.plateNumber, truck.owner?.name ?? "", `${truck.capacity} tons`, truck.currentLocation, truck.preferredRoute, truck.status, ""],
+              exportValues: [truck.plateNumber, truck.owner?.name ?? "", `${truck.capacity} tons`, truck.currentLocation, truck.preferredRoute, truck.status, truckProfiles.find((profile) => profile.truckId === truck.id)?.verification ?? "NOT_SUBMITTED", ""],
               cells: [
                 <span key={`${truck.id}-vehicle`}><strong className="block">{truck.plateNumber}</strong><span className="text-xs text-muted">{truck.truckType}</span></span>,
                 truck.owner?.name ?? "—",
@@ -76,7 +83,9 @@ export default function AdminTrucksPage() {
                 truck.currentLocation,
                 truck.preferredRoute,
                 <span key={`${truck.id}-status`}><TruckBadge status={truck.status} /></span>,
-                <div key={`${truck.id}-actions`} className="flex min-w-44 justify-end gap-2">
+                <StatusBadge key={`${truck.id}-verification`} family="verification" status={truckProfiles.find((profile) => profile.truckId === truck.id)?.verification ?? "NOT_SUBMITTED"} />,
+                <div key={`${truck.id}-actions`} className="flex min-w-44 items-center justify-end gap-2">
+                  <ViewLink href={`/dashboard/admin/trucks/${truck.id}`} label={`View truck ${truck.plateNumber}`} />
                   <button
                     type="button"
                     disabled={busyTruckId === truck.id || (truck.status === "UNAVAILABLE" && heldTruckIds.has(truck.id))}
@@ -113,7 +122,16 @@ export default function AdminTrucksPage() {
             onCancel={() => setRemoving(null)}
           />
         ) : null}
-      </DashboardShell>
-    </RequireAuth>
+      </>
+    </AdminPage>
+  );
+}
+
+export default function AdminTrucksPage() {
+  // useSearchParams needs a Suspense boundary so the page can be prerendered.
+  return (
+    <Suspense fallback={<LoadingBlock />}>
+      <AdminTrucksContent />
+    </Suspense>
   );
 }

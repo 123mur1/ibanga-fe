@@ -1,0 +1,26 @@
+import { check, clickText, confirmDialog, fillLabel, go, selectOption, sleep, startSession, switchUser, text } from "./lib.mjs";
+const { browser, page } = await startSession("eric@ndayitrans.rw");
+let t;
+await go(page, "/dashboard/owner/incidents/inc1", 2500);
+await check("choose policy", await selectOption(page, /Insurance policy/, /Prime/));
+await fillLabel(page, /Claimed amount/, "250000");
+await fillLabel(page, /Notes for the insurer/, "Turbocharger replacement and towing.");
+await check("file claim clicked", await clickText(page, /^File insurance claim$/, "button"));
+await sleep(2500);
+t = await text(page);
+const i = t.indexOf("CLM-2026");
+console.log("CLAIM AREA: " + t.slice(Math.max(0, i - 100), i + 400).replace(/\n+/g, " | "));
+await check("claim shown as Submitted, not approved/paid", i > -1 && /Submitted/.test(t.slice(i - 100, i + 400)) && !/Approved|Paid/.test(t.slice(i - 100, i + 400)));
+
+await switchUser(page, "admin@ibanga.com");
+await go(page, "/dashboard/admin/insurance-claims", 2500);
+t = await text(page);
+await check("admin sees the new claim", /CLM-2026-0003/.test(t));
+console.log("CLAIMS PAGE: " + t.slice(t.indexOf("CLM-2026-0003") - 60, t.indexOf("CLM-2026-0003") + 700).replace(/\n+/g, " | "));
+await fillLabel(page, /Note/, "Assessor confirmed the repair estimate.").catch(() => {});
+await check("approve claim clicked", await clickText(page, /^Approve/, "button"));
+await confirmDialog(page);
+t = await text(page);
+await check("claim now shows 'Approved (simulated)'", /Approved \(simulated\)/.test(t));
+console.log("ERRORS:", page.errors);
+await browser.close();

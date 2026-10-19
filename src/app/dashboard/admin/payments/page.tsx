@@ -1,12 +1,14 @@
 "use client";
 
-import { DashboardShell } from "@/components/dashboard-shell";
-import { RequireAuth } from "@/components/require-auth";
+import { Suspense } from "react";
+import { LoadingBlock } from "@/components/common/async-state";
+import { AdminPage } from "@/features/admin-platform/admin-page";
 import { PaymentBadge } from "@/components/status-badge";
 import { DataTable, PageHeader, StatCard, ViewLink, formatDate } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
 import { formatRwf } from "@/lib/payments";
 import type { PaymentStatus } from "@/lib/types";
+import { useSearchParams } from "next/navigation";
 
 const methodLabel: Record<string, string> = {
   VISA: "Visa card",
@@ -16,7 +18,8 @@ const methodLabel: Record<string, string> = {
 
 const heldStatuses: PaymentStatus[] = ["HELD", "FUNDED", "AUTHORIZED"];
 
-export default function AdminPaymentsPage() {
+function AdminPaymentsContent() {
+  const searchParams = useSearchParams();
   const { bookings, users, adminCommission } = useIbanga();
   const payments = bookings.filter((booking) => booking.payment);
   const totalCollected = payments.reduce((sum, booking) => sum + (booking.payment?.amountRwf ?? 0), 0);
@@ -29,8 +32,8 @@ export default function AdminPaymentsPage() {
       .reduce((sum, booking) => sum + (booking.payment?.commissionRwf ?? 0), 0);
 
   return (
-    <RequireAuth role="ADMIN">
-      <DashboardShell role="ADMIN">
+    <AdminPage permission="payments">
+      <>
         <PageHeader
           eyebrow="Finance"
           title="Payments"
@@ -44,14 +47,15 @@ export default function AdminPaymentsPage() {
         />
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Payments" value={payments.length} hint="Recorded transactions" />
-          <StatCard label="Total collected" value={formatRwf(totalCollected)} hint="All payment amounts" accent="accent" />
-          <StatCard label="Held in escrow" value={formatRwf(heldInEscrow)} hint="Awaiting completion" accent="warn" />
-          <StatCard label="Commission fees earned" value={formatRwf(commissionEarned)} hint="6% platform share" accent="good" />
+          <StatCard label="Payments" value={payments.length} hint="Recorded transactions" href="/dashboard/admin/payments" />
+          <StatCard label="Total collected" value={formatRwf(totalCollected)} hint="All payment amounts" accent="accent" href="/dashboard/admin/payments" />
+          <StatCard label="Held in escrow" value={formatRwf(heldInEscrow)} hint="Awaiting completion" accent="warn" href="/dashboard/admin/payments?status=HELD" />
+          <StatCard label="Commission fees earned" value={formatRwf(commissionEarned)} hint="6% platform share" accent="good" href="/dashboard/admin/payments?status=RELEASED" />
         </div>
 
         <div className="mt-5">
           <DataTable
+            initialFilter={searchParams.get("status") ?? ""}
             columns={[
               { label: "Receipt" },
               { label: "Route" },
@@ -108,7 +112,16 @@ export default function AdminPaymentsPage() {
             })}
           />
         </div>
-      </DashboardShell>
-    </RequireAuth>
+      </>
+    </AdminPage>
+  );
+}
+
+export default function AdminPaymentsPage() {
+  // useSearchParams needs a Suspense boundary so the page can be prerendered.
+  return (
+    <Suspense fallback={<LoadingBlock />}>
+      <AdminPaymentsContent />
+    </Suspense>
   );
 }

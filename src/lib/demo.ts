@@ -155,7 +155,7 @@ export function freshDemoSession(): DemoSession {
     credentials: Object.fromEntries(
       users.map((user) => [
         user.email.toLowerCase(),
-        user.email.toLowerCase() === "admin@ibanga.com" ? administratorPassword : accountPassword,
+        user.role === "ADMIN" ? administratorPassword : accountPassword,
       ]),
     ),
   };

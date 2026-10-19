@@ -4,6 +4,7 @@ import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { BarChartCard, DonutCard, LineChartCard, StatusBars, bucketByMonth } from "@/components/charts";
 import { DashboardWelcomeCard, StatCard } from "@/components/ui";
+import { ImporterKpis } from "@/features/importer/overview-kpis";
 import { formatRwf } from "@/lib/payments";
 import { useIbanga } from "@/lib/store";
 import type { BookingStatus, PaymentStatus } from "@/lib/types";
@@ -59,6 +60,12 @@ export default function ImporterHome() {
                 className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-brand-dark transition hover:bg-brand-soft"
               >
                 Find a truck
+              </Link>
+              <Link
+                href="/dashboard/importer/cargo-requests/new"
+                className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-white/25 transition hover:bg-white/15"
+              >
+                New cargo request
               </Link>
               <Link
                 href="/dashboard/importer/bookings"
@@ -123,6 +130,8 @@ export default function ImporterHome() {
           />
         </div>
 
+        <ImporterKpis />
+
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
           <StatusBars
             title="Your bookings"
@@ -136,7 +145,7 @@ export default function ImporterHome() {
           />
           <section className="rounded-2xl border border-line bg-card p-5 shadow-soft">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-navy">Live cargo</h2>
+              <h2 className="text-lg font-semibold text-navy">Live trips</h2>
               <Link href="/dashboard/tracking" className="text-sm font-semibold text-brand">Open map</Link>
             </div>
             <ul className="mt-4 space-y-3">

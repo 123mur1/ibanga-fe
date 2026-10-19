@@ -10,8 +10,11 @@ import { FormEvent, useEffect, useState } from "react";
 
 export default function ProfilePage({
   role,
+  children,
 }: {
   role: Role;
+  /** Extra sections rendered below the profile form (for example verification). */
+  children?: React.ReactNode;
 }) {
   const { currentUser, updateProfile } = useIbanga();
   const [saved, setSaved] = useState(false);
@@ -165,6 +168,7 @@ export default function ProfilePage({
             Images are resized before they are saved to your profile.
           </p>
         </form>
+        {children}
       </DashboardShell>
     </RequireAuth>
   );

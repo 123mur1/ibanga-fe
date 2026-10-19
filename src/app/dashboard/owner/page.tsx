@@ -6,6 +6,7 @@ import { RequireAuth } from "@/components/require-auth";
 import { BarChartCard, DonutCard, LineChartCard, StatusBars, bucketByMonth } from "@/components/charts";
 import { DashboardWelcomeCard, StatCard } from "@/components/ui";
 import { formatRwf } from "@/lib/payments";
+import { OwnerKpis } from "@/features/owner-fleet/owner-kpis";
 import { useIbanga } from "@/lib/store";
 import type { BookingStatus } from "@/lib/types";
 
@@ -139,7 +140,7 @@ export default function OwnerDashboard() {
           <section className="rounded-2xl border border-line bg-card p-5 shadow-soft">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-lg font-semibold text-navy">Held until both sides confirm</h2>
-              <Link href="/dashboard/tracking" className="text-sm font-semibold text-brand">Live cargo</Link>
+              <Link href="/dashboard/tracking" className="text-sm font-semibold text-brand">Live trips</Link>
             </div>
             <p className="mt-2 text-2xl font-semibold text-navy">{formatRwf(heldForMe.reduce((sum, booking) => sum + (booking.payment?.ownerAmountRwf ?? 0), 0))}</p>
             <p className="mt-1 text-sm text-muted">Your share, released after you confirm delivery and the importer confirms receipt.</p>
@@ -152,6 +153,8 @@ export default function OwnerDashboard() {
             </ul>
           </section>
         </div>
+
+        <OwnerKpis />
 
         <section className="mt-8">
           <div className="flex flex-wrap items-end justify-between gap-3">

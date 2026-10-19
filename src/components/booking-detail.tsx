@@ -5,7 +5,9 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
+import { Notice } from "@/components/common/notices";
 import { useToast } from "@/components/toast";
+import { useAdminAllowed } from "@/hooks/use-admin-allowed";
 import { Avatar } from "@/components/photos";
 import { TripActions } from "@/components/trip-actions";
 import { BookingBadge, DisputeBadge, PaymentBadge, TruckBadge } from "@/components/status-badge";
@@ -27,6 +29,7 @@ export function BookingDetail({
 }) {
   const { id } = useParams<{ id: string }>();
   const { bookings, trucks, users, currentUser } = useIbanga();
+  const adminAllowed = useAdminAllowed("bookings");
 
   const found = bookings.find((item) => item.id === id);
   const truck = found ? trucks.find((item) => item.id === found.truckId) : undefined;
@@ -55,7 +58,11 @@ export function BookingDetail({
           {backLabel}
         </Link>
 
-        {!booking ? (
+        {role === "ADMIN" && !adminAllowed ? (
+          <Notice tone="danger" title="Your administrator role does not include this area" action={{ href: "/dashboard/admin", label: "Back to overview" }}>
+            Ask a super administrator to grant the permission.
+          </Notice>
+        ) : !booking ? (
           <p className="mt-4 rounded-2xl border border-line bg-card px-5 py-10 text-center text-muted">
             This booking could not be found.
           </p>

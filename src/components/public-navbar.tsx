@@ -11,8 +11,10 @@ import { dashboardPath, useIbanga } from "@/lib/store";
 const links = [
   { href: "/#home", label: "Home" },
   { href: "/#available-trucks", label: "Available trucks" },
+  { href: "/how-it-works", label: "How it works" },
   { href: "/about", label: "About us" },
-  { href: "/#contact", label: "Contacts" },
+  { href: "/help", label: "FAQs" },
+  { href: "/contact", label: "Contact" },
 ];
 
 function AuthActionIcon({ action }: { action: "login" | "logout" }) {

@@ -69,6 +69,10 @@ export type Booking = {
   dispute?: Dispute | null;
   status: BookingStatus;
   createdAt: string;
+  /** Set when the booking came from a cargo request and an accepted quotation. */
+  cargoRequestId?: string;
+  quotationId?: string;
+  driverId?: string;
 };
 
 export type BookingPayment = {
@@ -192,6 +196,11 @@ export type RefundRequest = {
   ownerNote: string;
   createdAt: string;
   resolvedAt?: string;
+  /** Optional ops fields: reference, origin of the refund and the (simulated) payout result. */
+  ref?: string;
+  source?: "REFUND" | "CANCELLATION" | "DISPUTE" | "INCIDENT";
+  payoutState?: "PENDING" | "COMPLETED" | "FAILED";
+  failureReason?: string;
 };
 
 export const TRUCK_TYPES = [
