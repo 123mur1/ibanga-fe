@@ -8,8 +8,10 @@ import { ConfirmDialog, DataTable, PageHeader, StatCard } from "@/components/ui"
 import { useIbanga } from "@/lib/store";
 import { ACTIVE_BOOKING_STATUSES } from "@/lib/types";
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 export default function AdminTrucksPage() {
+  const searchParams = useSearchParams();
   const { trucks, bookings, setAvailability, deleteTruck } = useIbanga();
   const toast = useToast();
   const [busyTruckId, setBusyTruckId] = useState<string | null>(null);
@@ -56,12 +58,13 @@ export default function AdminTrucksPage() {
         />
 
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          <StatCard label="Fleet size" value={trucks.length} hint="Registered vehicles" />
-          <StatCard label="Available" value={available} hint="Ready for bookings" accent="good" />
-          <StatCard label="Owners" value={new Set(trucks.map((truck) => truck.ownerId)).size} hint="Active fleet partners" accent="accent" />
+          <StatCard label="Fleet size" value={trucks.length} hint="Registered vehicles" href="/dashboard/admin/trucks" />
+          <StatCard label="Available" value={available} hint="Ready for bookings" accent="good" href="/dashboard/admin/trucks?status=AVAILABLE" />
+          <StatCard label="Owners" value={new Set(trucks.map((truck) => truck.ownerId)).size} hint="Active fleet partners" accent="accent" href="/dashboard/admin/trucks" />
         </div>
         <div className="mt-5">
           <DataTable
+            initialFilter={searchParams.get("status") ?? ""}
             columns={[{ label: "Vehicle" }, { label: "Owner" }, { label: "Capacity" }, { label: "Location" }, { label: "Route" }, { label: "Status" }, { label: "Actions", className: "text-right" }]}
             filterLabel="All availability"
             rows={trucks.map((truck) => ({

@@ -321,6 +321,7 @@ export function DataTable({
   filterLabel = "All statuses",
   extraFilterLabel = "All types",
   exportName = "ibanga-export",
+  initialFilter = "",
 }: {
   columns: { label: string; className?: string }[];
   rows: DataTableRow[];
@@ -328,9 +329,10 @@ export function DataTable({
   filterLabel?: string;
   extraFilterLabel?: string;
   exportName?: string;
+  initialFilter?: string;
 }) {
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("");
+  const [filter, setFilter] = useState(initialFilter);
   const [extraFilter, setExtraFilter] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -345,7 +347,7 @@ export function DataTable({
   );
   const visibleRows = useMemo(() => rows.filter((row) =>
     row.searchText.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())
-    && (!filter || row.filterValue === filter)
+    && (!filter || filter.split(",").includes(row.filterValue ?? ""))
     && (!extraFilter || row.extraFilterValue === extraFilter),
   ), [extraFilter, filter, rows, search]);
   const pageCount = Math.max(1, Math.ceil(visibleRows.length / pageSize));
@@ -379,6 +381,7 @@ export function DataTable({
           {filterOptions.length > 0 ? (
             <select aria-label={filterLabel} value={filter} onChange={(event) => setFilter(event.target.value)} className="rounded-lg border border-line bg-white px-3 py-2 text-sm text-navy outline-none focus:border-brand">
               <option value="">{filterLabel}</option>
+              {filter.includes(",") ? <option value={filter}>{filter.split(",").map((status) => status.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase())).join(", ")}</option> : null}
               {filterOptions.map((option) => <option key={option} value={option}>{option.replaceAll("_", " ")}</option>)}
             </select>
           ) : null}
@@ -501,16 +504,18 @@ export function StatCard({
   hint,
   icon,
   accent = "brand",
+  href,
 }: {
   label: string;
   value: string | number;
   hint?: string;
   icon?: React.ReactNode;
   accent?: "brand" | "accent" | "good" | "warn" | "bad";
+  href?: string;
 }) {
   const tone = statAccents[accent];
-  return (
-    <article className="flex min-h-[132px] flex-col rounded-xl border border-line bg-card p-4 shadow-soft">
+  const content = (
+    <>
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-medium text-muted">{label}</p>
         {icon ? (
@@ -529,8 +534,10 @@ export function StatCard({
           {hint}
         </p>
       ) : null}
-    </article>
+    </>
   );
+  const className = `group flex min-h-[132px] flex-col rounded-xl border border-line bg-card p-4 shadow-soft transition-all duration-200 motion-reduce:transition-none ${href ? "cursor-pointer hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" : "hover:border-brand/25 hover:shadow-md"}`;
+  return href ? <Link href={href} aria-label={`${label}: ${value}. ${hint ?? "View details"}`} className={className}>{content}</Link> : <article className={className}>{content}</article>;
 }
 
 export function PageHeader({

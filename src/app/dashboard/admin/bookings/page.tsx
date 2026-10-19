@@ -7,8 +7,10 @@ import { useToast } from "@/components/toast";
 import { DataTable, PageHeader, StatCard, ViewLink, formatDate, inputClass } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
 import type { BookingStatus } from "@/lib/types";
+import { useSearchParams } from "next/navigation";
 
 export default function AdminBookingsPage() {
+  const searchParams = useSearchParams();
   const { bookings, trucks, users, setBookingStatus } = useIbanga();
   const toast = useToast();
   const statuses: BookingStatus[] = ["PENDING", "ACCEPTED", "IN_PROGRESS", "DELIVERED", "COMPLETED", "DISPUTED", "REJECTED"];
@@ -34,12 +36,13 @@ export default function AdminBookingsPage() {
           }
         />
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          <StatCard label="Total bookings" value={bookings.length} hint="Across all roles" />
-          <StatCard label="In progress" value={bookings.filter((booking) => booking.status === "IN_PROGRESS").length} hint="Currently moving" accent="accent" />
-          <StatCard label="Completed" value={bookings.filter((booking) => booking.status === "COMPLETED").length} hint="Delivered and closed" accent="good" />
+          <StatCard label="Total bookings" value={bookings.length} hint="Across all roles" href="/dashboard/admin/bookings" />
+          <StatCard label="In progress" value={bookings.filter((booking) => booking.status === "IN_PROGRESS").length} hint="Currently moving" accent="accent" href="/dashboard/admin/bookings?status=IN_PROGRESS" />
+          <StatCard label="Completed" value={bookings.filter((booking) => booking.status === "COMPLETED").length} hint="Delivered and closed" accent="good" href="/dashboard/admin/bookings?status=COMPLETED" />
         </div>
         <div className="mt-5">
           <DataTable
+            initialFilter={searchParams.get("status") ?? ""}
             columns={[{ label: "Route" }, { label: "Importer" }, { label: "Truck" }, { label: "Pickup" }, { label: "Cargo" }, { label: "Status" }, { label: "Manage", className: "text-right" }]}
             filterLabel="All booking statuses"
             rows={bookings.map((booking) => {

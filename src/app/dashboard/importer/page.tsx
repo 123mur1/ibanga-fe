@@ -136,7 +136,7 @@ export default function ImporterHome() {
           />
           <section className="rounded-2xl border border-line bg-card p-5 shadow-soft">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-navy">Live cargo</h2>
+              <h2 className="text-lg font-semibold text-navy">Live trips</h2>
               <Link href="/dashboard/tracking" className="text-sm font-semibold text-brand">Open map</Link>
             </div>
             <ul className="mt-4 space-y-3">

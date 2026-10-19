@@ -209,6 +209,9 @@ export default function AdminHome() {
     (sum, booking) => sum + (booking.payment?.amountRwf ?? 0),
     0,
   );
+  const earnedCommission = commission?.totalEarnedRwf ?? payments
+    .filter((booking) => booking.payment?.status === "RELEASED")
+    .reduce((sum, booking) => sum + (booking.payment?.commissionRwf ?? 0), 0);
 
   const statusSlices = STATUS_FLOW.map((step) => ({
     ...step,
@@ -427,11 +430,12 @@ export default function AdminHome() {
               </svg>
             }
             accent="brand"
+            href="/dashboard/admin/payments"
           />
           <StatCard
-            label="Payment volume"
+            label="Total payments"
             value={`RWF ${totalPaymentsAmount.toLocaleString("en-RW")}`}
-            hint={`${totalPayments} payment${totalPayments === 1 ? "" : "s"} recorded`}
+            hint={`${totalPayments} payments · commission RWF ${earnedCommission.toLocaleString("en-RW")}`}
             icon={
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <rect x="2.5" y="5" width="19" height="14" rx="2.5" />
@@ -439,6 +443,7 @@ export default function AdminHome() {
               </svg>
             }
             accent="accent"
+            href="/dashboard/admin/payments"
           />
           <StatCard
             label="Users"
@@ -452,6 +457,7 @@ export default function AdminHome() {
               </svg>
             }
             accent="brand"
+            href="/dashboard/admin/users"
           />
           <StatCard
             label="Open disputes"
@@ -465,7 +471,12 @@ export default function AdminHome() {
               </svg>
             }
             accent="warn"
+            href="/dashboard/admin/disputes?status=OPEN"
           />
+          <StatCard label="Trucks" value={trucks.length} hint={`${availableTrucks} available`} accent="good" href="/dashboard/admin/trucks" />
+          <StatCard label="Bookings" value={bookings.length} hint="All marketplace requests" accent="accent" href="/dashboard/admin/bookings" />
+          <StatCard label="Active trips" value={liveTrips} hint="Accepted, moving or delivered" accent="brand" href="/dashboard/admin/bookings?status=ACCEPTED,IN_PROGRESS,DELIVERED" />
+          <StatCard label="Commission earned" value={`RWF ${earnedCommission.toLocaleString("en-RW")}`} hint="Released platform fees · 6%" accent="good" href="/dashboard/admin/payments?status=RELEASED" />
         </div>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-2">

@@ -16,7 +16,7 @@ const nav: Record<Role, NavItem[]> = {
   IMPORTER: [
     { href: "/dashboard/importer", label: "Overview", icon: "grid" },
     { href: "/dashboard/importer/bookings", label: "My bookings", icon: "calendar" },
-    { href: "/dashboard/tracking", label: "Live cargo", icon: "pin" },
+    { href: "/dashboard/tracking", label: "Live trips", icon: "pin" },
     { href: "/dashboard/importer/payments", label: "Payments", icon: "card" },
     { href: "/dashboard/importer/refunds", label: "Refunds", icon: "refund" },
   ],
@@ -25,7 +25,7 @@ const nav: Record<Role, NavItem[]> = {
     { href: "/dashboard/owner/trucks", label: "My trucks", icon: "truck" },
     { href: "/dashboard/owner/bookings", label: "Bookings", icon: "calendar" },
     { href: "/dashboard/owner/history", label: "History", icon: "history" },
-    { href: "/dashboard/tracking", label: "Live cargo", icon: "pin" },
+    { href: "/dashboard/tracking", label: "Live trips", icon: "pin" },
     { href: "/dashboard/owner/payments", label: "Payments", icon: "card" },
     { href: "/dashboard/owner/refunds", label: "Refunds", icon: "refund" },
   ],
@@ -36,8 +36,7 @@ const nav: Record<Role, NavItem[]> = {
     { href: "/dashboard/admin/bookings", label: "Bookings", icon: "calendar" },
     { href: "/dashboard/admin/disputes", label: "Disputes", icon: "alert" },
     { href: "/dashboard/admin/payments", label: "Payments", icon: "card" },
-    { href: "/dashboard/admin/wallets", label: "Wallets", icon: "wallet" },
-    { href: "/dashboard/tracking", label: "Live cargo", icon: "pin" },
+    { href: "/dashboard/tracking", label: "Live trips", icon: "pin" },
     { href: "/dashboard/wallet", label: "Wallet", icon: "wallet" },
   ],
 };

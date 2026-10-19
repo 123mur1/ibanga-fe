@@ -158,26 +158,26 @@ export function LandingPage() {
                 ))}
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-2 sm:gap-4 lg:grid-cols-1">
-              <article className="rounded-2xl border border-white/20 bg-white/10 p-3 text-white shadow-xl backdrop-blur-md sm:p-5 lg:flex lg:items-center lg:justify-between">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-1">
+              <article className="rounded-xl border border-white/15 border-l-4 border-l-sky-300 bg-[#082b3b]/90 p-4 text-white shadow-lg sm:p-5 lg:flex lg:items-center lg:justify-between">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-200 sm:text-xs sm:tracking-[0.18em]">Loads</p>
-                  <p className="mt-2 font-display text-2xl font-bold sm:text-4xl">{activeLoadCount}</p>
-                  <p className="mt-1 text-[10px] leading-4 text-white/75 sm:text-sm">Active bookings</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-200">Loads</p>
+                  <p className="mt-2 font-display text-3xl font-semibold tabular-nums sm:text-4xl">{activeLoadCount}</p>
+                  <p className="mt-1 text-sm text-white/75">Active bookings</p>
                 </div>
               </article>
-              <article className="rounded-2xl border border-white/20 bg-white/10 p-3 text-white shadow-xl backdrop-blur-md sm:p-5 lg:flex lg:items-center lg:justify-between">
+              <article className="rounded-xl border border-white/15 border-l-4 border-l-sky-300 bg-[#082b3b]/90 p-4 text-white shadow-lg sm:p-5 lg:flex lg:items-center lg:justify-between">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-200 sm:text-xs sm:tracking-[0.18em]">Trucks</p>
-                  <p className="mt-2 font-display text-2xl font-bold sm:text-4xl">{availableTruckCount}</p>
-                  <p className="mt-1 text-[10px] leading-4 text-white/75 sm:text-sm">Available now</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-200">Trucks</p>
+                  <p className="mt-2 font-display text-3xl font-semibold tabular-nums sm:text-4xl">{availableTruckCount}</p>
+                  <p className="mt-1 text-sm text-white/75">Available now</p>
                 </div>
               </article>
-              <article className="rounded-2xl border border-white/20 bg-white/10 p-3 text-white shadow-xl backdrop-blur-md sm:p-5 lg:flex lg:items-center lg:justify-between">
+              <article className="rounded-xl border border-white/15 border-l-4 border-l-sky-300 bg-[#082b3b]/90 p-4 text-white shadow-lg sm:p-5 lg:flex lg:items-center lg:justify-between">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-200 sm:text-xs sm:tracking-[0.18em]">Reliability</p>
-                  <p className="mt-2 font-display text-2xl font-bold sm:text-3xl">Live</p>
-                  <p className="mt-1 text-[10px] leading-4 text-white/75 sm:text-sm">Booking updates</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-200">Trip visibility</p>
+                  <p className="mt-2 font-display text-3xl font-semibold sm:text-4xl">Live</p>
+                  <p className="mt-1 text-sm text-white/75">Updates along the route</p>
                 </div>
               </article>
             </div>

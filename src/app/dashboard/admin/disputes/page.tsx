@@ -5,8 +5,10 @@ import { RequireAuth } from "@/components/require-auth";
 import { DisputeBadge } from "@/components/status-badge";
 import { DataTable, PageHeader, StatCard, ViewLink, formatDate } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
+import { useSearchParams } from "next/navigation";
 
 export default function AdminDisputesPage() {
+  const searchParams = useSearchParams();
   const { disputes, bookings, users, trucks } = useIbanga();
   const open = disputes.filter((d) => d.status === "OPEN");
 
@@ -25,12 +27,13 @@ export default function AdminDisputesPage() {
           }
         />
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          <StatCard label="Total disputes" value={disputes.length} hint="Marketplace cases" />
-          <StatCard label="Open cases" value={open.length} hint="Require review" accent="warn" />
-          <StatCard label="Resolved" value={disputes.length - open.length} hint="Closed with notes" accent="good" />
+          <StatCard label="Total disputes" value={disputes.length} hint="Marketplace cases" href="/dashboard/admin/disputes" />
+          <StatCard label="Open cases" value={open.length} hint="Require review" accent="warn" href="/dashboard/admin/disputes?status=OPEN" />
+          <StatCard label="Resolved" value={disputes.length - open.length} hint="Closed with notes" accent="good" href="/dashboard/admin/disputes?status=RESOLVED" />
         </div>
         <div className="mt-5">
           <DataTable
+            initialFilter={searchParams.get("status") ?? ""}
             columns={[{ label: "Route" }, { label: "Reported by" }, { label: "Issue" }, { label: "Filed" }, { label: "Status" }, { label: "Actions", className: "text-right" }]}
             filterLabel="All case statuses"
             emptyMessage="No disputes have been raised."
