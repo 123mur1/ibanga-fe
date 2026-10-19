@@ -6,6 +6,7 @@ import { RequireAuth } from "@/components/require-auth";
 import { BarChartCard, DonutCard, LineChartCard, StatusBars, bucketByMonth } from "@/components/charts";
 import { DashboardWelcomeCard, StatCard } from "@/components/ui";
 import { formatRwf } from "@/lib/payments";
+import { OwnerKpis } from "@/features/owner-fleet/owner-kpis";
 import { useIbanga } from "@/lib/store";
 import type { BookingStatus } from "@/lib/types";
 
@@ -152,6 +153,8 @@ export default function OwnerDashboard() {
             </ul>
           </section>
         </div>
+
+        <OwnerKpis />
 
         <section className="mt-8">
           <div className="flex flex-wrap items-end justify-between gap-3">

@@ -6,8 +6,12 @@ import { PaymentReceipt } from "@/components/payment-receipt";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { Avatar } from "@/components/photos";
-import { PaymentBadge, RefundBadge } from "@/components/status-badge";
+import { FinancialSummary } from "@/components/common/financial-summary";
+import { Notice, SimulationNotice } from "@/components/common/notices";
+import { StatusBadge } from "@/components/common/status-badge";
+import { RefundBadge } from "@/components/status-badge";
 import { PageHeader, formatDate, formatDateTime } from "@/components/ui";
+import { useAdminAllowed } from "@/hooks/use-admin-allowed";
 import { useIbanga } from "@/lib/store";
 import { formatRwf } from "@/lib/payments";
 import { REFUNDABLE_STATUSES } from "@/lib/demo";
@@ -24,6 +28,7 @@ export function PaymentDetail({
 }) {
   const { id } = useParams<{ id: string }>();
   const { bookings, users, trucks, refunds, currentUser } = useIbanga();
+  const adminAllowed = useAdminAllowed("payments");
   const found = bookings.find((item) => item.id === id);
   const foundTruck = found ? trucks.find((item) => item.id === found.truckId) : undefined;
   const allowed = Boolean(
@@ -56,7 +61,20 @@ export function PaymentDetail({
           {backLabel}
         </Link>
 
-        {!booking || !payment ? (
+        {role === "ADMIN" && !adminAllowed ? (
+          <Notice tone="danger" title="Your administrator role does not include this area" action={{ href: "/dashboard/admin", label: "Back to overview" }}>
+            Ask a super administrator to grant the permission.
+          </Notice>
+        ) : booking && !payment ? (
+          <div className="mt-4 space-y-4">
+            <Notice tone="warning" title="Payment not made yet" action={{ href: role === "IMPORTER" ? `/dashboard/importer/bookings/${booking.id}` : backHref, label: role === "IMPORTER" ? "Open booking to pay" : backLabel }}>
+              {role === "IMPORTER"
+                ? "This booking is confirmed but nothing has been paid. Accepting a quotation does not charge you. Pay from the booking page to secure the truck."
+                : "The importer has not paid for this booking yet."}
+            </Notice>
+            <SimulationNotice kind="payment" />
+          </div>
+        ) : !booking || !payment ? (
           <p className="mt-4 rounded-2xl border border-line bg-card px-5 py-10 text-center text-muted">
             This payment could not be found.
           </p>
@@ -73,22 +91,44 @@ export function PaymentDetail({
                     <path d="M2.5 9.5h19M6.5 15h4" />
                   </svg>
                 }
-                actions={<PaymentBadge status={payment.status} />}
+                actions={<StatusBadge family="payment" status={payment.status} />}
               />
             </div>
 
+            <div className="mt-5"><SimulationNotice kind="payment" /></div>
+
             <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(20rem,1fr)]">
               <div className="space-y-5">
-                <section className="overflow-hidden rounded-2xl border border-line bg-card shadow-soft">
-                  <div className="border-b border-line bg-background/60 px-5 py-4">
-                    <h2 className="font-display text-lg text-navy">Payment breakdown</h2>
-                    <p className="mt-1 text-sm text-muted">How this amount is split between the parties.</p>
+                <FinancialSummary
+                  title="Payment breakdown"
+                  lines={[
+                    { label: "Agreed transport amount", amountRwf: payment.amountRwf },
+                    { label: "Platform fee (6%)", amountRwf: payment.commissionRwf, hint: "Deducted from the truck owner's share, not added to your total" },
+                    { label: "Truck owner share", amountRwf: payment.ownerAmountRwf },
+                    { label: role === "IMPORTER" ? "Total you paid" : "Total paid by importer", amountRwf: payment.amountRwf, kind: "total" },
+                  ]}
+                  footnote="Simulated amounts. No real card, mobile money or bank account was charged."
+                />
+
+                <section className="overflow-hidden rounded-2xl border border-line bg-card shadow-soft" id="payment-invoice">
+                  <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line bg-background/60 px-5 py-4">
+                    <div>
+                      <h2 className="font-display text-lg text-navy">Invoice and references</h2>
+                      <p className="mt-1 text-sm text-muted">Reference numbers to quote when you contact support.</p>
+                    </div>
+                    <button type="button" onClick={() => window.print()} className="rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-navy transition hover:border-brand print:hidden">
+                      Print invoice and receipt
+                    </button>
                   </div>
-                  <dl className="divide-y divide-line">
-                    <BreakdownRow label={role === "IMPORTER" ? "Total you paid" : "Total paid by importer"} value={formatRwf(payment.amountRwf)} strong />
-                    <BreakdownRow label="iBanga commission (6%)" value={formatRwf(payment.commissionRwf)} />
-                    <BreakdownRow label="Truck owner share" value={formatRwf(payment.ownerAmountRwf)} />
+                  <dl className="grid gap-x-8 gap-y-4 px-5 py-5 sm:grid-cols-2">
+                    <InvoiceItem label="Transaction reference" value={payment.receiptNumber} />
+                    <InvoiceItem label="Invoice number" value={`INV-${booking.id.toUpperCase()}`} />
+                    <InvoiceItem label="Booking" value={booking.id} />
+                    <InvoiceItem label="Invoice date" value={formatDate(payment.paidAt)} />
+                    <InvoiceItem label="Billed to" value={payment.payerName} />
+                    <InvoiceItem label="Service" value={`Transport, ${booking.pickupLocation} to ${booking.destination}`} />
                   </dl>
+                  <p className="border-t border-line px-5 py-3 text-xs text-muted">Demonstration invoice. It is not a tax document.</p>
                 </section>
 
                 <PaymentReceipt booking={booking} plate={truck?.plateNumber} />
@@ -177,11 +217,11 @@ export function PaymentDetail({
   );
 }
 
-function BreakdownRow({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
+function InvoiceItem({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-4 px-5 py-4">
-      <dt className="text-sm text-muted">{label}</dt>
-      <dd className={`tabular-nums ${strong ? "text-lg font-semibold text-brand" : "font-semibold text-navy"}`}>{value}</dd>
+    <div>
+      <dt className="text-sm font-medium text-muted">{label}</dt>
+      <dd className="mt-0.5 break-words font-semibold text-navy">{value}</dd>
     </div>
   );
 }

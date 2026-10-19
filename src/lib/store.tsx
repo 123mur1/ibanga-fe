@@ -205,6 +205,13 @@ type Store = {
     accountNumber?: string;
   }) => Promise<string | null>;
   payBooking: (bookingId: string, checkout?: CheckoutDetails) => Promise<string | null>;
+  /**
+   * Demonstration only: adds a booking record (used when a quotation is accepted) and marks its truck
+   * unavailable. A real backend creates the booking inside the "accept quotation" transaction.
+   */
+  addBooking: (booking: Booking) => Promise<string | null>;
+  /** Demonstration only: merge changes into a booking (payment state, status). Backend-authoritative later. */
+  patchBooking: (id: string, patch: Partial<Booking>) => Promise<string | null>;
   addReview: (truckId: string, input: { rating: number; comment: string }) => Promise<string | null>;
   requestRefund: (
     bookingId: string,
@@ -587,7 +594,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     setWalletAccounts([]);
     setAdminCommission(null);
     void loadPublicTrucks();
-  }, [loadPublicTrucks]);
+  }, [loadPublicTrucks, publishDemo]);
 
   const addUser = useCallback<Store["addUser"]>(async (input) => {
     if (demoEnabled && demoSession.current && currentUser) {
@@ -885,6 +892,33 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentUser, publishDemo, refreshAfterMutation]);
 
+  const addBooking = useCallback<Store["addBooking"]>(async (booking) => {
+    if (!(demoEnabled && demoSession.current && currentUser)) return "Creating bookings from quotations is only available in demonstration mode.";
+    const session = demoSession.current;
+    if (session.bookings.some((item) => item.id === booking.id)) return "That booking already exists.";
+    publishDemo({
+      ...session,
+      bookings: [booking, ...session.bookings],
+      trucks: session.trucks.map((truck) => (truck.id === booking.truckId ? { ...truck, status: "UNAVAILABLE" } : truck)),
+    }, currentUser.id);
+    return null;
+  }, [currentUser, publishDemo]);
+
+  const patchBooking = useCallback<Store["patchBooking"]>(async (id, patch) => {
+    if (!(demoEnabled && demoSession.current && currentUser)) return "Editing bookings this way is only available in demonstration mode.";
+    const session = demoSession.current;
+    const booking = session.bookings.find((item) => item.id === id);
+    if (!booking) return "Booking not found.";
+    publishDemo({
+      ...session,
+      bookings: session.bookings.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+      trucks: patch.status === "REJECTED" || patch.status === "COMPLETED"
+        ? session.trucks.map((truck) => (truck.id === booking.truckId ? { ...truck, status: "AVAILABLE" } : truck))
+        : session.trucks,
+    }, currentUser.id);
+    return null;
+  }, [currentUser, publishDemo]);
+
   const addReview = useCallback<Store["addReview"]>(async (truckId, input) => {
     if (demoEnabled && demoSession.current && currentUser) {
       const result = demoAddReview(demoSession.current, currentUser, truckId, input);
@@ -972,6 +1006,8 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     depositFunds,
     withdrawFunds,
     payBooking,
+    addBooking,
+    patchBooking,
     addReview,
     requestRefund,
     processRefund,
@@ -981,7 +1017,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     resetPassword, register, logout, addUser, updateProfile, fetchTruck, addTruck,
     updateTruck, deleteTruck, setAvailability, createBooking, setBookingStatus,
     reportProblem, resolveDispute, setUserActive, deleteUser,
-    depositFunds, withdrawFunds, payBooking, addReview, requestRefund, processRefund,
+    depositFunds, withdrawFunds, payBooking, addBooking, patchBooking, addReview, requestRefund, processRefund,
   ]);
 
   return (

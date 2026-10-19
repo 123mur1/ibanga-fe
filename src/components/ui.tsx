@@ -173,7 +173,7 @@ export function ConfirmDialog({
         </>
       }
     >
-      <p className="text-sm leading-6 text-navy">{message}</p>
+      <p className="whitespace-pre-line text-sm leading-6 text-navy">{message}</p>
     </Modal>
   );
 }
@@ -331,11 +331,16 @@ export function DataTable({
   exportName?: string;
   initialFilter?: string;
 }) {
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState(initialFilter);
-  const [extraFilter, setExtraFilter] = useState("");
+  const [search, setSearchValue] = useState("");
+  const [filter, setFilterValue] = useState(initialFilter);
+  const [extraFilter, setExtraFilterValue] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSizeValue] = useState(10);
+  // Changing any filter returns to the first page (done in the handlers, not in an effect).
+  const setSearch = (value: string) => { setSearchValue(value); setPage(1); };
+  const setFilter = (value: string) => { setFilterValue(value); setPage(1); };
+  const setExtraFilter = (value: string) => { setExtraFilterValue(value); setPage(1); };
+  const setPageSize = (value: number) => { setPageSizeValue(value); setPage(1); };
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const filterOptions = useMemo(
     () => [...new Set(rows.map((row) => row.filterValue).filter((value): value is string => Boolean(value)))].sort(),
@@ -354,10 +359,6 @@ export function DataTable({
   const currentPage = Math.min(page, pageCount);
   const pageRows = visibleRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const allVisibleSelected = pageRows.length > 0 && pageRows.every((row) => selected.has(row.id));
-
-  useEffect(() => {
-    setPage(1);
-  }, [search, filter, extraFilter, pageSize]);
 
   const exportRows = (data: DataTableRow[]) => {
     downloadExcel(

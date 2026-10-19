@@ -1,35 +1,78 @@
 # iBanga
 
-iBanga is a freight marketplace for importers, truck owners, and marketplace administrators. Marketplace accounts, trucks, bookings, disputes, and wallet records are loaded from the backend API and stored in its database. Authentication tokens remain in browser storage. Wallet payment operations are simulated by the backend and do not move real funds.
+iBanga is a cargo transport management platform for Rwanda and the region. Importers post cargo requests, compare truck-owner quotations, book, pay, track and confirm delivery. Truck owners register trucks and drivers, quote on cargo, run shipments, submit proof of delivery and get settled. Administrators verify the marketplace, oversee shipments, settlements, refunds, disputes, incidents and reconciliation.
+
+> **This repository is the frontend only.** There is no backend, database, real authentication, payment gateway or GPS integration. All data is demonstration data behind a service layer that a real API can replace. Payments, tracking, verification and settlements shown in the app are **simulations**; no money moves.
 
 ## Run locally
 
 ```bash
 npm install
-npm run dev
+npm run dev          # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Demo accounts (also available as one-click buttons on the login page):
 
-## Backend API
+| Role | Email | Password |
+| --- | --- | --- |
+| Administrator (all permissions) | `admin@ibanga.com` | `admin123` |
+| Importer | `jeanine@importco.rw` | `ibanga123` |
+| Truck owner | `eric@ndayitrans.rw` | `ibanga123` |
+| Operations / finance / support admins | `ops@ibanga.com`, `finance@ibanga.com`, `support@ibanga.com` | `admin123` |
 
-Run the backend separately and make sure it is reachable from the frontend.
-The development default is `http://localhost:3001`. Set `NEXT_PUBLIC_API_URL`
-in `.env.local` or the deployment environment to override the backend origin.
-Register an account through the app or sign in with an account already stored
-in the backend database.
-
-## Marketplace capabilities
-
-- Importers can search trucks, request bookings, follow trip progress, raise disputes, and manage their wallet.
-- Truck owners can list and manage vehicles, respond to requests, track trips, and manage payouts.
-- Administrators can review marketplace activity, manage accounts and trucks, update booking statuses, resolve disputes, review wallet records, and export reports.
-- Account and marketplace records are stored in the backend database. Notification preferences remain on this device.
-- Wallet operations use the backend's simulation mode; they do not charge or transfer real funds.
+The three limited administrators see only the sidebar items their role allows. This is for demonstration; real permissions must be enforced by the backend.
 
 ## Checks
 
 ```bash
-npx eslint src
-npm run build
+npm run typecheck      # tsc --noEmit
+npx eslint src         # lint (React Compiler rules are enabled)
+npm run check:routes   # every sidebar link resolves to a real page
+npm run build          # production build
 ```
+
+Real-browser journey checks (quote to settlement, cancellations, disputes, eligibility, access control, forms) live in [`scripts/e2e`](scripts/e2e/README.md).
+
+## What is in the app
+
+- **Public site:** landing page with filterable available trucks (infinite scroll), public truck pages with reviews, how it works, about, help centre, contact, terms, privacy, registration with role selection, login, password reset.
+- **Importer:** cargo requests (validated form, drafts, quotation comparison and booking), bookings, shipments and tracking, payments, refunds and cancellations, disputes, documents and verification, notifications, support tickets, reports.
+- **Truck owner:** cargo opportunities and quotations, trucks (operational status, documents, eligibility), drivers and assignments, bookings, shipments with milestone controls, proof of delivery, earnings, settlements and payouts, incidents and insurance claims, documents, refunds, disputes, support, performance reports.
+- **Administrator:** users, verification requests, trucks, drivers, cargo requests, bookings, shipments and delivery verification, incidents, document expiry, payments, settlements and payouts, refunds, cancellations, reconciliation, disputes, insurance claims, support, reports and analytics, announcements, audit logs, system settings, administrator permissions.
+- **Planned (not built):** route optimisation, live GPS, automated matching, predicted arrival, advanced analytics, recurring and multi-stop shipments. They appear as labelled placeholders on `/dashboard/future`.
+
+## Architecture in one minute
+
+```
+src/app          routes (thin pages)            src/config      navigation, statuses, business rules, permissions
+src/components   shared UI + components/common  src/mocks       demonstration datasets
+src/features     domain components              src/services    contracts + mock implementations (the API seam)
+src/hooks        data and action hooks          src/types       domain types
+```
+
+- **Two data sources.** The marketplace store (`src/lib/store.tsx`: users, trucks, bookings with payments, refunds, reviews) and the operations services (`src/services`: cargo requests, quotations, shipments, settlements, documents, disputes, incidents, tickets, notifications, admin data). Records link by stable IDs.
+- **Service layer.** Pages talk to `services.*` through hooks. `services/contracts.ts` lists every method with the endpoint it should become. Mocks live in `services/mock/*` and persist to `localStorage`.
+- **Business rules** (fees, cancellation policy, settlement eligibility, document expiry, truck/driver eligibility) live in `src/config/business-rules.ts`, never in presentational components.
+- **Statuses** are defined once in `src/config/status.ts` and rendered by `StatusBadge`.
+- **Forms** use React Hook Form + Zod; destructive and financial actions use confirmation dialogs.
+
+Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for conventions, the route contract and the backend integration checklist.
+
+## Demonstration data and reset
+
+Seed data (users, trucks, bookings, shipments, settlements, disputes, documents, incidents, notifications, ...) is consistent across modules and anchored to today's date so document expiry warnings stay realistic. Changes you make are saved in your browser. **Settings → Reset demonstration data** (also in the admin System settings) restores the originals. Nothing sensitive is stored; never enter real payment or identity details.
+
+## Connecting a backend later
+
+1. Implement the interfaces in `src/services/contracts.ts` with HTTP clients and select them in `src/services/index.ts` (`NEXT_PUBLIC_OPS_DATA_SOURCE=api`).
+2. Replace the demo branches in `src/lib/store.tsx` (the marketplace store already has an API mode driven by `NEXT_PUBLIC_API_URL`, which expects the older marketplace endpoints).
+3. Enforce on the server: authentication, ownership and role checks, admin permissions, server-authoritative payment/delivery/settlement status, idempotent accept-quotation, payouts and refunds, document-expiry restrictions, signed upload URLs, pagination/filter/sort.
+
+## Known limitations
+
+- Everything is simulated. A payment is never real, GPS positions are illustrative, verification and settlement outcomes are demonstration states.
+- Frontend route guards and role-based menus are presentation only; the backend must enforce access.
+- Uploaded files are read into the browser as data URLs (size-limited); a real build needs an upload service.
+- Email, SMS and push notifications are placeholders; only in-app notifications work.
+- The map uses OpenStreetMap tiles and the public OSRM service when online and falls back to a straight line.
+- Marketplace API mode (`NEXT_PUBLIC_DATA_SOURCE=api`) covers the original marketplace features only; refunds, reviews and all operations modules run on demonstration data.

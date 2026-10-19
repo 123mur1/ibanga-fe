@@ -1,7 +1,6 @@
 "use client";
 
-import { DashboardShell } from "@/components/dashboard-shell";
-import { RequireAuth } from "@/components/require-auth";
+import { AdminPage } from "@/features/admin-platform/admin-page";
 import { DataTable, PageHeader } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
 
@@ -18,8 +17,8 @@ export default function WalletPage() {
   const canDeposit = currentUser?.role === "IMPORTER";
 
   return (
-    <RequireAuth role="ADMIN">
-      <DashboardShell role="ADMIN">
+    <AdminPage permission="payments">
+      <>
         <PageHeader
           eyebrow="Money"
           title="Wallet"
@@ -109,7 +108,7 @@ export default function WalletPage() {
             emptyMessage="No wallet transactions have been recorded."
           />
         </section>
-      </DashboardShell>
-    </RequireAuth>
+      </>
+    </AdminPage>
   );
 }

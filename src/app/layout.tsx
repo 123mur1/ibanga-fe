@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Source_Sans_3 } from "next/font/google";
 import { ToastProvider } from "@/components/toast";
+import { OpsBridge } from "@/features/ops/ops-bridge";
 import { IbangaProvider } from "@/lib/store";
 import "./globals.css";
 
@@ -28,7 +29,10 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-background text-ink">
         <IbangaProvider>
-          <ToastProvider>{children}</ToastProvider>
+          <ToastProvider>
+            <OpsBridge />
+            {children}
+          </ToastProvider>
         </IbangaProvider>
       </body>
     </html>

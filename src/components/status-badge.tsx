@@ -1,3 +1,4 @@
+import { statusOf } from "@/config/status";
 import type { BookingStatus, DisputeStatus, PaymentStatus, RefundStatus, Role, TruckStatus } from "@/lib/types";
 
 const bookingStyles: Record<BookingStatus, { wrap: string; dot: string }> = {
@@ -17,7 +18,7 @@ export function BookingBadge({ status }: { status: BookingStatus }) {
       className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold tracking-wide ${style.wrap}`}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
-      {status.replace("_", " ")}
+      {statusOf("booking", status).label}
     </span>
   );
 }

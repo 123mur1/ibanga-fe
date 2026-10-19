@@ -38,7 +38,7 @@ const iconProps = { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", 
 function TruckDetailsContent() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { currentUser, fetchTruck, reviews, addReview } = useIbanga();
+  const { currentUser, fetchTruck, reviews, addReview, ready } = useIbanga();
   const [truck, setTruck] = useState<Truck | null>(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState("1");
@@ -49,6 +49,9 @@ function TruckDetailsContent() {
   const [postingReview, setPostingReview] = useState(false);
 
   useEffect(() => {
+    // Wait for the marketplace store to finish loading: on a direct visit this effect would
+    // otherwise run first and report a valid truck as missing.
+    if (!ready) return;
     let cancelled = false;
     fetchTruck(id)
       .then((t) => {
@@ -63,7 +66,7 @@ function TruckDetailsContent() {
     return () => {
       cancelled = true;
     };
-  }, [id, fetchTruck]);
+  }, [id, fetchTruck, ready]);
 
   if (loading) {
     return <div className="mx-auto max-w-7xl px-4 py-16 text-center text-muted sm:px-6 lg:px-8">Loading truck…</div>;

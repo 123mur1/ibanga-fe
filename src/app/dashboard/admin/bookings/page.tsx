@@ -1,15 +1,17 @@
 "use client";
 
+import { Suspense } from "react";
+import { LoadingBlock } from "@/components/common/async-state";
+import Link from "next/link";
 import { BookingBadge } from "@/components/status-badge";
-import { DashboardShell } from "@/components/dashboard-shell";
-import { RequireAuth } from "@/components/require-auth";
+import { AdminPage } from "@/features/admin-platform/admin-page";
 import { useToast } from "@/components/toast";
 import { DataTable, PageHeader, StatCard, ViewLink, formatDate, inputClass } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
 import type { BookingStatus } from "@/lib/types";
 import { useSearchParams } from "next/navigation";
 
-export default function AdminBookingsPage() {
+function AdminBookingsContent() {
   const searchParams = useSearchParams();
   const { bookings, trucks, users, setBookingStatus } = useIbanga();
   const toast = useToast();
@@ -22,8 +24,8 @@ export default function AdminBookingsPage() {
   }
 
   return (
-    <RequireAuth role="ADMIN">
-      <DashboardShell role="ADMIN">
+    <AdminPage permission="bookings">
+      <>
         <PageHeader
           eyebrow="Marketplace"
           title="Bookings"
@@ -57,7 +59,7 @@ export default function AdminBookingsPage() {
                 cells: [
                   <span key={`${booking.id}-route`} className="font-semibold">{route}</span>,
                   importer?.name ?? "—",
-                  truck?.plateNumber ?? "—",
+                  truck ? <Link key={`${booking.id}-truck`} href={`/dashboard/admin/trucks/${truck.id}`} className="font-semibold text-brand hover:text-brand-dark">{truck.plateNumber}</Link> : "—",
                   formatDate(booking.pickupDate),
                   `${booking.cargoType} · ${booking.cargoWeight}`,
                   <span key={`${booking.id}-status`}><BookingBadge status={booking.status} /></span>,
@@ -79,7 +81,16 @@ export default function AdminBookingsPage() {
             })}
           />
         </div>
-      </DashboardShell>
-    </RequireAuth>
+      </>
+    </AdminPage>
+  );
+}
+
+export default function AdminBookingsPage() {
+  // useSearchParams needs a Suspense boundary so the page can be prerendered.
+  return (
+    <Suspense fallback={<LoadingBlock />}>
+      <AdminBookingsContent />
+    </Suspense>
   );
 }

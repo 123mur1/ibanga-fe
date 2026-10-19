@@ -2,7 +2,7 @@ import type { Booking, Dispute, Truck, User } from "./types";
 
 export const accountPassword = "ibanga123";
 export const administratorPassword = "admin123";
-export const seedVersion = 3;
+export const seedVersion = 5;
 
 const phonePrefixByLocation: Record<string, string> = {
   Kigali: "+250 78",
@@ -75,6 +75,39 @@ export const seedUsers: User[] = [
     active: true,
     company: "iBanga",
     photo: "/photos/ibanga-admin-claire.png",
+  },
+  {
+    id: "u-admin-ops",
+    createdAt: "2026-05-10T10:00:00.000Z",
+    name: "Patrick Habiyaremye",
+    email: "ops@ibanga.com",
+    phone: "+250 780 000 002",
+    role: "ADMIN",
+    location: "Kigali",
+    active: true,
+    company: "iBanga",
+  },
+  {
+    id: "u-admin-fin",
+    createdAt: "2026-05-12T10:00:00.000Z",
+    name: "Solange Uwimana",
+    email: "finance@ibanga.com",
+    phone: "+250 780 000 003",
+    role: "ADMIN",
+    location: "Kigali",
+    active: true,
+    company: "iBanga",
+  },
+  {
+    id: "u-admin-sup",
+    createdAt: "2026-05-15T10:00:00.000Z",
+    name: "Kevin Mugabo",
+    email: "support@ibanga.com",
+    phone: "+250 780 000 004",
+    role: "ADMIN",
+    location: "Kigali",
+    active: true,
+    company: "iBanga",
   },
   ...[
     ["u-importer-3", "Maya Niyonzima", "maya@greenroute.rw", "IMPORTER", "Kigali", "Green Route Imports"],
@@ -203,6 +236,23 @@ const originalBookings: Booking[] = [
     status: "DELIVERED",
     createdAt: "2026-10-02T16:20:00.000Z",
   },
+  {
+    id: "b6",
+    truckId: "truck-u-owner-1",
+    importerId: "u-importer",
+    cargoType: "Packaged goods",
+    cargoDescription: "Palletised household goods for a retail distributor",
+    cargoWeight: "11 tons",
+    pickupLocation: "Kigali",
+    destination: "Mombasa",
+    pickupDate: "2026-10-15",
+    expectedDeliveryDate: "2026-10-21",
+    additionalInstructions: "Keep dry. Delivery to Kipevu terminal gate 3.",
+    agreedPrice: "RWF 460,000",
+    agreedPriceRwf: 460000,
+    status: "IN_PROGRESS",
+    createdAt: "2026-10-12T09:15:00.000Z",
+  },
 ];
 
 export const seedBookings: Booking[] = [
@@ -220,7 +270,7 @@ export const seedBookings: Booking[] = [
         cargoDescription: `Regional freight shipment ${index + 1} for ${importer.company}.`,
         cargoWeight: `${8 + (index % 18)} tons`,
         pickupLocation: ["Kigali", "Kampala", "Nairobi", "Mombasa"][index % 4],
-        destination: ["Mombasa", "Kigali", "Kampala", "Nairobi"][(index + 1) % 4],
+        destination: ["Mombasa", "Kigali", "Kampala", "Nairobi"][index % 4],
         pickupDate: `2026-11-${String((index % 27) + 1).padStart(2, "0")}`,
         expectedDeliveryDate: `2026-11-${String((index % 27) + 2).padStart(2, "0")}`,
         additionalInstructions: index % 3 === 0 ? "Contact the site manager before loading." : "",

@@ -1,7 +1,8 @@
 "use client";
 
-import { DashboardShell } from "@/components/dashboard-shell";
-import { RequireAuth } from "@/components/require-auth";
+import { Suspense } from "react";
+import { LoadingBlock } from "@/components/common/async-state";
+import { AdminPage } from "@/features/admin-platform/admin-page";
 import { PaymentBadge } from "@/components/status-badge";
 import { DataTable, PageHeader, StatCard, ViewLink, formatDate } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
@@ -17,7 +18,7 @@ const methodLabel: Record<string, string> = {
 
 const heldStatuses: PaymentStatus[] = ["HELD", "FUNDED", "AUTHORIZED"];
 
-export default function AdminPaymentsPage() {
+function AdminPaymentsContent() {
   const searchParams = useSearchParams();
   const { bookings, users, adminCommission } = useIbanga();
   const payments = bookings.filter((booking) => booking.payment);
@@ -31,8 +32,8 @@ export default function AdminPaymentsPage() {
       .reduce((sum, booking) => sum + (booking.payment?.commissionRwf ?? 0), 0);
 
   return (
-    <RequireAuth role="ADMIN">
-      <DashboardShell role="ADMIN">
+    <AdminPage permission="payments">
+      <>
         <PageHeader
           eyebrow="Finance"
           title="Payments"
@@ -111,7 +112,16 @@ export default function AdminPaymentsPage() {
             })}
           />
         </div>
-      </DashboardShell>
-    </RequireAuth>
+      </>
+    </AdminPage>
+  );
+}
+
+export default function AdminPaymentsPage() {
+  // useSearchParams needs a Suspense boundary so the page can be prerendered.
+  return (
+    <Suspense fallback={<LoadingBlock />}>
+      <AdminPaymentsContent />
+    </Suspense>
   );
 }

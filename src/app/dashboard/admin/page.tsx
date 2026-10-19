@@ -7,6 +7,7 @@ import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { StatusBars } from "@/components/charts";
 import { DashboardWelcomeCard, GhostButton, StatCard } from "@/components/ui";
+import { OperationsKpis } from "@/features/admin-finance/operations-kpis";
 import { useIbanga } from "@/lib/store";
 import type { Booking, BookingStatus, Role } from "@/lib/types";
 import Link from "next/link";
@@ -478,6 +479,8 @@ export default function AdminHome() {
           <StatCard label="Active trips" value={liveTrips} hint="Accepted, moving or delivered" accent="brand" href="/dashboard/admin/bookings?status=ACCEPTED,IN_PROGRESS,DELIVERED" />
           <StatCard label="Commission earned" value={`RWF ${earnedCommission.toLocaleString("en-RW")}`} hint="Released platform fees · 6%" accent="good" href="/dashboard/admin/payments?status=RELEASED" />
         </div>
+
+        <OperationsKpis />
 
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
           <StatusBars

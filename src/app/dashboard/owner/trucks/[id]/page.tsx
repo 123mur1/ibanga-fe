@@ -12,6 +12,7 @@ import { ConfirmDialog, GhostButton, PageHeader, StatCard, formatDate } from "@/
 import { formatRwf } from "@/lib/payments";
 import { useIbanga } from "@/lib/store";
 import { ACTIVE_BOOKING_STATUSES } from "@/lib/types";
+import { TruckOperations } from "@/features/owner-fleet/truck-operations";
 
 export default function OwnerTruckDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -200,6 +201,10 @@ export default function OwnerTruckDetailPage() {
                   See how importers view this listing
                 </Link>
               </aside>
+            </div>
+
+            <div className="mt-8 border-t border-line pt-6">
+              <TruckOperations truck={truck} />
             </div>
 
             {removing ? (

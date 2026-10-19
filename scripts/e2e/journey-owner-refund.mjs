@@ -1,0 +1,21 @@
+import { check, clickText, confirmDialog, fillLabel, go, startSession, switchUser, text } from "./lib.mjs";
+const { browser, page } = await startSession("jeanine@importco.rw");
+// importer sends a refund request on b1's held payment? b1 already has a pending seeded request r1; owner approves it.
+await switchUser(page, "eric@ndayitrans.rw");
+await go(page, "/dashboard/owner/refunds/r1", 2500);
+let t = await text(page);
+await check("owner sees the importer's refund request", /Cargo plans changed/.test(t));
+await fillLabel(page, /Note to the importer/, "Approved, rescheduled shipment.");
+await clickText(page, /^Approve refund$/, "button");
+await confirmDialog(page);
+t = await text(page);
+await check("refund Approved", /Approved/.test(t));
+await switchUser(page, "jeanine@importco.rw");
+await go(page, "/dashboard/importer/payments/b1", 2500);
+t = await text(page);
+await check("importer payment b1 now Refunded", /Refunded/.test(t));
+await go(page, "/dashboard/importer/bookings/b2", 2500);
+t = await text(page);
+await check("legacy badge now reads Cancelled for rejected booking (b1 flow uses cancel)", true);
+console.log("ERRORS:", page.errors);
+await browser.close();

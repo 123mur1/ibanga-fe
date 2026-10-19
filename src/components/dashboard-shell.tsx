@@ -2,44 +2,18 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { NotificationsBell } from "./notifications-bell";
 import { BrandLink, LogoMark } from "./brand";
 import { LogoutConfirmationDialog } from "./logout-confirmation-dialog";
 import { Avatar } from "./photos";
+import { flattenNav, NAVIGATION, profilePathFor, type NavGroup, type NavItem } from "@/config/navigation";
+import { hasPermission } from "@/config/permissions";
+import { useOps } from "@/hooks/use-ops";
+import { useUnreadCount } from "@/hooks/use-unread";
 import { useIbanga } from "@/lib/store";
 import type { Role } from "@/lib/types";
-
-type NavItem = { href: string; label: string; icon: string };
-
-const nav: Record<Role, NavItem[]> = {
-  IMPORTER: [
-    { href: "/dashboard/importer", label: "Overview", icon: "grid" },
-    { href: "/dashboard/importer/bookings", label: "My bookings", icon: "calendar" },
-    { href: "/dashboard/tracking", label: "Live trips", icon: "pin" },
-    { href: "/dashboard/importer/payments", label: "Payments", icon: "card" },
-    { href: "/dashboard/importer/refunds", label: "Refunds", icon: "refund" },
-  ],
-  TRUCK_OWNER: [
-    { href: "/dashboard/owner", label: "Dashboard", icon: "grid" },
-    { href: "/dashboard/owner/trucks", label: "My trucks", icon: "truck" },
-    { href: "/dashboard/owner/bookings", label: "Bookings", icon: "calendar" },
-    { href: "/dashboard/owner/history", label: "History", icon: "history" },
-    { href: "/dashboard/tracking", label: "Live trips", icon: "pin" },
-    { href: "/dashboard/owner/payments", label: "Payments", icon: "card" },
-    { href: "/dashboard/owner/refunds", label: "Refunds", icon: "refund" },
-  ],
-  ADMIN: [
-    { href: "/dashboard/admin", label: "Dashboard", icon: "grid" },
-    { href: "/dashboard/admin/users", label: "Users", icon: "users" },
-    { href: "/dashboard/admin/trucks", label: "Trucks", icon: "truck" },
-    { href: "/dashboard/admin/bookings", label: "Bookings", icon: "calendar" },
-    { href: "/dashboard/admin/disputes", label: "Disputes", icon: "alert" },
-    { href: "/dashboard/admin/payments", label: "Payments", icon: "card" },
-    { href: "/dashboard/tracking", label: "Live trips", icon: "pin" },
-    { href: "/dashboard/wallet", label: "Wallet", icon: "wallet" },
-  ],
-};
+import type { Permission } from "@/types/ops";
 
 const iconPaths: Record<string, React.ReactNode> = {
   grid: (
@@ -147,6 +121,122 @@ const iconPaths: Record<string, React.ReactNode> = {
       <path d="M12 8v4l2.5 1.5" />
     </>
   ),
+  clipboard: (
+    <>
+      <rect x="5" y="4" width="14" height="17" rx="2" />
+      <path d="M9 4h6v3H9zM8.5 12h7M8.5 16h5" />
+    </>
+  ),
+  package: (
+    <>
+      <path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z" />
+      <path d="m3.5 7.5 8.5 4.5 8.5-4.5M12 12v9" />
+    </>
+  ),
+  steering: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="2.2" />
+      <path d="M3.3 11h6.5M14.2 11h6.5M12 14.2V21" />
+    </>
+  ),
+  receipt: (
+    <>
+      <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" />
+      <path d="M9 8h6M9 12h6M9 16h3" />
+    </>
+  ),
+  scale: (
+    <>
+      <path d="M12 4v16M7 20h10M5 8h14" />
+      <path d="m5 8-2.5 6a3 3 0 0 0 5 0zM19 8l-2.5 6a3 3 0 0 0 5 0z" />
+    </>
+  ),
+  megaphone: (
+    <>
+      <path d="M3 10v4h3l8 4V6L6 10z" />
+      <path d="M18 9a4 4 0 0 1 0 6" />
+    </>
+  ),
+  scroll: (
+    <>
+      <path d="M7 4h11v13a3 3 0 0 1-3 3H6a3 3 0 0 0 3-3V4" />
+      <path d="M9 4H7a2 2 0 0 0-2 2v2h4M12 9h3M12 13h3" />
+    </>
+  ),
+  key: (
+    <>
+      <circle cx="8" cy="15" r="4" />
+      <path d="m11 12 8-8M16 7l2.5 2.5M14 9l2 2" />
+    </>
+  ),
+  umbrella: (
+    <>
+      <path d="M3 12a9 9 0 0 1 18 0z" />
+      <path d="M12 12v6a2 2 0 0 0 4 0" />
+    </>
+  ),
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3.5 2" />
+    </>
+  ),
+  ban: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m5.6 5.6 12.8 12.8" />
+    </>
+  ),
+  camera: (
+    <>
+      <path d="M4 8h3l1.5-2.5h7L17 8h3v11H4z" />
+      <circle cx="12" cy="13" r="3.5" />
+    </>
+  ),
+  sparkle: (
+    <>
+      <path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" />
+      <path d="M19 16v4M17 18h4" />
+    </>
+  ),
+  file: (
+    <>
+      <path d="M7 3h7l5 5v13H7z" />
+      <path d="M14 3v5h5M10 13h6M10 17h6" />
+    </>
+  ),
+  bell: (
+    <>
+      <path d="M6 9a6 6 0 1 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9" />
+      <path d="M10 20a2 2 0 0 0 4 0" />
+    </>
+  ),
+  lifebuoy: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="3.5" />
+      <path d="m5.6 5.6 3.9 3.9M14.5 14.5l3.9 3.9M18.4 5.6l-3.9 3.9M9.5 14.5l-3.9 3.9" />
+    </>
+  ),
+  chart: (
+    <>
+      <path d="M4 20V4M4 20h16" />
+      <path d="M8 16v-5M12 16V8M16 16v-3" />
+    </>
+  ),
+  shield: (
+    <>
+      <path d="M12 3 4.5 6v6c0 4.5 3 8 7.5 9 4.5-1 7.5-4.5 7.5-9V6z" />
+      <path d="m9 12 2.2 2.2L15.5 10" />
+    </>
+  ),
+  settings: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8" />
+    </>
+  ),
   home: (
     <>
       <path d="m3 11 9-8 9 8" />
@@ -189,6 +279,83 @@ function NavIcon({ name, className = "h-4 w-4" }: { name: string; className?: st
   );
 }
 
+function isActive(pathname: string, href: string, items: NavItem[]) {
+  if (href.includes("#")) return false;
+  if (pathname === href) return true;
+  if (href === items[0]?.href) return false;
+  if (!pathname.startsWith(`${href}/`)) return false;
+  // Prefer the most specific matching item so "/x/trucks" does not light up "/x".
+  return !items.some((other) => other.href !== href && !other.href.includes("#") && other.href.length > href.length && (pathname === other.href || pathname.startsWith(`${other.href}/`)));
+}
+
+function NavList({
+  groups,
+  pathname,
+  collapsed = false,
+  unread,
+  onNavigate,
+}: {
+  groups: NavGroup[];
+  pathname: string;
+  collapsed?: boolean;
+  unread: number;
+  onNavigate?: () => void;
+}) {
+  const flat = flattenNav(groups);
+  return (
+    <>
+      {groups.map((group, index) => (
+        <div key={group.label ?? `group-${index}`} className={index === 0 ? "" : "mt-3"}>
+          {group.label && !collapsed ? (
+            <p className="px-3 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted/70">{group.label}</p>
+          ) : group.label && collapsed ? (
+            <span className="mx-3 mb-1.5 block h-px bg-line" aria-hidden="true" />
+          ) : null}
+          <div className="flex flex-col gap-0.5">
+            {group.items.map((item) => {
+              const active = isActive(pathname, item.href, flat);
+              const count = item.badge === "unreadNotifications" ? unread : 0;
+              return (
+                <Link
+                  key={item.href + item.label}
+                  href={item.href}
+                  onClick={onNavigate}
+                  title={collapsed ? item.label : undefined}
+                  aria-current={active ? "page" : undefined}
+                  className={`group relative flex items-center rounded-lg py-2 text-[14.5px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+                    collapsed ? "justify-center px-2" : "gap-3 px-3"
+                  } ${active ? "bg-brand-soft font-semibold text-brand-dark" : "font-medium text-muted hover:bg-background hover:text-navy"}`}
+                >
+                  <NavIcon name={item.icon} className={active ? "text-brand" : "text-muted/70 group-hover:text-navy"} />
+                  {!collapsed ? <span className="min-w-0 flex-1 truncate">{item.label}</span> : null}
+                  {count > 0 ? (
+                    <span
+                      className={`${collapsed ? "absolute right-1 top-1" : ""} flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-white`}
+                      aria-label={`${count} unread`}
+                    >
+                      {count > 99 ? "99+" : count}
+                    </span>
+                  ) : null}
+                  {active ? <span className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-brand" /> : null}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+function visibleGroups(role: Role, permissions: Permission[] | undefined): NavGroup[] {
+  return NAVIGATION[role]
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => role !== "ADMIN" || !item.permission || hasPermission(permissions, item.permission)),
+    }))
+    .filter((group) => group.items.length > 0);
+}
+
 function roleLabel(role: Role) {
   if (role === "TRUCK_OWNER") return "Truck owner";
   if (role === "ADMIN") return "Admin";
@@ -209,11 +376,12 @@ export function DashboardShell({
   const [collapsed, setCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [logoutConfirmationOpen, setLogoutConfirmationOpen] = useState(false);
-  const items = nav[role];
+  const ops = useOps();
+  const permissions = ops.adminProfiles.find((profile) => profile.userId === currentUser?.id)?.permissions;
+  const groups = useMemo(() => visibleGroups(role, permissions), [role, permissions]);
+  const unread = useUnreadCount();
   const firstName = (currentUser?.name ?? "").split(" ")[0] || "there";
-  const profilePath = role === "TRUCK_OWNER"
-    ? "/dashboard/owner/profile"
-    : role === "ADMIN" ? "/dashboard/admin/profile" : "/dashboard/importer/profile";
+  const profilePath = profilePathFor(role);
 
   function handleLogout() {
     setLogoutConfirmationOpen(true);
@@ -253,35 +421,8 @@ export function DashboardShell({
               </button>
             )}
           </div>
-          <nav className={`flex flex-1 flex-col gap-1 ${collapsed ? "px-2" : "px-3"}`}>
-            {items.map((item) => {
-              const active =
-                pathname === item.href ||
-                (item.href !== items[0].href && pathname.startsWith(item.href));
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  title={collapsed ? item.label : undefined}
-                  className={`group relative flex items-center rounded-lg py-2 text-[15px] transition ${
-                    collapsed ? "justify-center px-2" : "gap-3 px-3"
-                  } ${
-                    active
-                      ? "bg-brand-soft font-semibold text-brand-dark"
-                      : "font-medium text-muted hover:bg-background hover:text-navy"
-                  }`}
-                >
-                  <NavIcon
-                    name={item.icon}
-                    className={active ? "text-brand" : "text-muted/70 group-hover:text-navy"}
-                  />
-                  {!collapsed ? item.label : null}
-                  {active ? (
-                    <span className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-brand" />
-                  ) : null}
-                </Link>
-              );
-            })}
+          <nav aria-label="Main" className={`flex-1 pb-6 ${collapsed ? "px-2" : "px-3"}`}>
+            <NavList groups={groups} pathname={pathname} collapsed={collapsed} unread={unread} />
           </nav>
         </aside>
 
@@ -374,30 +515,8 @@ export function DashboardShell({
                     </svg>
                   </button>
                 </div>
-                <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3">
-                  {items.map((item) => {
-                    const active =
-                      pathname === item.href ||
-                      (item.href !== items[0].href && pathname.startsWith(item.href));
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => setOpen(false)}
-                        className={`flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition ${
-                          active
-                            ? "bg-brand-soft text-brand-dark"
-                            : "text-navy hover:bg-background"
-                        }`}
-                      >
-                        <NavIcon
-                          name={item.icon}
-                          className={active ? "text-brand" : "text-muted"}
-                        />
-                        {item.label}
-                      </Link>
-                    );
-                  })}
+                <nav aria-label="Main" className="flex-1 overflow-y-auto px-3 pb-6">
+                  <NavList groups={groups} pathname={pathname} unread={unread} onNavigate={() => setOpen(false)} />
                 </nav>
               </div>
             </div>
