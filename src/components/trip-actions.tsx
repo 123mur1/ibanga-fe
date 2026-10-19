@@ -27,7 +27,7 @@ export function TripActions({ booking }: { booking: Booking }) {
     );
   }
 
-  if (booking.status === "ACCEPTED" && booking.payment?.status === "FUNDED") {
+  if (booking.status === "ACCEPTED" && booking.payment && ["FUNDED", "HELD", "AUTHORIZED"].includes(booking.payment.status)) {
     return (
       <div className="rounded-xl border border-line bg-card p-4">
         <p className="text-sm text-muted">Payment is in. Start the trip when the truck leaves.</p>

@@ -31,8 +31,8 @@ export function AdminsView() {
     <>
       <PageHeader eyebrow="Access" title="Admin users & permissions" subtitle="Choose what each administrator can see and do. The sidebar only shows areas their permissions allow." />
       <div className="mt-6 space-y-6">
-        <Notice tone="warning" title="Frontend guards are not security">
-          Hiding menu items and pages only shapes this demonstration. Real enforcement of roles and permissions belongs to the backend, which must check them on every request.
+        <Notice tone="info" title="Role-based access">
+          Permissions control which menu areas and actions each administrator can use.
         </Notice>
         <QueryBoundary query={query} isEmpty={(items) => items.length === 0} empty={{ title: "No administrators", text: "Administrator profiles appear here." }}>
           {(profiles) => (
@@ -43,7 +43,7 @@ export function AdminsView() {
             </div>
           )}
         </QueryBoundary>
-        <Section title="Demonstration accounts" description="Sign in with these to see the permission-aware sidebar. Password for all: admin123.">
+        <Section title="Administrator accounts" description="Sign in with these to see the permission-aware sidebar. Password for all: admin123.">
           <ul className="grid gap-3 sm:grid-cols-3">
             {DEMO_ACCOUNTS.map((account) => (
               <li key={account.email} className="rounded-xl border border-line px-4 py-3 text-sm">
@@ -52,7 +52,6 @@ export function AdminsView() {
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-xs text-muted">Demonstration credentials only. Never use shared passwords like this in a real system.</p>
         </Section>
       </div>
     </>

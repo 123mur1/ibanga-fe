@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { downloadExcel } from "@/lib/excel";
 
 export function Field({
@@ -314,7 +315,7 @@ export type DataTableRow = {
   exportValues: string[];
 };
 
-export function DataTable({
+function DataTableContents({
   columns,
   rows,
   emptyMessage = "There are no records to display.",
@@ -332,13 +333,16 @@ export function DataTable({
   initialFilter?: string;
 }) {
   const [search, setSearchValue] = useState("");
-  const [filter, setFilterValue] = useState(initialFilter);
+  const searchParams = useSearchParams();
+  const queryStatus = searchParams.get("status") ?? "";
+  const [manualFilter, setManualFilter] = useState<{ query: string; value: string } | null>(null);
+  const filter = manualFilter?.query === queryStatus ? manualFilter.value : queryStatus || initialFilter;
   const [extraFilter, setExtraFilterValue] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSizeValue] = useState(10);
   // Changing any filter returns to the first page (done in the handlers, not in an effect).
   const setSearch = (value: string) => { setSearchValue(value); setPage(1); };
-  const setFilter = (value: string) => { setFilterValue(value); setPage(1); };
+  const setFilter = (value: string) => { setManualFilter({ query: queryStatus, value }); setPage(1); };
   const setExtraFilter = (value: string) => { setExtraFilterValue(value); setPage(1); };
   const setPageSize = (value: number) => { setPageSizeValue(value); setPage(1); };
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
@@ -465,6 +469,16 @@ export function DataTable({
         </div>
       )}
     </div>
+  );
+}
+
+type DataTableProps = Parameters<typeof DataTableContents>[0];
+
+export function DataTable(props: DataTableProps) {
+  return (
+    <Suspense fallback={<div className="rounded-xl border border-line bg-white px-5 py-12 text-center text-sm text-muted">Loading records...</div>}>
+      <DataTableContents {...props} />
+    </Suspense>
   );
 }
 

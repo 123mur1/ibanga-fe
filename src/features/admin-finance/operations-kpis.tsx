@@ -20,18 +20,20 @@ export function OperationsKpis() {
   const openDisputes = ops.disputeCases.filter((item) => !["RESOLVED", "REJECTED"].includes(item.status)).length;
   const openIncidents = ops.incidents.filter((item) => !["RESOLVED", "CLOSED"].includes(item.status)).length;
   const documentAlerts = ops.documents.filter((doc) => effectiveDocumentStatus(doc) === "EXPIRED" || (doc.status === "APPROVED" && expiryState(doc.expiryDate, warningDays) === "EXPIRING")).length;
-  const failedMoney = ops.payouts.filter((item) => item.status === "FAILED").length + refunds.filter((item) => item.payoutState === "FAILED").length;
+  const failedPayouts = ops.payouts.filter((item) => item.status === "FAILED").length;
+  const failedRefunds = refunds.filter((item) => item.payoutState === "FAILED").length;
   const discrepancies = ops.reconciliation.filter((item) => item.status === "DISCREPANCY").length;
 
   const cards = [
-    { label: "Pending verifications", value: pendingVerifications, href: `${BASE}/verifications`, accent: "warn" },
-    { label: "Active shipments", value: activeShipments, href: `${BASE}/shipments`, accent: "brand" },
-    { label: "Pending settlements", value: pendingSettlements, href: `${BASE}/settlements`, accent: "accent" },
-    { label: "Open disputes", value: openDisputes, href: `${BASE}/disputes`, accent: "bad" },
-    { label: "Open incidents", value: openIncidents, href: `${BASE}/incidents`, accent: "bad" },
-    { label: "Document expiry alerts", value: documentAlerts, href: `${BASE}/document-expiry`, accent: "warn" },
-    { label: "Failed payouts and refunds", value: failedMoney, href: `${BASE}/settlements`, accent: "bad" },
-    { label: "Reconciliation discrepancies", value: discrepancies, href: `${BASE}/reconciliation`, accent: "warn" },
+    { label: "Pending verifications", value: pendingVerifications, href: `${BASE}/verifications?status=PENDING`, accent: "warn" },
+    { label: "Active shipments", value: activeShipments, href: `${BASE}/shipments?status=SCHEDULED,PICKUP_CONFIRMED,LOADED,DEPARTED,IN_TRANSIT,DELAYED,ARRIVED,UNLOADING`, accent: "brand" },
+    { label: "Pending settlements", value: pendingSettlements, href: `${BASE}/settlements?status=ELIGIBLE,AWAITING_VERIFICATION`, accent: "accent" },
+    { label: "Open disputes", value: openDisputes, href: `${BASE}/disputes?status=OPEN,UNDER_REVIEW,AWAITING_INFO,ESCALATED`, accent: "bad" },
+    { label: "Open incidents", value: openIncidents, href: `${BASE}/incidents?status=REPORTED,UNDER_INVESTIGATION,CLAIM_FILED`, accent: "bad" },
+    { label: "Document expiry alerts", value: documentAlerts, href: `${BASE}/document-expiry?status=EXPIRED,EXPIRING`, accent: "warn" },
+    { label: "Failed payouts", value: failedPayouts, href: `${BASE}/settlements?status=FAILED`, accent: "bad" },
+    { label: "Failed refunds", value: failedRefunds, href: `${BASE}/refunds?status=FAILED`, accent: "bad" },
+    { label: "Reconciliation discrepancies", value: discrepancies, href: `${BASE}/reconciliation?status=DISCREPANCY`, accent: "warn" },
   ] as const;
 
   return (

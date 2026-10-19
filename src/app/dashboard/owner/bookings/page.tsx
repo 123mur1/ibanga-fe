@@ -30,6 +30,7 @@ export default function OwnerBookingsPage() {
           trucks={mine}
           users={users}
           counterparty="TRUCK_OWNER"
+          listHref="/dashboard/owner/bookings"
           detailPath={(booking) => `/dashboard/owner/bookings/${booking.id}`}
         />
       </DashboardShell>

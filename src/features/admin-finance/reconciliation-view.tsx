@@ -4,7 +4,7 @@ import { useState } from "react";
 import { QueryBoundary } from "@/components/common/async-state";
 import { controlClass, FormField } from "@/components/common/form-fields";
 import { DetailList, Section, StatGrid } from "@/components/common/layout-blocks";
-import { Notice, SimulationNotice } from "@/components/common/notices";
+import { Notice } from "@/components/common/notices";
 import { StatusBadge } from "@/components/common/status-badge";
 import { DataTable, GhostButton, StatCard } from "@/components/ui";
 import { useAction } from "@/hooks/use-action";
@@ -29,12 +29,8 @@ export function ReconciliationView() {
 
   return (
     <div className="mt-6 space-y-5">
-      <SimulationNotice kind="payment" />
-      <Notice tone="warning" title="Demonstration reconciliation">
-        These records are sample data. No payment provider, bank or mobile money operator has matched, confirmed or settled anything. &quot;Mark reviewed&quot; records an internal note only.
-      </Notice>
       {!canAct ? <NoPermissionNotice area="reconciliation permissions" /> : null}
-      <QueryBoundary query={query} isEmpty={(data) => data.items.length === 0} empty={{ title: "No reconciliation records", text: "There is nothing to reconcile in the demonstration data." }}>
+      <QueryBoundary query={query} isEmpty={(data) => data.items.length === 0} empty={{ title: "No reconciliation records", text: "Reconciliation records will appear here." }}>
         {(data) => {
           const inRange = data.items.filter((item) => (!from || item.date.slice(0, 10) >= from) && (!to || item.date.slice(0, 10) <= to));
           const selected = data.items.find((item) => item.id === selectedId);
@@ -68,7 +64,7 @@ export function ReconciliationView() {
               </div>
 
               <DataTable
-                columns={[{ label: "Reference" }, { label: "Kind" }, { label: "Provider reference (sample)" }, { label: "Expected" }, { label: "Recorded" }, { label: "Difference" }, { label: "Status" }, { label: "Date" }, { label: "Detail" }]}
+                columns={[{ label: "Reference" }, { label: "Kind" }, { label: "Provider reference" }, { label: "Expected" }, { label: "Recorded" }, { label: "Difference" }, { label: "Status" }, { label: "Date" }, { label: "Detail" }]}
                 rows={inRange.map((item) => ({
                   id: item.id,
                   cells: [
@@ -108,7 +104,7 @@ function RecordPanel({ record, actor, canAct, onClose }: { record: Reconciliatio
   return (
     <Section
       title={`Record ${record.ref}`}
-      description="Demonstration data. Nothing here was matched by a real payment provider."
+      description="Review the recorded provider amounts and references."
       actions={<GhostButton type="button" onClick={onClose}>Close</GhostButton>}
     >
       <div className="grid gap-6 lg:grid-cols-2">
@@ -121,7 +117,7 @@ function RecordPanel({ record, actor, canAct, onClose }: { record: Reconciliatio
               { label: "Recorded amount", value: formatRwf(record.recordedAmountRwf) },
               { label: "Difference", value: difference === 0 ? "None" : `${difference > 0 ? "+" : "−"}${formatRwf(Math.abs(difference))}` },
               { label: "Date", value: formatDateTime(record.date) },
-              { label: "Provider reference (sample)", value: <span className="font-mono text-sm">{record.providerRef}</span> },
+              { label: "Provider reference", value: <span className="font-mono text-sm">{record.providerRef}</span> },
               { label: "Booking", value: record.bookingId ?? "—" },
               { label: "Note", value: record.note ?? "—", wide: true },
             ]}
@@ -140,10 +136,10 @@ function RecordPanel({ record, actor, canAct, onClose }: { record: Reconciliatio
               errorMessage="Explain how this record was reviewed (at least 5 characters)."
               label="Mark reviewed"
               title="Mark this record as reviewed?"
-              message="The record moves to Matched in the demonstration data."
+              message="The record moves to Matched and your review note is saved."
               disabled={busy}
-              summary={(note) => [`Difference on record: ${difference === 0 ? "none" : formatRwf(Math.abs(difference))}`, `Note: ${note}`, "Internal review only: no payment provider is contacted."]}
-              onConfirm={(note) => run(async () => { await services.admin.resolveReconciliation(actor, record.id, note); return true; }, { success: "Record marked reviewed (demonstration)." })}
+              summary={(note) => [`Difference on record: ${difference === 0 ? "none" : formatRwf(Math.abs(difference))}`, `Note: ${note}`]}
+              onConfirm={(note) => run(async () => { await services.admin.resolveReconciliation(actor, record.id, note); return true; }, { success: "Record marked reviewed." })}
             />
           )}
         </div>

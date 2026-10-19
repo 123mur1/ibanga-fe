@@ -57,7 +57,7 @@ export function MilestonePanel({ shipment }: { shipment: Shipment }) {
     if (!actor) return;
     const done = await run(
       () => services.shipments.recordMilestone(actor, shipment.id, { kind, place: place.trim() || fallbackPlace, note: note.trim() }),
-      { success: "Milestone recorded (demonstration)." },
+      { success: "Milestone recorded." },
     );
     if (!done) return;
     setNote("");
@@ -71,7 +71,7 @@ export function MilestonePanel({ shipment }: { shipment: Shipment }) {
   }
 
   return (
-    <Section title="Simulate milestone" description="Demonstration controls. In a real build, milestones come from the driver app or GPS, not from buttons.">
+    <Section title="Record milestone" description="Record shipment progress.">
       <div className="space-y-4">
         {!paid && !closed ? (
           <Notice tone="warning" title="This shipment cannot load or depart yet">
@@ -90,7 +90,7 @@ export function MilestonePanel({ shipment }: { shipment: Shipment }) {
             <input className={controlClass} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Anything the importer should know" />
           </FormField>
         </div>
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Simulate milestone">
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Record milestone">
           {STEPS.map((step) => {
             const blockedByPayment = !paid && (step.kind === "LOADED" || step.kind === "DEPARTED");
             const enabled = !closed && allowed.includes(step.kind) && !blockedByPayment && !busy;

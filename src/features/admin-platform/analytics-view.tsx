@@ -4,7 +4,6 @@ import { useState } from "react";
 import { BarChartCard, bucketByMonth, DonutCard, LineChartCard } from "@/components/charts";
 import { controlClass } from "@/components/common/form-fields";
 import { StatGrid } from "@/components/common/layout-blocks";
-import { SimulationNotice } from "@/components/common/notices";
 import { statusOptions } from "@/components/common/status-badge";
 import { PageHeader, StatCard } from "@/components/ui";
 import { useOps } from "@/hooks/use-ops";
@@ -39,7 +38,7 @@ export function AnalyticsView() {
       <PageHeader
         eyebrow="Insight"
         title="Reports & analytics"
-        subtitle="Platform figures derived from marketplace and operations data. Use the filters to narrow the period."
+        subtitle="Platform figures are calculated from the records in this browser. Use the filters to narrow the period."
         actions={
           <button
             type="button"
@@ -50,8 +49,6 @@ export function AnalyticsView() {
           </button>
         }
       />
-      <div className="mt-6"><SimulationNotice kind="general" /></div>
-
       <div className="mt-5 grid gap-3 rounded-2xl border border-line bg-card p-4 shadow-soft sm:grid-cols-2 lg:grid-cols-4">
         <label className="text-sm font-medium text-navy">
           From
@@ -78,20 +75,20 @@ export function AnalyticsView() {
       <p className="mt-2 text-xs text-muted">Dates filter each record by its own creation, payment or filing date. The shipment status filter affects shipment figures and charts only. Trucks, verifications and document alerts are current counts.</p>
 
       <StatGrid>
-        <StatCard label="Registered users" value={kpis.registeredUsers} hint="Importers and owners" />
+        <StatCard label="Registered users" value={kpis.registeredUsers} hint="Importers and owners" href="/dashboard/admin/users" />
         <StatCard label="Pending verifications" value={kpis.pendingVerifications} hint="Awaiting review" accent="warn" href="/dashboard/admin/verifications" />
         <StatCard label="Active trucks" value={kpis.activeTrucks} hint="Verified and in service" accent="good" href="/dashboard/admin/trucks" />
         <StatCard label="Active shipments" value={kpis.activeShipments} hint="Scheduled to unloading" accent="accent" href="/dashboard/admin/shipments" />
-        <StatCard label="Completed shipments" value={kpis.completedShipments} hint="Delivered or completed" accent="good" />
-        <StatCard label="Cancelled shipments" value={kpis.cancelledShipments} hint="In this period" />
-        <StatCard label="Payment volume" value={formatRwf(kpis.paymentVolumeRwf)} hint="Simulated payments" accent="accent" href="/dashboard/admin/payments" />
-        <StatCard label="Platform revenue" value={formatRwf(kpis.platformRevenueRwf)} hint="Commission on released payments" accent="good" />
+        <StatCard label="Completed shipments" value={kpis.completedShipments} hint="Delivered or completed" accent="good" href="/dashboard/admin/shipments?status=DELIVERED,COMPLETED" />
+        <StatCard label="Cancelled shipments" value={kpis.cancelledShipments} hint="In this period" href="/dashboard/admin/shipments?status=CANCELLED" />
+        <StatCard label="Payment volume" value={formatRwf(kpis.paymentVolumeRwf)} hint="Payments recorded" accent="accent" href="/dashboard/admin/payments" />
+        <StatCard label="Platform revenue" value={formatRwf(kpis.platformRevenueRwf)} hint="Commission on released payments" accent="good" href="/dashboard/admin/payments?status=RELEASED" />
         <StatCard label="Pending settlements" value={kpis.pendingSettlementsCount} hint={`${formatRwf(kpis.pendingSettlementsRwf)} net owed`} accent="warn" href="/dashboard/admin/settlements" />
         <StatCard label="Refund volume" value={formatRwf(kpis.refundVolumeRwf)} hint="Approved refunds" href="/dashboard/admin/refunds" />
         <StatCard label="Open disputes" value={kpis.openDisputes} hint="Not yet closed" accent="bad" href="/dashboard/admin/disputes" />
         <StatCard label="Accidents" value={kpis.accidents} hint={`${kpis.insuranceClaims} insurance claims`} accent="bad" href="/dashboard/admin/incidents" />
         <StatCard label="Document alerts" value={kpis.documentAlerts} hint="Expired or expiring" accent="warn" href="/dashboard/admin/document-expiry" />
-        <StatCard label="Failed payouts" value={kpis.failedPayouts} hint="Simulated payouts" accent="bad" href="/dashboard/admin/settlements" />
+        <StatCard label="Failed payouts" value={kpis.failedPayouts} hint="Needs attention" accent="bad" href="/dashboard/admin/settlements" />
         <StatCard label="Reconciliation issues" value={kpis.reconciliationDiscrepancies} hint="Discrepancy, unmatched or duplicate" accent="bad" href="/dashboard/admin/reconciliation" />
         <StatCard label="Insurance claims" value={kpis.insuranceClaims} hint="Filed in this period" href="/dashboard/admin/insurance-claims" />
       </StatGrid>
@@ -99,7 +96,7 @@ export function AnalyticsView() {
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
         <LineChartCard
           title="Payment volume"
-          caption="Simulated payments by month, last 6 months"
+          caption="Payments by month, last 6 months"
           badge={formatRwfCompact(kpis.paymentVolumeRwf)}
           unit="RWF"
           points={bucketByMonth(data.paidBookings, (booking) => booking.payment?.paidAt, (booking) => booking.payment?.amountRwf ?? 0)}

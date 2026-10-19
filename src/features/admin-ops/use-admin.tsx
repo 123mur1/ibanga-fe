@@ -8,7 +8,7 @@ import type { DocumentSubjectKind, Id, Permission } from "@/types/ops";
 
 const ADMIN = "/dashboard/admin";
 
-/** Whether the signed-in administrator holds a permission. Presentation only; the backend must enforce it. */
+/** Whether the signed-in administrator holds a permission in the demonstration account. */
 export function useAdminPermission(permission: Permission): boolean {
   const { currentUser } = useIbanga();
   const { adminProfiles } = useOps();
@@ -22,7 +22,7 @@ export function PermissionGate({ permission, children }: { permission: Permissio
     return (
       <div className="mt-6">
         <Notice tone="danger" title="Your administrator role does not include this area">
-          Ask a super administrator to grant the &quot;{permission}&quot; permission. The backend must enforce this restriction as well.
+          Ask a super administrator to grant the &quot;{permission}&quot; permission.
         </Notice>
       </div>
     );

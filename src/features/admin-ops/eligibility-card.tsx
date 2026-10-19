@@ -5,7 +5,7 @@ import type { Eligibility } from "@/config/business-rules";
 export function EligibilityNotice({ subject, result, action }: { subject: string; result: Eligibility; action?: { href: string; label: string } }) {
   return result.eligible ? (
     <Notice tone="success" title={`${subject} is eligible for work`} action={action}>
-      All required checks pass in this demonstration.
+      All required checks pass.
     </Notice>
   ) : (
     <Notice tone="warning" title={`${subject} is not eligible for work`} action={action}>

@@ -79,7 +79,7 @@ export function Timeline({ entries, empty = "Nothing has happened yet." }: { ent
           <div className="min-w-0 pb-1">
             <p className="text-sm font-semibold text-navy">
               {entry.title}
-              {entry.simulated ? <span className="ml-2 rounded bg-warn-soft px-1.5 py-0.5 text-[10px] font-semibold uppercase text-warn">Demo</span> : null}
+              
             </p>
             {entry.detail ? <p className="text-sm text-muted">{entry.detail}</p> : null}
             {entry.at ? <p className="text-xs text-muted">{entry.at}</p> : null}

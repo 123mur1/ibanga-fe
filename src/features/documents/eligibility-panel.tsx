@@ -42,7 +42,7 @@ export function EligibilityPanel({ documents }: { documents: OpsDocument[] }) {
     <Section title="Eligibility to take work" description="A truck or driver with a missing, expired or unapproved required document is blocked from quoting and assignment." padded={false}>
       <div className="px-5 pt-5">
         <Notice tone={blocked ? "warning" : "success"} title={blocked ? `${blocked} of ${myTrucks.length + myDrivers.length} trucks and drivers cannot take work yet` : "Everything is eligible"}>
-          The screens only show and prevent these restrictions. The backend must enforce them on every quotation and assignment.
+          Trucks and drivers shown as ineligible cannot quote or accept assignments.
         </Notice>
       </div>
       <ul className="mt-2 divide-y divide-line">

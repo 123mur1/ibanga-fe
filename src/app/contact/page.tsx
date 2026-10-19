@@ -25,9 +25,9 @@ export default function ContactPage() {
   } = useZodForm(schema, { defaultValues: { name: "", email: "", topic: "BOOKING", message: "" } });
 
   const submit = handleSubmit(async (values) => {
-    // Demonstration only: nothing is sent. A backend would create a ticket and email a confirmation.
+    // The contact form is local to this demonstration; no message is sent.
     await new Promise((resolve) => setTimeout(resolve, 600));
-    setSent(`Thanks ${values.name.split(" ")[0]}, your message was recorded in this demonstration. A real build would email ${values.email}.`);
+    setSent(`Thanks ${values.name.split(" ")[0]}, your message was saved in this browser. No email was sent.`);
     reset();
   });
 

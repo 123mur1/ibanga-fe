@@ -106,7 +106,7 @@ function DisputeBody({ dispute, base }: { dispute: DisputeCase; base: string }) 
           <Section title="What happened">
             <p className="whitespace-pre-wrap break-words leading-7 text-navy">{dispute.description}</p>
           </Section>
-          <Section title="Evidence" description="Files attached by the parties. Demonstration files stay in this browser.">
+          <Section title="Evidence" description="Files attached by the parties.">
             <EvidenceList files={dispute.evidence} />
           </Section>
           <Section title="Messages" description="Replies from you, the other party and iBanga administrators.">
@@ -175,7 +175,7 @@ function DisputeBody({ dispute, base }: { dispute: DisputeCase; base: string }) 
                 ]}
               />
               <div className="mt-4">
-                <Notice title="A recorded decision does not move money">Refunds and payouts are separate steps that must still be processed and are simulated in this demonstration.</Notice>
+                <Notice title="A recorded decision does not move money">Refunds and payouts require separate approval.</Notice>
               </div>
             </Section>
           ) : null}

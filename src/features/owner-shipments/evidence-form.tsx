@@ -68,7 +68,7 @@ function EvidenceStatus({ evidence }: { evidence: DeliveryEvidence }) {
           </Notice>
         ) : null}
         {evidence.verification === "VERIFIED" ? (
-          <Notice tone="success" title="Verified by an administrator (demonstration)">Verified {formatDateTime(evidence.verifiedAt)}. Check your earnings for the settlement status.</Notice>
+          <Notice tone="success" title="Verified by an administrator">Verified {formatDateTime(evidence.verifiedAt)}. Check your earnings for the settlement status.</Notice>
         ) : null}
         {evidence.verification === "REJECTED" ? (
           <Notice tone="danger" title="An administrator rejected this evidence">
@@ -184,7 +184,7 @@ function EvidenceForm({ shipment, resubmitting }: { shipment: Shipment; resubmit
           <FormField label="Recipient name" required error={errors.recipientName?.message}>
             <input className={controlClass} aria-invalid={Boolean(errors.recipientName)} {...register("recipientName")} />
           </FormField>
-          <FormField label="Delivery confirmation code" required hint="Placeholder: ask the recipient for the code. Any code is accepted in this demonstration." error={errors.confirmationCode?.message}>
+          <FormField label="Delivery confirmation code" required hint="Placeholder: ask the recipient for the code. Enter the code provided by the recipient." error={errors.confirmationCode?.message}>
             <input className={controlClass} aria-invalid={Boolean(errors.confirmationCode)} {...register("confirmationCode")} />
           </FormField>
           <FormField label="Delivered on" required error={errors.deliveredAt?.message}>

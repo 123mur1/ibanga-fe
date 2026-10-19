@@ -5,7 +5,7 @@ import { QueryBoundary } from "@/components/common/async-state";
 import { ConfirmButton } from "@/components/common/confirm-button";
 import { controlClass, FormField } from "@/components/common/form-fields";
 import { DetailList, Section, StatGrid, Timeline } from "@/components/common/layout-blocks";
-import { Notice, SimulationNotice } from "@/components/common/notices";
+import { Notice } from "@/components/common/notices";
 import { StatusBadge } from "@/components/common/status-badge";
 import { DataTable, GhostButton, StatCard, ViewLink } from "@/components/ui";
 import { useAction } from "@/hooks/use-action";
@@ -197,7 +197,6 @@ function IncidentBody({ incident }: { incident: Incident }) {
       </Section>
 
       <Section title="Insurance claim" description="A claim is a request, not an approval or a payment.">
-        <SimulationNotice kind="general" />
         <div className="mt-3 text-sm">
           {claim ? (
             <div className="space-y-2">

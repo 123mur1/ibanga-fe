@@ -63,8 +63,6 @@ function Kpis({ settlements, shipments }: { settlements: Settlement[]; shipments
 
   const myTrucks = trucks.filter((truck) => truck.ownerId === actor?.id);
   const profiles = ops.truckProfiles.filter((profile) => myTrucks.some((truck) => truck.id === profile.truckId));
-  const myDrivers = ops.drivers.filter((driver) => driver.ownerId === actor?.id);
-  const myDriverIds = new Set(myDrivers.map((driver) => driver.id));
 
   const dated = settlements.filter((item) => (!from && !to) || inRange(item.createdAt, from, to));
   const filtered = dated.filter((item) =>
@@ -76,15 +74,8 @@ function Kpis({ settlements, shipments }: { settlements: Settlement[]; shipments
   const failed = filtered.filter((item) => item.status === "FAILED");
 
   const completed = shipments.filter((item) => ["DELIVERED", "COMPLETED"].includes(item.status) && ((!from && !to) || inRange(item.createdAt, from, to)));
-  const activeAssignments = ops.driverAssignments.filter(
-    (item) => item.status === "ACTIVE" && myDriverIds.has(item.driverId) && ((!from && !to) || (item.startDate <= (to || "9999") && item.endDate >= (from || "0000"))),
-  );
   const available = profiles.filter((profile) => profile.opsStatus === "AVAILABLE").length;
   const utilisation = profiles.length ? profiles.reduce((total, profile) => total + profile.utilizationPct, 0) / profiles.length : 0;
-  const experienced = myDrivers.filter((driver) => driver.tripsCompleted > 0);
-  const onTime = experienced.length ? experienced.reduce((total, driver) => total + driver.onTimeRate, 0) / experienced.length : 0;
-  const rated = myDrivers.filter((driver) => driver.rating > 0);
-  const rating = rated.length ? rated.reduce((total, driver) => total + driver.rating, 0) / rated.length : 0;
   const filtering = Boolean(from || to || status !== "ALL");
 
   return (
@@ -123,22 +114,19 @@ function Kpis({ settlements, shipments }: { settlements: Settlement[]; shipments
         </div>
       </div>
       <p className="mt-2 text-xs text-muted">
-        Dates apply to settlements (created), shipments (created) and assignments (overlapping). The status filter narrows the money figures. Fleet size, utilisation and driver performance are current figures.
+        Dates filter settlement and shipment figures. Settlement status narrows payment figures. Fleet size and utilisation are current figures.
       </p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Total trucks" value={myTrucks.length} hint="In your fleet" href="/dashboard/owner/trucks" />
         <StatCard label="Available trucks" value={available} hint="Ready for new work" accent="good" href="/dashboard/owner/trucks" />
-        <StatCard label="Active assignments" value={activeAssignments.length} hint="Drivers on the road" accent="accent" href="/dashboard/owner/drivers" />
-        <StatCard label="Completed shipments" value={completed.length} hint="Delivered or completed" accent="brand" href="/dashboard/owner/shipments" />
+        <StatCard label="Completed trips" value={completed.length} hint="Delivered or completed" accent="brand" href="/dashboard/owner/history" />
         <StatCard label="Gross earnings" value={formatRwf(sum(counted, (item) => item.agreedAmountRwf))} hint={`${pluralize(counted.length, "settlement")}, before fees`} accent="good" href="/dashboard/owner/earnings" />
         <StatCard label="Platform fees" value={formatRwf(sum(counted, (item) => item.platformFeeRwf))} hint="Commission deducted" accent="warn" href="/dashboard/owner/earnings" />
         <StatCard label="Pending settlements" value={formatRwf(sum(pending, (item) => item.netAmountRwf))} hint={`${pluralize(pending.length, "settlement")} not yet paid`} accent="warn" href="/dashboard/owner/earnings" />
-        <StatCard label="Paid settlements" value={formatRwf(sum(paid, (item) => item.netAmountRwf))} hint={`${pluralize(paid.length, "settlement")} (simulated)`} accent="good" href="/dashboard/owner/payouts" />
+        <StatCard label="Paid settlements" value={formatRwf(sum(paid, (item) => item.netAmountRwf))} hint={`${pluralize(paid.length, "settlement")} paid`} accent="good" href="/dashboard/owner/payouts" />
         <StatCard label="Failed payouts" value={failed.length} hint={failed.length ? `${formatRwf(sum(failed, (item) => item.netAmountRwf))} to retry via admin` : "None failed"} accent={failed.length ? "bad" : "good"} href="/dashboard/owner/payouts" />
-        <StatCard label="Truck utilisation" value={profiles.length ? formatPercent(utilisation) : "No data"} hint="Average, last 30 days" accent="accent" />
-        <StatCard label="Driver on-time rate" value={experienced.length ? formatPercent(onTime) : "No trips yet"} hint={`${pluralize(experienced.length, "driver")} with trips`} accent="brand" href="/dashboard/owner/drivers" />
-        <StatCard label="Driver rating" value={rated.length ? `${rating.toFixed(1)} / 5` : "Not rated"} hint={`${pluralize(rated.length, "rated driver")}`} accent="accent" href="/dashboard/owner/drivers" />
+        <StatCard label="Truck utilisation" value={profiles.length ? formatPercent(utilisation) : "No data"} hint="Average, last 30 days" accent="accent" href="/dashboard/owner/trucks" />
       </div>
       <div className="mt-4 space-y-3">
         <SimulationNotice kind="settlement" />

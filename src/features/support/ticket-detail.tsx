@@ -46,7 +46,7 @@ export function TicketDetail({ role, id }: { role: PortalRole; id: string }) {
                 actions={<StatusBadge family="ticket" status={ticket.status} />}
               />
               <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(16rem,1fr)]">
-                <Section title="Conversation" description="Demonstration conversation: replies are stored in this browser and no real agent is reading.">
+                <Section title="Conversation" description="Conversation">
                   <ol className="space-y-4" aria-label="Messages">
                     {ticket.messages.map((message) => {
                       const mine = message.by === actor?.id;

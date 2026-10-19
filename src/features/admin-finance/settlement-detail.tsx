@@ -88,7 +88,7 @@ function SettlementBody({ settlement }: { settlement: Settlement }) {
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(20rem,1fr)]">
         <div className="space-y-5">
-          <Section title="Financial summary" description="All amounts are simulated Rwandan francs.">
+          <Section title="Financial summary" description="Amounts are shown in Rwandan francs.">
             <FinancialSummary lines={lines} footnote="Net payout = agreed amount − platform fee − deductions + adjustments, never below zero." />
           </Section>
 
@@ -148,7 +148,7 @@ function SettlementBody({ settlement }: { settlement: Settlement }) {
               items={[
                 { label: "Created", value: formatDateTime(settlement.createdAt) },
                 { label: "Payout started", value: settlement.processedAt ? formatDateTime(settlement.processedAt) : "—" },
-                { label: "Paid (simulated)", value: settlement.paidAt ? formatDateTime(settlement.paidAt) : "—" },
+                { label: "Paid", value: settlement.paidAt ? formatDateTime(settlement.paidAt) : "—" },
                 { label: "Net payout", value: formatRwf(settlement.netAmountRwf) },
               ]}
             />

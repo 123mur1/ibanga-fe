@@ -140,7 +140,7 @@ export function CancelBookingPanel({ booking, shipment, existing }: { booking: B
                 summary={[
                   `Booking: ${route}`,
                   `Cancellation fee: ${formatRwf(outcome.feeRwf)}`,
-                  `Refundable amount: ${formatRwf(outcome.refundRwf)} (simulated)`,
+                  `Refundable amount: ${formatRwf(outcome.refundRwf)}`,
                   outcome.requiresReview ? "An administrator reviews the request first." : "No payment was taken.",
                 ]}
                 confirmLabel="Yes, request cancellation"

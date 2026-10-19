@@ -53,7 +53,7 @@ export function ShipmentActions({ shipment }: { shipment: Shipment }) {
               label="Confirm receipt"
               title="Confirm you received the cargo?"
               message="This completes the booking."
-              summary={["The booking is marked completed.", "The truck owner's settlement can then proceed (simulated).", "To dispute damage or shortage, report a problem instead."]}
+              summary={["The booking is marked completed.", "The truck owner's settlement can then proceed .", "To dispute damage or shortage, report a problem instead."]}
               disabled={busy}
               onConfirm={confirmReceipt}
             />

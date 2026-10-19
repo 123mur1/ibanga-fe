@@ -197,8 +197,8 @@ export function ShipmentOverview({ shipment, role }: { shipment: Shipment; role:
                 {evidence.signatureDataUrl ? (
                   <li className="overflow-hidden rounded-lg border border-line bg-white">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={evidence.signatureDataUrl} alt="Recipient signature (demonstration)" className="h-32 w-full object-contain" />
-                    <p className="border-t border-line px-2 py-1 text-center text-[11px] text-muted">Demonstration signature</p>
+                    <img src={evidence.signatureDataUrl} alt="Recipient signature" className="h-32 w-full object-contain" />
+                    <p className="border-t border-line px-2 py-1 text-center text-[11px] text-muted">Recipient signature</p>
                   </li>
                 ) : null}
               </ul>

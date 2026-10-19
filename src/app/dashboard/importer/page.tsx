@@ -98,6 +98,7 @@ export default function ImporterHome() {
               </svg>
             }
             accent="warn"
+            href="/dashboard/importer/bookings?status=PENDING"
           />
           <StatCard
             label="Active trips"
@@ -110,12 +111,14 @@ export default function ImporterHome() {
               </svg>
             }
             accent="brand"
+            href="/dashboard/tracking"
           />
           <StatCard
             label="Held for you"
             value={formatRwf(held.reduce((sum, booking) => sum + (booking.payment?.amountRwf ?? 0), 0))}
             hint="In the iBanga account"
             accent="brand"
+            href="/dashboard/importer/payments?status=HELD,FUNDED,AUTHORIZED"
           />
           <StatCard
             label="Waiting for you"
@@ -127,6 +130,7 @@ export default function ImporterHome() {
               </svg>
             }
             accent="good"
+            href="/dashboard/importer/bookings?status=DELIVERED"
           />
         </div>
 

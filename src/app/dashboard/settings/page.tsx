@@ -5,7 +5,6 @@ import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import Link from "next/link";
 import { ConfirmButton } from "@/components/common/confirm-button";
-import { Notice } from "@/components/common/notices";
 import { StatusBadge } from "@/components/common/status-badge";
 import { PageHeader, StatCard } from "@/components/ui";
 import { useToast } from "@/components/toast";
@@ -93,19 +92,16 @@ export default function SettingsPage() {
             <Link href="/dashboard/notifications?tab=preferences" className="font-semibold text-brand hover:text-brand-dark">notification preferences</Link>.
           </p>
         </section>
-        <section className="mt-6 max-w-3xl space-y-4 rounded-2xl border border-bad/25 bg-white p-5 shadow-soft sm:p-7">
-          <h2 className="font-display text-xl text-navy">Demonstration data</h2>
-          <Notice tone="warning" title="Demonstration only">
-            All bookings, payments, shipments, documents and messages in this build are sample data stored in this browser. Resetting restores the original samples and signs you out of any changes you made.
-          </Notice>
+        <section className="mt-6 max-w-3xl space-y-4 rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-7">
+          <h2 className="font-display text-xl text-navy">Reset data</h2>
           <ConfirmButton
             variant="ghost"
             tone="danger"
-            label="Reset demonstration data"
-            title="Reset all demonstration data?"
+            label="Reset data"
+            title="Reset all saved data?"
             message="This cannot be undone."
             summary={[
-              "Bookings, payments, shipments, documents, disputes, tickets and notifications return to the original samples.",
+              "Bookings, payments, shipments, documents, disputes, tickets and notifications return to their starting state.",
               "Anything you created in this browser is deleted.",
               "The page reloads afterwards.",
             ]}

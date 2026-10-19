@@ -6,7 +6,7 @@ export function EligibilityPanel({ result, subject }: { result: Eligibility; sub
   if (result.eligible) {
     return (
       <Notice tone="success" title={`This ${subject} can take new work`}>
-        Verification and required documents are in order. The backend must enforce this check as well.
+        Verification and required documents are in order. This {subject} is eligible for new work.
       </Notice>
     );
   }

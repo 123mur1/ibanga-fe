@@ -31,7 +31,7 @@ export function PayoutList() {
               filterLabel="All payout statuses"
               exportName="ibanga-owner-payouts"
               rows={data.items.map((payout) => {
-                const detail = payout.status === "FAILED" ? (payout.failureReason ?? "Failed, no reason recorded.") : payout.status === "PAID" ? `Paid ${formatDate(payout.paidAt)} (simulated)` : "Processing (simulated)";
+                const detail = payout.status === "FAILED" ? (payout.failureReason ?? "Failed, no reason recorded.") : payout.status === "PAID" ? `Paid ${formatDate(payout.paidAt)}` : "Processing";
                 return {
                   id: payout.id,
                   searchText: `${payout.ref} ${payout.destination} ${payout.status}`,

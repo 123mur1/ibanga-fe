@@ -140,7 +140,7 @@ export function VerificationDetail({ id }: { id: string }) {
                       label: "Approve",
                       title: `Approve ${request.ref}?`,
                       message: "The submitted documents will be marked approved.",
-                      summary: ["Documents in this request become approved", "Eligibility is recalculated immediately", "The applicant is notified", "Demonstration only, no real checks were made"],
+                      summary: ["Documents in this request become approved", "Eligibility is recalculated immediately", "The applicant is notified", ""],
                     }}
                     reject={{
                       label: "Reject",

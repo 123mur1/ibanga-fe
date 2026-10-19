@@ -11,12 +11,16 @@ export function BookingManagementTable({
   users,
   counterparty,
   detailPath,
+  listHref,
+  showStats = true,
 }: {
   bookings: Booking[];
   trucks: Truck[];
   users: User[];
   counterparty: "IMPORTER" | "TRUCK_OWNER";
   detailPath: (booking: Booking) => string;
+  listHref: string;
+  showStats?: boolean;
 }) {
   const activeCount = bookings.filter((booking) => ["ACCEPTED", "IN_PROGRESS", "DELIVERED"].includes(booking.status)).length;
   const pendingCount = bookings.filter((booking) => booking.status === "PENDING").length;
@@ -24,12 +28,14 @@ export function BookingManagementTable({
 
   return (
     <>
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Total records" value={bookings.length} hint="Your booking activity" />
-        <StatCard label="Needs attention" value={pendingCount} hint="Pending decisions" accent="warn" />
-        <StatCard label="Active trips" value={activeCount} hint="In the delivery cycle" accent="accent" />
-        <StatCard label="Completed" value={completedCount} hint="Closed successfully" accent="good" />
-      </div>
+      {showStats ? (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard label="Total records" value={bookings.length} hint="Your booking activity" href={listHref} />
+          <StatCard label="Needs attention" value={pendingCount} hint="Pending decisions" accent="warn" href={`${listHref}?status=PENDING`} />
+          <StatCard label="Active trips" value={activeCount} hint="In the delivery cycle" accent="accent" href={`${listHref}?status=ACCEPTED,IN_PROGRESS,DELIVERED`} />
+          <StatCard label="Completed" value={completedCount} hint="Closed successfully" accent="good" href={`${listHref}?status=COMPLETED`} />
+        </div>
+      ) : null}
       <div className="mt-5">
         <DataTable
           columns={[{ label: "Route" }, { label: counterparty === "IMPORTER" ? "Truck owner" : "Importer" }, { label: "Vehicle" }, { label: "Pickup" }, { label: "Cargo" }, { label: "Paid" }, { label: "Amount" }, { label: "Payment" }, { label: "Status" }, { label: "Details" }]}

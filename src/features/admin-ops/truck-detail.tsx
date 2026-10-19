@@ -74,7 +74,7 @@ export function AdminTruckDetail({ id }: { id: string }) {
         />
       </Section>
 
-      <Section title="Operations profile" description="Demonstration figures." actions={profile ? <StatusBadge family="truckOps" status={profile.opsStatus} /> : undefined}>
+      <Section title="Operations profile" description="" actions={profile ? <StatusBadge family="truckOps" status={profile.opsStatus} /> : undefined}>
         {profile ? (
           <DetailList
             columns={3}
@@ -115,7 +115,7 @@ export function AdminTruckDetail({ id }: { id: string }) {
         )}
       </Section>
 
-      <Section title="Controlled actions" description="Changes are recorded in the audit log. The backend must enforce them on every request.">
+      <Section title="Controlled actions" description="Changes are recorded in the audit log.">
         <div className="space-y-6">
           {profile ? (
             <div className="grid gap-3 sm:grid-cols-[minmax(0,16rem)_auto] sm:items-end">

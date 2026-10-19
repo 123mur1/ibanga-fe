@@ -59,12 +59,12 @@ function Content({ settlement }: { settlement: Settlement }) {
         </Notice>
       ) : null}
       {settlement.status === "FAILED" ? (
-        <Notice tone="danger" title="The simulated payout failed" action={{ href: "/dashboard/owner/payouts", label: "Payout history" }}>
+        <Notice tone="danger" title="The payout failed" action={{ href: "/dashboard/owner/payouts", label: "Payout history" }}>
           {settlement.failureReason ?? "No reason was recorded."} Check your payout details; an administrator retries failed payouts.
         </Notice>
       ) : null}
       <div className="grid gap-5 lg:grid-cols-2">
-        <FinancialSummary title="Settlement amounts" lines={lines} footnote="Simulated figures. Net payable = agreed amount minus platform fee and deductions, plus adjustments." />
+        <FinancialSummary title="Settlement amounts" lines={lines} footnote="Net payable = agreed amount minus platform fee and deductions, plus adjustments." />
         <Section title="Eligibility">
           <div className="space-y-3">
             <p className="text-sm text-muted">Based on the booking payment, shipment, delivery verification, disputes and incidents right now:</p>
@@ -86,7 +86,7 @@ function Content({ settlement }: { settlement: Settlement }) {
           items={[
             { label: "Payout reference", value: settlement.payoutRef ?? "Not yet created" },
             { label: "Processed", value: formatDateTime(settlement.processedAt) },
-            { label: "Paid (simulated)", value: formatDateTime(settlement.paidAt) },
+            { label: "Paid", value: formatDateTime(settlement.paidAt) },
             { label: "Created", value: formatDateTime(settlement.createdAt) },
             {
               label: "Linked records",

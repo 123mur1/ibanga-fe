@@ -21,7 +21,7 @@ export function RefundDetail({ id }: { id: string }) {
   return (
     <div className="mt-4 space-y-5">
       <BackLink href="/dashboard/admin/refunds">All refunds</BackLink>
-      {refund ? <RefundBody refund={refund} /> : <EmptyState title="Refund not found" text="This refund request does not exist or was removed when demonstration data was reset." />}
+      {refund ? <RefundBody refund={refund} /> : <EmptyState title="Refund not found" text="This refund request does not exist or was removed." />}
     </div>
   );
 }
@@ -64,10 +64,9 @@ function RefundBody({ refund }: { refund: RefundRequest }) {
   if (state) {
     history.push({
       id: "pay",
-      title: state === "COMPLETED" ? "Refund sent (simulated)" : state === "FAILED" ? "Refund failed (simulated)" : "Refund pending",
+      title: state === "COMPLETED" ? "Refund sent" : state === "FAILED" ? "Refund failed" : "Refund pending",
       detail: refund.failureReason,
       tone: state === "COMPLETED" ? "success" : state === "FAILED" ? "danger" : "warning",
-      simulated: true,
     });
   }
 
@@ -96,7 +95,7 @@ function RefundBody({ refund }: { refund: RefundRequest }) {
 
       <SimulationNotice kind="payment" />
       {!canAct ? <NoPermissionNotice area="refund permissions" /> : null}
-      {state === "FAILED" ? <Notice tone="danger" title="Refund failed (simulated)">{refund.failureReason ?? "No reason was recorded."}</Notice> : null}
+      {state === "FAILED" ? <Notice tone="danger" title="Refund failed">{refund.failureReason ?? "No reason was recorded."}</Notice> : null}
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(20rem,1fr)]">
         <div className="space-y-5">
@@ -160,7 +159,7 @@ function RefundBody({ refund }: { refund: RefundRequest }) {
           </Section>
         </div>
 
-        <Section title="Decision" description={pending ? "Approving marks the payment refunded in the demonstration data." : "This request has been decided."}>
+        <Section title="Decision" description={pending ? "Approving marks the payment as refunded." : "This request has been decided."}>
           {!pending ? (
             <Notice tone={refund.status === "APPROVED" ? "success" : "info"} title={refund.status === "APPROVED" ? "Approved" : "Rejected"}>
               {refund.ownerNote || "No note was recorded."}
@@ -173,11 +172,10 @@ function RefundBody({ refund }: { refund: RefundRequest }) {
                 message="The importer's payment will be marked as refunded."
                 summary={[
                   `Refund ${formatRwf(refund.amountRwf)} to ${refund.refundTo}`,
-                  "Simulation only: no money moves.",
                   "A booking that has not started is cancelled and its truck becomes available again.",
                 ]}
                 disabled={busy}
-                onConfirm={() => decide("APPROVED", "Approved by an administrator.", "Refund approved (simulated).")}
+                onConfirm={() => decide("APPROVED", "Approved by an administrator.", "Refund approved.")}
               />
               <div className="border-t border-line pt-5">
                 <NoteAction

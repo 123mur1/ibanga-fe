@@ -9,7 +9,7 @@ import { useIbanga } from "@/lib/store";
 
 export const SOURCE_LABEL = { REFUND: "Refund request", CANCELLATION: "Cancellation", DISPUTE: "Dispute decision", INCIDENT: "Incident" } as const;
 
-const PAYOUT_LABEL = { PENDING: "Refund pending", COMPLETED: "Refund sent (simulated)", FAILED: "Refund failed" } as const;
+const PAYOUT_LABEL = { PENDING: "Refund pending", COMPLETED: "Refund sent", FAILED: "Refund failed" } as const;
 
 export function RefundsOverview() {
   const { refunds, users, bookings } = useIbanga();
@@ -23,12 +23,9 @@ export function RefundsOverview() {
   return (
     <div className="mt-6 space-y-5">
       <SimulationNotice kind="payment" />
-      <Notice tone="info" title="Backend requirement">
-        Refund approval and the refund payout must be idempotent and transactional on the server. Approving here only changes demonstration data.
-      </Notice>
       {failed.length ? (
         <Notice tone="danger" title={`${failed.length} refund(s) failed`}>
-          Open a failed refund to see the reason. Failed refunds are simulated outcomes.
+          Open a failed refund to see the recorded reason.
         </Notice>
       ) : null}
       {refunds.length === 0 ? (
@@ -61,7 +58,7 @@ export function RefundsOverview() {
                   <ViewLink key="v" href={`/dashboard/admin/refunds/${item.id}`} label={`Open refund ${reference}`} />,
                 ],
                 searchText: `${reference} ${item.bookingId} ${nameOf(item.importerId)} ${item.reason} ${origin}`,
-                filterValue: item.status,
+                filterValue: item.payoutState === "FAILED" ? "FAILED" : item.status,
                 extraFilterValue: origin,
                 exportValues: [reference, nameOf(item.importerId), item.bookingId, String(item.amountRwf), origin, item.status, item.payoutState ?? "", item.createdAt],
               };

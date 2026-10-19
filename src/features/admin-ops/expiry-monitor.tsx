@@ -32,8 +32,8 @@ export function ExpiryMonitor() {
 
   return (
     <div className="mt-6 space-y-5">
-      <Notice tone="warning" title="Restrictions must be enforced by the backend">
-        This screen shows which trucks and drivers would be blocked. A real system must refuse quotes and assignments for expired documents on the server, not only hide buttons.
+      <Notice tone="warning" title="Expired documents block new work">
+        Trucks and drivers with expired required documents cannot quote or accept assignments.
       </Notice>
       <StatGrid>
         <StatCard label="Expired" value={expired.length} hint="Past expiry date" accent="bad" />

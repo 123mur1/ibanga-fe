@@ -2,7 +2,7 @@
 
 import { QueryBoundary } from "@/components/common/async-state";
 import { controlClass, FormField } from "@/components/common/form-fields";
-import { DemoTag, Notice, SimulationNotice } from "@/components/common/notices";
+import { Notice, SimulationNotice } from "@/components/common/notices";
 import { Section, StatGrid } from "@/components/common/layout-blocks";
 import { StatusBadge } from "@/components/common/status-badge";
 import { evaluateSettlement } from "@/config/business-rules";
@@ -145,7 +145,7 @@ function MilestoneCorrection({ shipment }: { shipment: Shipment }) {
 
   const submit = handleSubmit(async (values) => {
     const result = await run(() => services.shipments.recordMilestone(actor!, shipment.id, values), {
-      success: "Demonstration milestone recorded.",
+      success: "Milestone recorded.",
       onError: (_error, fields) => applyFieldErrors(setError, fields),
     });
     if (result) reset({ kind: values.kind, place: "", note: "" });
@@ -154,9 +154,6 @@ function MilestoneCorrection({ shipment }: { shipment: Shipment }) {
   if (closed) return <p className="text-sm text-muted">This shipment is {titleCase(shipment.status)}; milestones can no longer be corrected.</p>;
   return (
     <form onSubmit={submit} noValidate className="space-y-4">
-      <Notice tone="warning" title="Demonstration only">
-        A real milestone would come from the driver app or GPS. Entries made here are labelled as demonstration in the timeline. <DemoTag />
-      </Notice>
       <div className="grid gap-4 sm:grid-cols-3">
         <FormField label="Milestone" required error={formState.errors.kind?.message}>
           <select className={controlClass} {...register("kind")} disabled={busy}>
@@ -170,7 +167,7 @@ function MilestoneCorrection({ shipment }: { shipment: Shipment }) {
           <input className={controlClass} {...register("note")} disabled={busy} aria-invalid={Boolean(formState.errors.note)} />
         </FormField>
       </div>
-      <PrimaryButton type="submit" disabled={busy}>{busy ? "Recording…" : "Record demonstration milestone"}</PrimaryButton>
+      <PrimaryButton type="submit" disabled={busy}>{busy ? "Recording…" : "Record milestone"}</PrimaryButton>
     </form>
   );
 }
@@ -203,7 +200,7 @@ export function AdminShipmentDetail({ id }: { id: string }) {
             <Section title="Verify delivery" description="Submitted evidence is not verified delivery until you verify it.">
               <VerifyDelivery shipment={shipment} />
             </Section>
-            <Section title="Milestone correction" description="Administrator correction, for demonstration.">
+            <Section title="Milestone correction" description="Administrator correction.">
               <MilestoneCorrection shipment={shipment} />
             </Section>
             <Section title="Related records">

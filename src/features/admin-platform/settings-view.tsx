@@ -21,9 +21,8 @@ export function SettingsView() {
     <>
       <PageHeader eyebrow="Platform" title="System settings" subtitle="Rules and messages that apply across the platform." />
       <div className="mt-6 space-y-6">
-        <Notice tone="warning" title="Demonstration only">
-          Changing the platform fee here updates the demonstration settings and is recorded in the audit log, but payments, refunds and settlements still use the business rules in
-          {" "}<code>src/config/business-rules.ts</code> (currently {Math.round(PLATFORM_FEE_RATE * 100)}%). A real backend must apply and enforce these values.
+        <Notice tone="warning" title="Fee setting is informational">
+          This setting is saved for display and audit history. Payment calculations currently use a {Math.round(PLATFORM_FEE_RATE * 100)}% platform fee.
         </Notice>
         <QueryBoundary query={query}>{(settings) => <SettingsForm settings={settings} />}</QueryBoundary>
         <ResetPanel />
@@ -52,7 +51,7 @@ function SettingsForm({ settings }: { settings: PlatformSettings }) {
   return (
     <Section title="Platform rules">
       <form onSubmit={submit} noValidate className="grid gap-5 sm:grid-cols-2">
-        <FormField label="Platform fee (%)" required error={errors.platformFeePct?.message} hint="Demonstration only; see the notice above.">
+        <FormField label="Platform fee (%)" required error={errors.platformFeePct?.message} hint="Changes are saved to the settings history.">
           <input type="number" step="0.1" className={controlClass} aria-invalid={Boolean(errors.platformFeePct)} {...register("platformFeePct", num)} />
         </FormField>
         <FormField label="Quotation validity (days)" required error={errors.quotationValidityDays?.message}>
@@ -92,18 +91,18 @@ function ResetPanel() {
   }
 
   return (
-    <Section title="Reset demonstration data" description="Restore every record to the original sample data.">
+    <Section title="Reset records" description="Restore every record to its starting state.">
       <p className="mb-4 text-sm text-muted">
         This clears all bookings, payments, shipments, cases and settings you changed in this browser, signs the session data out and reloads the page. It does not affect any real system because none is connected.
       </p>
       <ConfirmButton
         tone="danger"
-        label="Reset demonstration data"
-        title="Reset all demonstration data?"
-        message="Everything created or changed in this demonstration will be lost."
+        label="Reset records"
+        title="Reset all records?"
+        message="Everything created or changed in this browser will be lost."
         summary={["Marketplace and operations data return to the seed.", "The page reloads and you may need to sign in again."]}
         confirmLabel="Reset and reload"
-        onConfirm={() => run(reset, { success: "Demonstration data reset." })}
+        onConfirm={() => run(reset, { success: "Records reset." })}
       />
     </Section>
   );

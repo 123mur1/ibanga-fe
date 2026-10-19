@@ -17,7 +17,7 @@ export function AuditView() {
         <QueryBoundary query={query} isEmpty={(data) => data.items.length === 0} empty={{ title: "No audit entries yet", text: "Actions such as decisions, approvals and settings changes are recorded here." }}>
           {(data) => (
             <>
-              <p className="mb-3 text-sm text-muted">{data.total} entries, newest first. In the demonstration the log lives in this browser; a real backend would make it tamper-evident.</p>
+              <p className="mb-3 text-sm text-muted">{data.total} entries, newest first.</p>
               <DataTable
                 columns={[{ label: "When" }, { label: "Who" }, { label: "Action" }, { label: "Record" }, { label: "Detail" }]}
                 emptyMessage="No entries match your search."

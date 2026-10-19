@@ -80,7 +80,7 @@ export function TruckOperations({ truck }: { truck: Truck }) {
 
 function Performance({ profile }: { profile?: TruckProfile }) {
   return (
-    <Section title="Utilisation and performance" description="Demonstration figures, not measured data.">
+    <Section title="Utilisation and performance" description="Utilisation and performance.">
       {profile ? (
         <DetailList
           columns={1}

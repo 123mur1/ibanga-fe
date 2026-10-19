@@ -41,7 +41,7 @@ export function ImporterKpis() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 id="kpi-heading" className="font-display text-xl tracking-tight text-navy">Shipping summary <DemoTag /></h2>
-          <p className="mt-1 text-sm text-muted">Figures are demonstration data. Dates filter every figure; status filters bookings, shipments and money.</p>
+          <p className="mt-1 text-sm text-muted">Dates filter every figure; status filters bookings, shipments and payments.</p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <label className="text-xs font-medium text-muted">From
@@ -68,14 +68,13 @@ export function ImporterKpis() {
           const metrics = computeOverview({ requests: data.requests, bookings: mine, shipments: data.shipments, refunds: myRefunds, range, status });
           return (
             <StatGrid>
-              <StatCard label="Cargo requests" value={metrics.requests} hint="Created in range" href="/dashboard/importer/cargo-requests" />
-              <StatCard label="Active shipments" value={metrics.activeShipments} hint="Not yet delivered" accent="accent" href="/dashboard/importer/shipments" />
-              <StatCard label="Completed deliveries" value={metrics.completed} hint="Delivered or completed" accent="good" />
-              <StatCard label="Cancelled bookings" value={metrics.cancelled} hint="Cancelled or rejected" accent="bad" />
-              <StatCard label="Transport spending" value={formatRwf(metrics.spendingRwf)} hint="Paid (simulated)" href="/dashboard/importer/payments" />
+              <StatCard label="Active shipments" value={metrics.activeShipments} hint="Not yet delivered" accent="accent" href="/dashboard/importer/shipments?status=SCHEDULED,PICKUP_CONFIRMED,LOADED,DEPARTED,IN_TRANSIT,DELAYED,ARRIVED,UNLOADING" />
+              <StatCard label="Completed deliveries" value={metrics.completed} hint="Delivered or completed" accent="good" href="/dashboard/importer/shipments?status=DELIVERED,COMPLETED" />
+              <StatCard label="Cancelled bookings" value={metrics.cancelled} hint="Cancelled or rejected" accent="bad" href="/dashboard/importer/bookings?status=REJECTED" />
+              <StatCard label="Transport spending" value={formatRwf(metrics.spendingRwf)} hint="Paid" href="/dashboard/importer/payments?status=HELD,FUNDED,AUTHORIZED,RELEASED" />
               <StatCard label="Outstanding payments" value={formatRwf(metrics.outstandingRwf)} hint={`${metrics.outstandingCount} confirmed, unpaid`} accent="warn" href="/dashboard/importer/bookings" />
               <StatCard label="Refund history" value={metrics.refundCount} hint={`${formatRwf(metrics.refundedRwf)} approved`} href="/dashboard/importer/refunds" />
-              <StatCard label="Average delivery time" value={metrics.avgDeliveryDays === null ? "—" : `${metrics.avgDeliveryDays.toFixed(1)} days`} hint="Pickup to delivery proof" accent="accent" />
+              <StatCard label="Average delivery time" value={metrics.avgDeliveryDays === null ? "—" : `${metrics.avgDeliveryDays.toFixed(1)} days`} hint="Pickup to delivery proof" accent="accent" href="/dashboard/importer/shipments?status=DELIVERED,COMPLETED" />
             </StatGrid>
           );
         }}

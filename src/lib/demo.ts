@@ -8,7 +8,7 @@ import {
   seedVersion,
   seedWalletTransactions,
 } from "./mock-data";
-import { formatRwf, hydrateBooking } from "./payments";
+import { formatRwf, hydrateBooking, paymentShares } from "./payments";
 import type {
   Booking,
   BookingStatus,
@@ -172,7 +172,15 @@ export function loadDemoSession(): { userId: string | null; session: DemoSession
     if (stored.version !== seedVersion || !stored.session?.users?.length) {
       return { userId: null, session: freshDemoSession() };
     }
-    return { userId: stored.userId, session: stored.session };
+    const session = {
+      ...stored.session,
+      bookings: stored.session.bookings.map((booking) =>
+        ["PENDING", "ACCEPTED"].includes(booking.status) && ["AUTHORIZED", "HELD"].includes(booking.payment?.status ?? "")
+          ? { ...booking, payment: null }
+          : booking,
+      ),
+    };
+    return { userId: stored.userId, session };
   } catch {
     return { userId: null, session: freshDemoSession() };
   }
@@ -376,20 +384,21 @@ export function demoPayBooking(
   }
   const amount = booking.agreedPriceRwf ?? 0;
   if (amount <= 0) return { error: "This booking has no price." };
-  const paid = hydrateBooking({ ...booking, status: "ACCEPTED", agreedPriceRwf: amount });
   const now = new Date().toISOString();
-  const payment = paid.payment
-    ? {
-        ...paid.payment,
-        ...(checkout ? { method: checkout.method, accountMask: checkout.accountMask } : {}),
-        status: "FUNDED" as const,
-        payerName: checkout?.payerName || user.name,
-        paidAt: now,
-        heldAt: now,
-        releasedAt: null,
-        refundedAt: null,
-      }
-    : null;
+  const method = checkout?.method ?? booking.payment?.method ?? "MTN";
+  const payment = {
+    ...booking.payment,
+    ...paymentShares(amount),
+    method,
+    status: "FUNDED" as const,
+    payerName: checkout?.payerName || booking.payment?.payerName || user.name,
+    accountMask: checkout?.accountMask || booking.payment?.accountMask || "078 *** 220",
+    paidAt: now,
+    receiptNumber: booking.payment?.receiptNumber || `IB-${booking.id.replace(/[^a-z0-9]/gi, "").slice(-10).toUpperCase()}`,
+    heldAt: now,
+    releasedAt: null,
+    refundedAt: null,
+  };
   return {
     session: {
       ...session,

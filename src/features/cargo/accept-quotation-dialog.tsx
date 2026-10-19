@@ -116,7 +116,7 @@ export function AcceptQuotationDialog({
                 { label: "Platform fee (deducted from the owner share)", amountRwf: fees.platformFeeRwf, kind: "plain", hint: "6% of the agreed price" },
                 { label: "Total payable by you", amountRwf: fees.totalPayableRwf, kind: "total" },
               ]}
-              footnote="Simulated amounts. No money moves until you pay on the booking page."
+              footnote="Amounts are estimates. Payment is due after you confirm the booking."
             />
             <div className="rounded-xl border border-line bg-background/50 p-4">
               <p className="text-sm font-semibold text-navy">Cancellation policy</p>

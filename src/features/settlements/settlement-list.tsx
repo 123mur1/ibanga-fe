@@ -36,7 +36,7 @@ export function SettlementList() {
                 <StatCard label="Platform fees" value={formatRwf(sum(all, "platformFeeRwf"))} hint="Commission" accent="warn" />
                 <StatCard label="Net earnings" value={formatRwf(sum(all, "netAmountRwf"))} hint="After fees and adjustments" accent="accent" />
                 <StatCard label="Pending" value={formatRwf(sum((s) => !SETTLED.includes(s), "netAmountRwf"))} hint="Not yet paid out" accent="warn" />
-                <StatCard label="Paid (simulated)" value={formatRwf(sum((s) => s === "PAID", "netAmountRwf"))} hint="Demonstration payouts" accent="good" />
+                <StatCard label="Paid" value={formatRwf(sum((s) => s === "PAID", "netAmountRwf"))} hint="Paid out" accent="good" />
                 <StatCard label="Failed" value={formatRwf(sum((s) => s === "FAILED", "netAmountRwf"))} hint="Needs attention" accent="bad" />
               </StatGrid>
               {items.some((item) => item.status === "FAILED") ? (
@@ -53,8 +53,8 @@ export function SettlementList() {
                   const evaluation = eligibility(settlement);
                   const why =
                     settlement.status === "FAILED" ? (settlement.failureReason ?? "Payout failed.")
-                    : settlement.status === "PAID" ? "Paid out (simulated)."
-                    : settlement.status === "PROCESSING" ? "A simulated payout is processing."
+                    : settlement.status === "PAID" ? "Paid out."
+                    : settlement.status === "PROCESSING" ? "Payout is processing."
                     : settlement.holdReason ?? evaluation?.reasons[0] ?? "—";
                   return {
                     id: settlement.id,

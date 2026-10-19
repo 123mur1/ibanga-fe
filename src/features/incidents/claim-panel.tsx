@@ -34,7 +34,6 @@ export function ClaimPanel({ incident }: { incident: Incident }) {
 }
 
 function ClaimStatus({ claim }: { claim: InsuranceClaim }) {
-  const simulated = claim.status === "APPROVED" || claim.status === "PAID_SIMULATED";
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -43,7 +42,6 @@ function ClaimStatus({ claim }: { claim: InsuranceClaim }) {
       </div>
       {claim.status === "SUBMITTED" ? <Notice tone="info">Submitted. Nothing has been decided yet.</Notice> : null}
       {claim.status === "UNDER_REVIEW" ? <Notice tone="info">Under review. No decision has been made.</Notice> : null}
-      {simulated ? <Notice tone="warning" title="Simulated outcome">This decision is demonstration data. No insurer paid anything and no money moved.</Notice> : null}
       {claim.status === "REJECTED" ? <Notice tone="danger" title="Claim rejected">{claim.decisionNote ?? "No reason was recorded."}</Notice> : null}
       <DetailList
         items={[

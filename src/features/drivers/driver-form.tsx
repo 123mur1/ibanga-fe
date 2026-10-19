@@ -94,7 +94,7 @@ export function DriverForm({ driver }: { driver?: Driver }) {
           <FormField label="Email" error={errors.email?.message} hint="Optional.">
             <input className={controlClass} type="email" aria-invalid={Boolean(errors.email)} {...register("email")} />
           </FormField>
-          <FormField label="National ID number" required error={errors.nationalId?.message} hint="Demonstration only. Do not enter a real identity number.">
+          <FormField label="National ID number" required error={errors.nationalId?.message} hint="Enter the driver&apos;s national ID number.">
             <input className={controlClass} autoComplete="off" aria-invalid={Boolean(errors.nationalId)} {...register("nationalId")} />
           </FormField>
         </div>

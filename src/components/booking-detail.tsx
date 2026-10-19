@@ -13,7 +13,7 @@ import { TripActions } from "@/components/trip-actions";
 import { BookingBadge, DisputeBadge, PaymentBadge, TruckBadge } from "@/components/status-badge";
 import { Field, GhostButton, inputClass, Modal, PageHeader, PrimaryButton, formatDate, formatDateTime } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
-import { formatRwf, maskAccount } from "@/lib/payments";
+import { formatRwf, maskAccount, validatePaymentAccount } from "@/lib/payments";
 import type { Booking, BookingStatus, PaymentMethod, Role } from "@/lib/types";
 
 const statuses: BookingStatus[] = ["PENDING", "ACCEPTED", "IN_PROGRESS", "DELIVERED", "COMPLETED", "DISPUTED", "REJECTED"];
@@ -82,6 +82,8 @@ export function BookingDetail({
                 actions={<BookingBadge status={booking.status} />}
               />
             </div>
+
+            <BookingProgress booking={booking} />
 
             <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(20rem,1fr)]">
               <div className="space-y-5">
@@ -236,6 +238,80 @@ function ActionCard({ role, booking }: { role: Role; booking: Booking }) {
   return <ImporterActions booking={booking} />;
 }
 
+const BOOKING_STEPS = [
+  { title: "Request sent", detail: "Booking details are sent to the truck owner." },
+  { title: "Owner confirms", detail: "The owner confirms that the truck is available." },
+  { title: "Importer pays", detail: "After confirmation, pay by Visa, MTN MoMo or Airtel Money." },
+  { title: "Trip begins", detail: "The owner starts the trip after payment is recorded." },
+  { title: "Confirm delivery", detail: "The owner marks delivery; the importer checks the cargo." },
+  { title: "Booking complete", detail: "The importer confirms receipt or reports a problem." },
+];
+
+function BookingProgress({ booking }: { booking: Booking }) {
+  const declined = booking.status === "REJECTED";
+  const disputed = booking.status === "DISPUTED";
+  const paid = Boolean(booking.payment && ["AUTHORIZED", "FUNDED", "HELD", "RELEASED"].includes(booking.payment.status));
+  const current = booking.status === "PENDING" ? 1
+    : booking.status === "ACCEPTED" ? (paid ? 3 : 2)
+      : booking.status === "IN_PROGRESS" ? 3
+        : booking.status === "DELIVERED" || disputed ? 4
+          : 6;
+  const nextText = declined
+    ? "The owner declined this request. No payment is due."
+    : disputed
+      ? "A delivery issue is under review. The owner settlement remains on hold until it is resolved."
+      : booking.status === "PENDING"
+        ? "Waiting for the truck owner to confirm availability. No payment is due yet."
+        : booking.status === "ACCEPTED" && !paid
+          ? "The owner confirmed the truck. The importer pays now; the trip cannot start until payment is recorded."
+          : booking.status === "ACCEPTED"
+            ? "Payment is recorded and held. The owner can start the trip when the truck departs."
+            : booking.status === "IN_PROGRESS"
+              ? "The trip is underway. The owner marks delivery when the cargo arrives."
+              : booking.status === "DELIVERED"
+                ? "Delivery is recorded. The importer should check the cargo and confirm receipt or report a problem."
+                : "The importer confirmed receipt. This booking is complete.";
+
+  return (
+    <section aria-labelledby="booking-progress-heading" className="mt-6 rounded-2xl border border-line bg-card p-5 shadow-soft sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 id="booking-progress-heading" className="font-display text-lg text-navy">Booking progress</h2>
+          <p className="mt-1 max-w-3xl text-sm text-muted">{nextText}</p>
+        </div>
+        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${declined ? "bg-bad-soft text-bad" : disputed ? "bg-warn-soft text-warn" : "bg-brand-soft text-brand-dark"}`}>
+          {declined ? "Request declined" : disputed ? "Issue under review" : booking.status === "COMPLETED" ? "Booking complete" : `Current step: ${BOOKING_STEPS[current].title}`}
+        </span>
+      </div>
+      <div className="mt-5 h-2 overflow-hidden rounded-full bg-background" role="progressbar" aria-label="Booking completion" aria-valuemin={0} aria-valuemax={6} aria-valuenow={declined ? 1 : current}>
+        <div className={`h-full rounded-full transition-all duration-300 ${declined ? "bg-bad" : disputed ? "bg-warn" : "bg-brand"}`} style={{ width: `${Math.max(1, (declined ? 1 : current) / BOOKING_STEPS.length * 100)}%` }} />
+      </div>
+      <ol className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+        {BOOKING_STEPS.map((step, index) => {
+          const complete = !declined && index < current;
+          const active = !declined && index === current;
+          const detail = disputed && index === current
+            ? "A delivery problem was reported. Resolution is required before completion."
+            : step.detail;
+          return (
+            <li key={step.title} aria-current={active ? "step" : undefined} className={`rounded-xl border p-3 ${active ? "border-brand bg-brand-soft/70 ring-1 ring-brand/20" : complete ? "border-good/30 bg-good-soft/40" : "border-line bg-white"}`}>
+              <div className="flex items-center gap-2">
+                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${active ? "bg-brand text-white" : complete ? "bg-good text-white" : "bg-background text-muted"}`}>
+                  {complete ? "✓" : index + 1}
+                </span>
+                <span className="text-sm font-semibold text-navy">{step.title}</span>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-muted">{detail}</p>
+              {active ? <p className="mt-2 text-[10px] font-bold uppercase tracking-wide text-brand-dark">{disputed ? "Issue reported" : "Current step"}</p> : null}
+              {complete ? <p className="mt-2 text-[10px] font-bold uppercase tracking-wide text-good">Complete</p> : null}
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
 function CardShell({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-line bg-card shadow-soft">
@@ -303,11 +379,9 @@ function ImporterActions({ booking }: { booking: Booking }) {
   const [payError, setPayError] = useState<string | null>(null);
 
   async function submitPayment() {
-    const digits = account.replace(/\D/g, "");
     if (!payerName.trim()) return setPayError("Enter the name on the account.");
-    if (method === "VISA" ? digits.length < 12 : digits.length < 9) {
-      return setPayError(method === "VISA" ? "Enter the full card number." : "Enter a valid mobile money number.");
-    }
+    const accountError = validatePaymentAccount(method, account);
+    if (accountError) return setPayError(accountError);
     setPayError(null);
     setBusy(true);
     const error = await payBooking(booking.id, { method, payerName: payerName.trim(), accountMask: maskAccount(method, account) });
@@ -325,7 +399,7 @@ function ImporterActions({ booking }: { booking: Booking }) {
     toast(error || success, error ? "bad" : "good");
   }
 
-  const canPay = booking.status === "ACCEPTED" && !booking.payment;
+  const canPay = booking.status === "ACCEPTED" && (!booking.payment || booking.payment.status === "PENDING" || booking.payment.status === "REFUNDED");
   const canConfirm = booking.status === "DELIVERED" || (booking.status === "DISPUTED" && booking.dispute?.status === "RESOLVED");
 
   const subtitle =
@@ -383,8 +457,8 @@ function ImporterActions({ booking }: { booking: Booking }) {
                 ))}
               </div>
             </fieldset>
-            <Field label={method === "VISA" ? "Card number" : "Mobile money number"}>
-              <input className={inputClass} inputMode="numeric" value={account} onChange={(event) => setAccount(event.target.value)} placeholder={method === "VISA" ? "4242 4242 4242 4242" : "078 000 0000"} autoComplete="off" />
+            <Field label={method === "VISA" ? "Visa card number" : `${method === "MTN" ? "MTN MoMo" : "Airtel Money"} number`}>
+              <input className={inputClass} inputMode="numeric" autoComplete="off" value={account} onChange={(event) => setAccount(event.target.value)} placeholder={method === "VISA" ? "4242 4242 4242 4242" : "078 000 0000"} />
             </Field>
             <Field label="Name on the account">
               <input className={inputClass} value={payerName} onChange={(event) => setPayerName(event.target.value)} autoComplete="off" />

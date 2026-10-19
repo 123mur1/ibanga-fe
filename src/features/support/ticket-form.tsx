@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { BackLink, Section } from "@/components/common/layout-blocks";
-import { Notice } from "@/components/common/notices";
 import { RoleShell } from "@/components/common/role-shell";
 import { controlClass, FormField } from "@/components/common/form-fields";
 import { GhostButton, PageHeader, PrimaryButton } from "@/components/ui";
@@ -38,7 +37,6 @@ export function TicketForm({ role }: { role: PortalRole }) {
         <PageHeader eyebrow="Help" title="New support ticket" subtitle="Tell us what happened and which booking or payment it relates to." />
       </div>
       <form onSubmit={submit} noValidate className="mt-6 max-w-3xl space-y-5">
-        <Notice title="Demonstration">Tickets are stored in this browser only. No real support agent will read them.</Notice>
         <Section title="Ticket details">
           <div className="space-y-4">
             <FormField label="Subject" required error={errors.subject?.message}>

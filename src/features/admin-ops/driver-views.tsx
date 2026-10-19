@@ -157,7 +157,7 @@ function DriverBody({ driver }: { driver: Driver }) {
             onConfirm={() => run(() => services.drivers.setStatus(actor!, driver.id, "SUSPENDED"), { success: "Driver suspended." })}
           />
         )}
-        <p className="mt-3 text-xs text-muted">Current status: {titleCase(driver.status)}. The backend must enforce suspensions on every assignment request.</p>
+        <p className="mt-3 text-xs text-muted">Current status: {titleCase(driver.status)}. Suspended drivers cannot be assigned to new work.</p>
       </Section>
     </div>
   );

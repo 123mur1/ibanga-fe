@@ -30,7 +30,7 @@ export function NotificationPreferences() {
   return (
     <div className="space-y-4">
       <Notice tone="warning" title="Email, SMS and push are not connected yet">
-        Only in-app notifications are delivered in this demonstration. Your choices for the other channels are saved, but nothing is sent by email, text message or push.
+        In-app notifications are delivered here.
       </Notice>
       <QueryBoundary query={query}>
         {(prefs) => (

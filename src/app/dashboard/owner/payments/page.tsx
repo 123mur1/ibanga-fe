@@ -41,10 +41,10 @@ export default function OwnerPaymentsPage() {
         />
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Payments" value={payments.length} hint="On your bookings" />
-          <StatCard label="Your total share" value={formatRwf(share((status) => status !== "REFUNDED"))} hint="After the 6% commission" accent="accent" />
-          <StatCard label="Held in escrow" value={formatRwf(share((status) => heldStatuses.includes(status)))} hint="Awaiting completion" accent="warn" />
-          <StatCard label="Released to you" value={formatRwf(share((status) => status === "RELEASED"))} hint="Paid out" accent="good" />
+          <StatCard label="Payments" value={payments.length} hint="On your bookings" href="/dashboard/owner/payments" />
+          <StatCard label="Your total share" value={formatRwf(share((status) => status !== "REFUNDED"))} hint="After the 6% commission" accent="accent" href="/dashboard/owner/payments?status=HELD,FUNDED,AUTHORIZED,RELEASED" />
+          <StatCard label="Held in escrow" value={formatRwf(share((status) => heldStatuses.includes(status)))} hint="Awaiting completion" accent="warn" href="/dashboard/owner/payments?status=HELD,FUNDED,AUTHORIZED" />
+          <StatCard label="Released to you" value={formatRwf(share((status) => status === "RELEASED"))} hint="Paid out" accent="good" href="/dashboard/owner/payments?status=RELEASED" />
         </div>
 
         <div className="mt-5">

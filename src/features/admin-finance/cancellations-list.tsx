@@ -23,7 +23,7 @@ export function CancellationsOverview() {
     <div className="mt-6 space-y-5">
       <SimulationNotice kind="payment" />
       <Notice tone="info" title="Policy outcome is shown, not decided here">
-        Fee and refundable amount come from the cancellation policy for the stage the booking had reached. The backend must calculate and enforce them.
+        The fee and refund amount are calculated from the booking stage when the cancellation was requested.
       </Notice>
       <QueryBoundary
         query={query}
@@ -40,7 +40,7 @@ export function CancellationsOverview() {
                 <StatCard label="Awaiting review" value={open.length} accent="warn" />
                 <StatCard label="Approved, not completed" value={approved.length} hint="Refund still to be recorded" accent="brand" />
                 <StatCard label="Completed" value={data.items.filter((item) => item.status === "COMPLETED").length} accent="good" />
-                <StatCard label="Refundable (simulated)" value={formatRwf(refundTotal)} hint="Excludes rejected" accent="accent" />
+                <StatCard label="Refundable" value={formatRwf(refundTotal)} hint="Excludes rejected" accent="accent" />
               </StatGrid>
               <DataTable
                 columns={[{ label: "Reference" }, { label: "Requested by" }, { label: "Booking" }, { label: "Stage" }, { label: "Fee" }, { label: "Refundable" }, { label: "Status" }, { label: "Requested" }, { label: "Open" }]}

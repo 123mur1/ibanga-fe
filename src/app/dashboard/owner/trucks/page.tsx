@@ -49,10 +49,10 @@ export default function OwnerTrucksPage() {
         />
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Fleet vehicles" value={mine.length} hint="In your account" icon={truckIcon} />
-          <StatCard label="Available" value={available} hint="Ready to book" accent="good" />
-          <StatCard label="On a booking" value={mine.filter((truck) => onTrip.has(truck.id)).length} hint="Held by an importer" accent="accent" />
-          <StatCard label="Total capacity" value={`${totalCapacity} t`} hint="Across the fleet" accent="warn" />
+          <StatCard label="Fleet vehicles" value={mine.length} hint="In your account" icon={truckIcon} href="/dashboard/owner/trucks" />
+          <StatCard label="Available" value={available} hint="Ready to book" accent="good" href="/dashboard/owner/trucks?status=AVAILABLE" />
+          <StatCard label="On a booking" value={mine.filter((truck) => onTrip.has(truck.id)).length} hint="Held by an importer" accent="accent" href="/dashboard/owner/bookings?status=ACCEPTED,IN_PROGRESS,DELIVERED" />
+          <StatCard label="Total capacity" value={`${totalCapacity} t`} hint="Across the fleet" accent="warn" href="/dashboard/owner/trucks" />
         </div>
 
         <div className="mt-5">

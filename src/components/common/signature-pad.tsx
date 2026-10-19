@@ -72,7 +72,7 @@ export function SignaturePad({ value, onChange, error }: { value?: string; onCha
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-medium text-navy">Recipient signature (demonstration)</span>
+        <span className="text-sm font-medium text-navy">Recipient signature</span>
         <button type="button" onClick={clear} disabled={empty} className="text-xs font-semibold text-brand hover:text-brand-dark disabled:opacity-40">
           Clear
         </button>

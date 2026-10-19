@@ -132,7 +132,7 @@ export function QuotationForm({ request, myQuotations }: { request: CargoRequest
         </FormField>
         {fee ? (
           <p className="rounded-lg bg-background px-3 py-2 text-sm text-muted">
-            If accepted, an estimated platform fee of {formatRwf(fee.platformFeeRwf)} applies and you would receive about <strong className="text-navy">{formatRwf(fee.ownerNetRwf)}</strong> after delivery is verified. Demonstration figures.
+            If accepted, an estimated platform fee of {formatRwf(fee.platformFeeRwf)} applies and you would receive about <strong className="text-navy">{formatRwf(fee.ownerNetRwf)}</strong> after delivery is verified.
           </p>
         ) : null}
 

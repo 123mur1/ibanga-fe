@@ -95,8 +95,6 @@ export function PaymentDetail({
               />
             </div>
 
-            <div className="mt-5"><SimulationNotice kind="payment" /></div>
-
             <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(20rem,1fr)]">
               <div className="space-y-5">
                 <FinancialSummary
@@ -107,31 +105,29 @@ export function PaymentDetail({
                     { label: "Truck owner share", amountRwf: payment.ownerAmountRwf },
                     { label: role === "IMPORTER" ? "Total you paid" : "Total paid by importer", amountRwf: payment.amountRwf, kind: "total" },
                   ]}
-                  footnote="Simulated amounts. No real card, mobile money or bank account was charged."
+                  footnote="The platform fee is deducted from the truck owner's share; it does not increase the total paid."
                 />
 
-                <section className="overflow-hidden rounded-2xl border border-line bg-card shadow-soft" id="payment-invoice">
-                  <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line bg-background/60 px-5 py-4">
-                    <div>
-                      <h2 className="font-display text-lg text-navy">Invoice and references</h2>
-                      <p className="mt-1 text-sm text-muted">Reference numbers to quote when you contact support.</p>
+                <div className="space-y-5">
+                  <section className="overflow-hidden rounded-2xl border border-line bg-card shadow-soft" id="payment-invoice">
+                    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line bg-background/60 px-5 py-4">
+                      <div>
+                        <h2 className="font-display text-lg text-navy">Invoice and references</h2>
+                        <p className="mt-1 text-sm text-muted">Reference numbers to quote when you contact support.</p>
+                      </div>
                     </div>
-                    <button type="button" onClick={() => window.print()} className="rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-navy transition hover:border-brand print:hidden">
-                      Print invoice and receipt
-                    </button>
-                  </div>
-                  <dl className="grid gap-x-8 gap-y-4 px-5 py-5 sm:grid-cols-2">
-                    <InvoiceItem label="Transaction reference" value={payment.receiptNumber} />
-                    <InvoiceItem label="Invoice number" value={`INV-${booking.id.toUpperCase()}`} />
-                    <InvoiceItem label="Booking" value={booking.id} />
-                    <InvoiceItem label="Invoice date" value={formatDate(payment.paidAt)} />
-                    <InvoiceItem label="Billed to" value={payment.payerName} />
-                    <InvoiceItem label="Service" value={`Transport, ${booking.pickupLocation} to ${booking.destination}`} />
-                  </dl>
-                  <p className="border-t border-line px-5 py-3 text-xs text-muted">Demonstration invoice. It is not a tax document.</p>
-                </section>
+                    <dl className="grid gap-x-8 gap-y-4 px-5 py-5 sm:grid-cols-2">
+                      <InvoiceItem label="Transaction reference" value={payment.receiptNumber} />
+                      <InvoiceItem label="Invoice number" value={`INV-${booking.id.toUpperCase()}`} />
+                      <InvoiceItem label="Booking" value={booking.id} />
+                      <InvoiceItem label="Invoice date" value={formatDate(payment.paidAt)} />
+                      <InvoiceItem label="Billed to" value={payment.payerName} />
+                      <InvoiceItem label="Service" value={`Transport, ${booking.pickupLocation} to ${booking.destination}`} />
+                    </dl>
+                  </section>
 
-                <PaymentReceipt booking={booking} plate={truck?.plateNumber} />
+                  <PaymentReceipt booking={booking} plate={truck?.plateNumber} />
+                </div>
               </div>
 
               <aside className="space-y-5">

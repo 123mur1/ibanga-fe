@@ -146,7 +146,7 @@ export function FilePicker({
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 16V4m-5 5 5-5 5 5M4 17v3h16v-3" /></svg>
           {files.length ? (multiple ? "Add more" : "Replace file") : "Choose file"}
         </label>
-        <p className="mt-2 text-xs text-muted">{hint ?? `Images or PDF, up to ${maxMegabytes} MB${multiple ? `, ${maxFiles} files` : ""}. Demonstration only: files stay in your browser.`}</p>
+        <p className="mt-2 text-xs text-muted">{hint ?? `Images or PDF, up to ${maxMegabytes} MB${multiple ? `, ${maxFiles} files` : ""}.`}</p>
       </div>
       {shown ? <p role="alert" className="mt-1 text-xs font-medium text-bad">{shown}</p> : null}
     </div>

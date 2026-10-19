@@ -56,7 +56,7 @@ function KindCard({ item, actor, requests, docs, documentsHref }: { item: (typeo
       {status === "EXPIRED" ? (
         <div className="mt-3"><Notice tone="danger" title="Verification expired">A document used for this verification has expired. Renew it to be verified again.</Notice></div>
       ) : null}
-      {status === "PENDING" ? <p className="mt-3 text-sm text-muted">An administrator is reviewing your documents. This is a demonstration review, not a real check.</p> : null}
+      {status === "PENDING" ? <p className="mt-3 text-sm text-muted">An administrator is reviewing your documents.</p> : null}
       {kindDocs.length ? (
         <ul className="mt-3 space-y-1 text-sm">
           {kindDocs.map((doc) => (

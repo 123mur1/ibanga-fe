@@ -34,7 +34,7 @@ export function CancellationDetail({ id }: { id: string }) {
       <QueryBoundary
         query={query}
         isEmpty={(request) => request === null}
-        empty={{ title: "Cancellation not found", text: "This request does not exist or was removed when demonstration data was reset." }}
+        empty={{ title: "Cancellation not found", text: "This request does not exist or was removed." }}
       >
         {(request) => (request && actor ? <CancellationBody request={request} actor={actor} /> : null)}
       </QueryBoundary>
@@ -82,7 +82,7 @@ function CancellationBody({ request, actor }: { request: CancellationRequest; ac
         }
         return true;
       },
-      { success: refundsPayment ? "Cancellation completed. The payment is marked refunded (simulated)." : "Cancellation completed." },
+      { success: refundsPayment ? "Cancellation completed. The payment is marked refunded." : "Cancellation completed." },
     );
 
   return (
@@ -120,7 +120,7 @@ function CancellationBody({ request, actor }: { request: CancellationRequest; ac
                 { label: `Cancellation fee (${Math.round((policy?.feeRate ?? 0) * 100)}%)`, amountRwf: request.feeRwf, kind: "deduct" },
                 { label: "Refundable amount", amountRwf: request.refundRwf, kind: "total" },
               ]}
-              footnote="Calculated from the cancellation policy. Simulated: no refund is sent to a bank or mobile money account."
+              footnote="Calculated from the cancellation policy."
             />
           </Section>
 
@@ -150,7 +150,7 @@ function CancellationBody({ request, actor }: { request: CancellationRequest; ac
                   ? [{ id: "rev", title: request.status === "REJECTED" ? "Rejected" : "Approved", detail: request.reviewNote, tone: request.status === "REJECTED" ? ("danger" as const) : ("success" as const) }]
                   : []),
                 ...(request.status === "COMPLETED" && request.resolvedAt
-                  ? [{ id: "done", title: "Completed (simulated refund)", at: formatDateTime(request.resolvedAt), tone: "success" as const, simulated: true }]
+                  ? [{ id: "done", title: "Completed", at: formatDateTime(request.resolvedAt), tone: "success" as const, simulated: true }]
                   : []),
               ]}
             />
@@ -191,14 +191,14 @@ function CancellationBody({ request, actor }: { request: CancellationRequest; ac
               {request.reviewNote ? <Notice tone="info" title="Approval note">{request.reviewNote}</Notice> : null}
               <ConfirmButton
                 label="Complete cancellation"
-                title={refundsPayment ? "Complete and record a simulated refund?" : "Complete this cancellation?"}
-                message={refundsPayment ? "This cancels the booking and marks its payment as refunded in the demonstration data." : "This closes the request. No payment was taken, so nothing is refunded."}
+                title={refundsPayment ? "Complete and record refund?" : "Complete this cancellation?"}
+                message={refundsPayment ? "This cancels the booking and marks its payment as refunded." : "This closes the request. No payment was taken, so nothing is refunded."}
                 summary={
                   refundsPayment
                     ? [
-                        `Simulated refund of ${formatRwf(request.refundRwf)} (fee ${formatRwf(request.feeRwf)} kept)`,
+                        `Refund amount: ${formatRwf(request.refundRwf)} (fee ${formatRwf(request.feeRwf)} kept)`,
                         "Booking status becomes Cancelled and the payment becomes Refunded.",
-                        "Simulation only: no money moves and no provider is contacted.",
+                        "",
                       ]
                     : ["Booking status is not changed by this step.", "No payment was taken, so no refund is recorded."]
                 }

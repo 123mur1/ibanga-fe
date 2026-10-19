@@ -72,7 +72,7 @@ export function SettlementsOverview() {
       <QueryBoundary
         query={settlements}
         isEmpty={(data) => data.items.length === 0 && tab === "settlements"}
-        empty={{ title: "No settlements yet", text: "A settlement is created when a booking moves forward. None exist in the demonstration data." }}
+        empty={{ title: "No settlements yet", text: "A settlement is created when a booking moves forward. None exist yet." }}
       >
         {(data) => {
           const sum = (status: Settlement["status"][]) => data.items.filter((item) => status.includes(item.status)).reduce((total, item) => total + item.netAmountRwf, 0);
@@ -82,7 +82,7 @@ export function SettlementsOverview() {
               <StatGrid>
                 <StatCard label="Ready to approve" value={formatRwf(sum(["ELIGIBLE"]))} hint={`${count(["ELIGIBLE"])} eligible`} accent="brand" />
                 <StatCard label="Waiting or on hold" value={formatRwf(sum(["AWAITING_DELIVERY", "AWAITING_VERIFICATION", "ON_HOLD"]))} hint={`${count(["AWAITING_DELIVERY", "AWAITING_VERIFICATION", "ON_HOLD"])} settlements`} accent="warn" />
-                <StatCard label="Paid (simulated)" value={formatRwf(sum(["PAID"]))} hint={`${count(["PAID"])} paid`} accent="good" />
+                <StatCard label="Paid" value={formatRwf(sum(["PAID"]))} hint={`${count(["PAID"])} paid`} accent="good" />
                 <StatCard label="Failed payouts" value={count(["FAILED"])} hint={formatRwf(sum(["FAILED"]))} accent="bad" />
               </StatGrid>
               <Tabs

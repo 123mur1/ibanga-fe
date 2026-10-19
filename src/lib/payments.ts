@@ -18,11 +18,32 @@ export function paymentShares(amountRwf: number) {
 export function maskAccount(method: PaymentMethod, raw: string) {
   const digits = raw.replace(/\D/g, "");
   if (method === "VISA") {
-    const last4 = digits.slice(-4).padStart(4, "0");
-    return `•••• ${last4}`;
+    return `**** ${digits.slice(-4).padStart(4, "0")}`;
   }
-  const tail = digits.slice(-3);
-  return `${digits.slice(0, 4) || "07"} ••• ${tail || "000"}`;
+  return `${digits.slice(0, 4) || "07"} *** ${digits.slice(-3) || "000"}`;
+}
+
+export function validatePaymentAccount(method: PaymentMethod, raw: string): string | null {
+  const digits = raw.replace(/\D/g, "");
+  if (method !== "VISA") {
+    return digits.length >= 9 && digits.length <= 12
+      ? null
+      : "Enter a mobile money number with 9 to 12 digits.";
+  }
+
+  if (digits.length < 13 || digits.length > 19) return "Enter a Visa card number with 13 to 19 digits.";
+  let sum = 0;
+  let doubleDigit = false;
+  for (let index = digits.length - 1; index >= 0; index -= 1) {
+    let digit = Number(digits[index]);
+    if (doubleDigit) {
+      digit *= 2;
+      if (digit > 9) digit -= 9;
+    }
+    sum += digit;
+    doubleDigit = !doubleDigit;
+  }
+  return sum % 10 === 0 ? null : "Check the Visa card number and try again.";
 }
 
 export function hydrateBooking(booking: Booking): Booking {
@@ -39,14 +60,17 @@ export function hydrateBooking(booking: Booking): Booking {
     };
   }
 
+  // Requests and owner-confirmed bookings have not been paid yet. Seed a
+  // historical payment only for trips that have started or reached an outcome.
+  if (["PENDING", "ACCEPTED", "REJECTED"].includes(booking.status)) {
+    return { ...booking, payment: null };
+  }
+
   const amount = booking.agreedPriceRwf && booking.agreedPriceRwf > 0 ? booking.agreedPriceRwf : 850000;
   const shares = paymentShares(amount);
   const method = METHODS[booking.id.length % METHODS.length];
   const paidAt = booking.createdAt;
-  let status: BookingPayment["status"] = "AUTHORIZED";
-  if (booking.status === "REJECTED") status = "REFUNDED";
-  else if (booking.status === "COMPLETED") status = "RELEASED";
-  else if (booking.status !== "PENDING") status = "HELD";
+  const status: BookingPayment["status"] = booking.status === "COMPLETED" ? "RELEASED" : "HELD";
 
   const ownerConfirmed = ["DELIVERED", "COMPLETED", "DISPUTED"].includes(booking.status);
   return {
@@ -61,9 +85,9 @@ export function hydrateBooking(booking: Booking): Booking {
       receiptNumber: `IB-${booking.id.replace(/[^a-z0-9]/gi, "").slice(-10).toUpperCase()}`,
       payerName: "Recorded payer",
       accountMask: method === "VISA" ? "•••• 4242" : "078 ••• 220",
-      heldAt: status === "AUTHORIZED" ? null : paidAt,
+      heldAt: paidAt,
       releasedAt: status === "RELEASED" ? paidAt : null,
-      refundedAt: status === "REFUNDED" ? paidAt : null,
+      refundedAt: null,
       ownerConfirmedAt: ownerConfirmed ? paidAt : null,
       importerConfirmedAt: status === "RELEASED" ? paidAt : null,
     },

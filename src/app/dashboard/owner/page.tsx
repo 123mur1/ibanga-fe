@@ -44,7 +44,7 @@ export default function OwnerDashboard() {
           title={`Welcome back, ${firstName}.`}
           description={
             requests.length
-              ? "Paid requests are waiting. Confirming the truck moves the money into the iBanga account."
+              ? "Requests are waiting for your confirmation. The importer pays after you confirm the truck is available."
               : available.length === mine.length && mine.length
                 ? "All your trucks are available on the market. Find cargo to move."
                 : "Keep your fleet honest: update trip status as you go."
@@ -89,6 +89,7 @@ export default function OwnerDashboard() {
               </svg>
             }
             accent="brand"
+            href="/dashboard/owner/trucks"
           />
           <StatCard
             label="Available now"
@@ -99,6 +100,7 @@ export default function OwnerDashboard() {
               </svg>
             }
             accent="good"
+            href="/dashboard/owner/trucks?status=AVAILABLE"
           />
           <StatCard
             label="Pending requests"
@@ -111,6 +113,7 @@ export default function OwnerDashboard() {
               </svg>
             }
             accent="warn"
+            href="/dashboard/owner/bookings?status=PENDING"
           />
           <StatCard
             label="Active trips"
@@ -123,6 +126,7 @@ export default function OwnerDashboard() {
               </svg>
             }
             accent="accent"
+            href="/dashboard/tracking"
           />
         </div>
 

@@ -93,12 +93,12 @@ export function ReportsView() {
               <StatCard label="Cargo requests" value={count("Cargo request")} />
               <StatCard label="Bookings" value={count("Booking")} accent="accent" />
               <StatCard label="Shipments" value={count("Shipment")} accent="good" />
-              <StatCard label="Spent in range" value={formatRwf(spent)} hint="Simulated payments" accent="warn" />
+              <StatCard label="Spent in range" value={formatRwf(spent)} hint="Payments recorded" accent="warn" />
             </StatGrid>
 
             <BarChartCard
               title="Spending by month"
-              caption="Payments you made, last six months (simulated)"
+              caption="Payments you made, last six months"
               badge={`Total ${formatRwf(spent)}`}
               points={bucketByMonth(paid, (booking) => booking.payment?.paidAt, (booking) => booking.payment?.amountRwf ?? 0)}
               format={formatRwf}

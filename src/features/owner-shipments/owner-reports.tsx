@@ -4,7 +4,6 @@ import { useState } from "react";
 import { QueryBoundary } from "@/components/common/async-state";
 import { controlClass, FormField } from "@/components/common/form-fields";
 import { StatGrid } from "@/components/common/layout-blocks";
-import { SimulationNotice } from "@/components/common/notices";
 import { BarChartCard, bucketByMonth } from "@/components/charts";
 import { DataTable, GhostButton, StatCard } from "@/components/ui";
 import { useActor } from "@/hooks/use-actor";
@@ -47,7 +46,6 @@ export function OwnerReports() {
 
   return (
     <div className="mt-6 space-y-6">
-      <SimulationNotice kind="general" />
       <QueryBoundary query={query} loadingLabel="Building your report">
         {(data) => {
           const inRange = (iso: string) => (!from || iso.slice(0, 10) >= from) && (!to || iso.slice(0, 10) <= to);
@@ -69,7 +67,7 @@ export function OwnerReports() {
               ["Trips in report", shipments.length],
               ["Trips completed", completed.length],
               ["On-time rate", onTimeRate === null ? "n/a" : formatPercent(onTimeRate)],
-              ["Net earnings (simulated)", earned],
+              ["Net earnings", earned],
             ]);
 
           return (
@@ -97,12 +95,12 @@ export function OwnerReports() {
                 <StatCard label="Trips in report" value={shipments.length} hint="Matching filters" />
                 <StatCard label="Trips completed" value={completed.length} hint="Delivered or completed" accent="good" />
                 <StatCard label="On-time rate" value={onTimeRate === null ? "No data" : formatPercent(onTimeRate)} hint="Completed trips without a delay" accent="accent" />
-                <StatCard label="Net earnings" value={formatRwf(earned)} hint="Simulated, after fees" accent="warn" />
+                <StatCard label="Net earnings" value={formatRwf(earned)} hint="After fees" accent="warn" />
               </StatGrid>
 
               <BarChartCard
                 title="Earnings by month"
-                caption="Net settlement amounts by month created (simulated)."
+                caption="Net settlement amounts by month created."
                 points={bucketByMonth(settlements.filter((item) => item.status !== "NOT_ELIGIBLE"), (item) => item.createdAt, (item) => item.netAmountRwf)}
                 format={formatRwfCompact}
                 empty="No earnings in this period yet."

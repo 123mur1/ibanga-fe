@@ -12,7 +12,7 @@ import type { Settlement } from "@/types/ops";
 import { NoteAction } from "./finance-parts";
 import { adjustmentSchema, type AdjustmentValues } from "./schemas";
 
-const SIM = "Simulation only: no money moves.";
+
 
 /** Every action here is administrator-only and financially sensitive, so each one is confirmed. */
 export function SettlementActions({
@@ -46,10 +46,10 @@ export function SettlementActions({
           <ConfirmButton
             label="Approve settlement"
             title="Approve this settlement?"
-            message="This starts a simulated payout to the truck owner."
-            summary={[`Net payout ${formatRwf(settlement.netAmountRwf)} to the owner`, `Platform fee ${formatRwf(settlement.platformFeeRwf)} retained`, SIM]}
+            message="This starts a payout to the truck owner."
+            summary={[`Net payout ${formatRwf(settlement.netAmountRwf)} to the owner`, `Platform fee ${formatRwf(settlement.platformFeeRwf)} retained`]}
             disabled={!approvable || busy}
-            onConfirm={() => run(async () => { await services.settlements.approve(actor, settlement.id); return true; }, { success: "Settlement approved. A simulated payout is processing." })}
+            onConfirm={() => run(async () => { await services.settlements.approve(actor, settlement.id); return true; }, { success: "Settlement approved. Payout is processing." })}
           />
         ) : null}
         {status === "PROCESSING" ? (
@@ -57,10 +57,10 @@ export function SettlementActions({
             <ConfirmButton
               label="Mark payout paid"
               title="Record this payout as paid?"
-              message="This records the simulated provider result as paid."
-              summary={[`Amount ${formatRwf(settlement.netAmountRwf)}`, SIM, "A real provider confirmation would be needed in production."]}
+              message="This records the payout as paid."
+              summary={[`Amount ${formatRwf(settlement.netAmountRwf)}`]}
               disabled={busy}
-              onConfirm={() => run(async () => { await services.settlements.completePayout(actor, settlement.id, "PAID"); return true; }, { success: "Payout recorded as paid (simulated)." })}
+              onConfirm={() => run(async () => { await services.settlements.completePayout(actor, settlement.id, "PAID"); return true; }, { success: "Payout recorded as paid." })}
             />
             <NoteAction
               fieldLabel="Failure reason"
@@ -72,8 +72,8 @@ export function SettlementActions({
               variant="ghost"
               tone="danger"
               disabled={busy}
-              summary={(note) => [`Reason: ${note}`, SIM]}
-              onConfirm={(note) => run(async () => { await services.settlements.completePayout(actor, settlement.id, "FAILED", note); return true; }, { success: "Payout recorded as failed (simulated)." })}
+              summary={(note) => [`Reason: ${note}`]}
+              onConfirm={(note) => run(async () => { await services.settlements.completePayout(actor, settlement.id, "FAILED", note); return true; }, { success: "Payout recorded as failed." })}
             />
           </div>
         ) : null}
@@ -84,9 +84,9 @@ export function SettlementActions({
               label="Retry payout"
               title="Retry this payout?"
               message="This sends the payout back to processing."
-              summary={[`Amount ${formatRwf(settlement.netAmountRwf)}`, SIM, "The backend must make retries idempotent so an owner is never paid twice."]}
+              summary={[`Amount ${formatRwf(settlement.netAmountRwf)}`]}
               disabled={busy}
-              onConfirm={() => run(async () => { await services.settlements.retryPayout(actor, settlement.id); return true; }, { success: "Payout retry started (simulated)." })}
+              onConfirm={() => run(async () => { await services.settlements.retryPayout(actor, settlement.id); return true; }, { success: "Payout retry started." })}
             />
           </>
         ) : null}
@@ -152,7 +152,7 @@ function AdjustmentForm({ settlement, actor }: { settlement: Settlement; actor: 
         return true;
       },
       {
-        success: "Adjustment recorded (simulated).",
+        success: "Adjustment recorded.",
         onError: (error) => {
           if (error instanceof ServiceError) applyFieldErrors(setError, error.fieldErrors);
         },
@@ -185,7 +185,7 @@ function AdjustmentForm({ settlement, actor }: { settlement: Settlement; actor: 
         summary={[
           `Adjustment ${signed < 0 ? "−" : "+"}${formatRwf(Math.abs(signed))}`,
           `Net payout becomes ${formatRwf(preview)} (now ${formatRwf(settlement.netAmountRwf)})`,
-          settlement.status === "PAID" ? "The settlement is already paid, so it will be marked Reversed / adjusted." : SIM,
+          ...(settlement.status === "PAID" ? ["The settlement is already paid, so it will be marked Reversed / adjusted."] : []),
         ]}
         variant="ghost"
         disabled={!formState.isValid || busy}

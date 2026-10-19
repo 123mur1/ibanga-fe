@@ -7,7 +7,7 @@ import { SettlementsOverview } from "@/features/admin-finance/settlements-list";
 export default function AdminSettlementsPage() {
   return (
     <RoleShell role="ADMIN">
-      <PageHeader eyebrow="Finance" title="Settlements and payouts" subtitle="Review owner settlements, check eligibility and run simulated payouts." />
+      <PageHeader eyebrow="Finance" title="Settlements and payouts" subtitle="Review owner settlements, check eligibility and run payouts." />
       <SettlementsOverview />
     </RoleShell>
   );

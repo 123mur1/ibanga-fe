@@ -38,7 +38,7 @@ export default function ImporterBookingsPage() {
           }
         />
 
-        <BookingManagementTable bookings={mine} trucks={trucks} users={users} counterparty="IMPORTER" detailPath={(booking) => `/dashboard/importer/bookings/${booking.id}`} />
+        <BookingManagementTable bookings={mine} trucks={trucks} users={users} counterparty="IMPORTER" listHref="/dashboard/importer/bookings" detailPath={(booking) => `/dashboard/importer/bookings/${booking.id}`} />
       </DashboardShell>
     </RequireAuth>
   );

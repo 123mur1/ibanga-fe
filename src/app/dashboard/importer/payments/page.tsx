@@ -1,14 +1,12 @@
 "use client";
 
 import { DashboardShell } from "@/components/dashboard-shell";
-import { Notice, SimulationNotice } from "@/components/common/notices";
 import { RequireAuth } from "@/components/require-auth";
 import { PaymentBadge } from "@/components/status-badge";
 import { DataTable, PageHeader, StatCard, ViewLink, formatDate } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
 import { formatRwf } from "@/lib/payments";
 import type { PaymentStatus } from "@/lib/types";
-import Link from "next/link";
 
 const methodLabel: Record<string, string> = {
   VISA: "Visa card",
@@ -21,7 +19,6 @@ const heldStatuses: PaymentStatus[] = ["HELD", "FUNDED", "AUTHORIZED"];
 export default function ImporterPaymentsPage() {
   const { bookings, currentUser } = useIbanga();
   const payments = bookings.filter((booking) => booking.importerId === currentUser?.id && booking.payment);
-  const unpaid = bookings.filter((booking) => booking.importerId === currentUser?.id && booking.status === "ACCEPTED" && !booking.payment);
   const sum = (filter: (status: PaymentStatus) => boolean) =>
     payments
       .filter((booking) => booking.payment && filter(booking.payment.status))
@@ -42,29 +39,11 @@ export default function ImporterPaymentsPage() {
           }
         />
 
-        <div className="mt-5 space-y-3">
-          <SimulationNotice kind="payment" />
-          {unpaid.length ? (
-            <Notice tone="warning" title={`${unpaid.length} confirmed booking${unpaid.length === 1 ? " is" : "s are"} waiting for payment`}>
-              <ul className="mt-1 space-y-1">
-                {unpaid.map((booking) => (
-                  <li key={booking.id}>
-                    <Link className="font-semibold underline underline-offset-2" href={`/dashboard/importer/bookings/${booking.id}`}>
-                      {booking.pickupLocation} to {booking.destination}
-                    </Link>{" "}
-                    · {booking.agreedPrice}
-                  </li>
-                ))}
-              </ul>
-            </Notice>
-          ) : null}
-        </div>
-
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Payments" value={payments.length} hint="Recorded transactions" />
-          <StatCard label="Total paid" value={formatRwf(sum(() => true))} hint="All payment amounts" accent="accent" />
-          <StatCard label="Held in escrow" value={formatRwf(sum((status) => heldStatuses.includes(status)))} hint="Awaiting completion" accent="warn" />
-          <StatCard label="Released" value={formatRwf(sum((status) => status === "RELEASED"))} hint="Paid to truck owners" accent="good" />
+          <StatCard label="Payments" value={payments.length} hint="Recorded transactions" href="/dashboard/importer/payments" />
+          <StatCard label="Total paid" value={formatRwf(sum(() => true))} hint="All payment amounts" accent="accent" href="/dashboard/importer/payments?status=HELD,FUNDED,AUTHORIZED,RELEASED,REFUNDED" />
+          <StatCard label="Held in escrow" value={formatRwf(sum((status) => heldStatuses.includes(status)))} hint="Awaiting completion" accent="warn" href="/dashboard/importer/payments?status=HELD,FUNDED,AUTHORIZED" />
+          <StatCard label="Released" value={formatRwf(sum((status) => status === "RELEASED"))} hint="Paid to truck owners" accent="good" href="/dashboard/importer/payments?status=RELEASED" />
         </div>
 
         <div className="mt-5">
