@@ -4,9 +4,10 @@
  * src/app, and lists app routes that no sidebar links to. Run with `npm run check:routes`.
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { join, relative, sep } from "node:path";
 
-const root = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
+const root = fileURLToPath(new URL("..", import.meta.url));
 const appDir = join(root, "src", "app");
 
 function collectPages(dir, found = []) {
