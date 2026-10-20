@@ -3,7 +3,7 @@ import { PublicPage } from "@/components/public-page";
 
 export const metadata = {
   title: "How it works | iBanga",
-  description: "How importers, truck owners and administrators move cargo on iBanga, from request to settlement.",
+  description: "How importers, truck owners, drivers and administrators move cargo on iBanga, from request to settlement.",
 };
 
 const importerSteps = [
@@ -27,6 +27,12 @@ const adminSteps = [
   { title: "Oversee operations", text: "Watch bookings and shipments, verify delivery evidence and manage incidents and insurance claims." },
   { title: "Control the money", text: "Review settlements, refunds and cancellations, and reconcile platform records. Every action is confirmed and audit-logged." },
   { title: "Resolve cases", text: "Investigate disputes, request information, record decisions and answer support tickets." },
+];
+
+const driverSteps = [
+  { title: "Sign in to your driver workspace", text: "Your truck owner creates your account and associates it with a truck. Use the email and initial password they provide." },
+  { title: "Check your assigned cargo", text: "Your trips show only after the owner assigns you to a shipment. Confirm pickup, loading and departure as they happen." },
+  { title: "Keep everyone updated", text: "Report delays and submit delivery evidence with the recipient details and photos when cargo arrives." },
 ];
 
 function Track({ title, accent, steps }: { title: string; accent: string; steps: { title: string; text: string }[] }) {
@@ -56,12 +62,13 @@ export default function HowItWorksPage() {
     <PublicPage
       eyebrow="How it works"
       title="From cargo request to settlement"
-      intro="iBanga connects importers, truck owners and administrators in one clear process. Here is what each side does."
+      intro="iBanga connects importers, truck owners, drivers and administrators in one clear process. Here is what each side does."
       width="max-w-6xl"
     >
       <div className="grid gap-6 lg:grid-cols-2">
         <Track title="For importers" accent="bg-brand" steps={importerSteps} />
         <Track title="For truck owners" accent="bg-navy" steps={ownerSteps} />
+        <Track title="For drivers" accent="bg-accent" steps={driverSteps} />
       </div>
       <div className="mt-6">
         <Track title="Behind the scenes: administrators" accent="bg-good" steps={adminSteps} />

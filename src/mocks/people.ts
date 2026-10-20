@@ -25,7 +25,7 @@ export const drivers: Driver[] = [
   {
     id: "d4", ref: ref("DRV", 4), ownerId: "u-owner", name: "Innocent Bizimana", phone: "+250 722 908 114",
     nationalId: "1199080045678453", licenceNumber: "RW-DL-377260", licenceCategory: "C",
-    licenceExpiry: day(-20), status: "OFF_DUTY", verification: "EXPIRED", joinedAt: at(-700),
+    licenceExpiry: day(-20), status: "OFF_DUTY", verification: "EXPIRED", assignedTruckId: "t6", joinedAt: at(-700),
     tripsCompleted: 74, onTimeRate: 86, rating: 4.2,
   },
   {
@@ -43,7 +43,7 @@ export const drivers: Driver[] = [
   {
     id: "d7", ref: ref("DRV", 7), ownerId: "u-owner-2", name: "Peter Otieno", phone: "+254 711 889 020",
     nationalId: "KE-28810932", licenceNumber: "KE-DL-9910842", licenceCategory: "C",
-    licenceExpiry: day(520), status: "OFF_DUTY", verification: "PENDING", joinedAt: at(-6),
+    licenceExpiry: day(520), status: "OFF_DUTY", verification: "PENDING", assignedTruckId: "t5", joinedAt: at(-6),
     tripsCompleted: 0, onTimeRate: 0, rating: 0,
   },
 ];

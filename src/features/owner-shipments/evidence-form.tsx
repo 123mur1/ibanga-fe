@@ -19,18 +19,19 @@ import { services } from "@/services";
 import type { DeliveryEvidence, Shipment } from "@/types/ops";
 import { evidenceSchema, type EvidenceValues } from "./schemas";
 
-export function EvidencePage({ shipmentId }: { shipmentId: string }) {
+export function EvidencePage({ shipmentId, role = "TRUCK_OWNER" }: { shipmentId: string; role?: "TRUCK_OWNER" | "DRIVER" }) {
   const actor = useActor();
   const query = useServiceQuery(() => services.shipments.get(actor!, shipmentId), [actor?.id, shipmentId]);
+  const base = role === "DRIVER" ? "/dashboard/driver" : "/dashboard/owner";
   return (
     <div className="space-y-5">
-      <BackLink href="/dashboard/owner/delivery-evidence">Delivery evidence</BackLink>
-      <QueryBoundary query={query} loadingLabel="Loading shipment">{(shipment) => <EvidenceContent shipment={shipment} />}</QueryBoundary>
+      <BackLink href={base}>{role === "DRIVER" ? "My trips" : "Delivery evidence"}</BackLink>
+      <QueryBoundary query={query} loadingLabel="Loading shipment">{(shipment) => <EvidenceContent shipment={shipment} role={role} />}</QueryBoundary>
     </div>
   );
 }
 
-function EvidenceContent({ shipment }: { shipment: Shipment }) {
+function EvidenceContent({ shipment, role }: { shipment: Shipment; role: "TRUCK_OWNER" | "DRIVER" }) {
   const { bookings } = useIbanga();
   const booking = bookings.find((item) => item.id === shipment.bookingId);
   const evidence = shipment.evidence;
@@ -43,7 +44,7 @@ function EvidenceContent({ shipment }: { shipment: Shipment }) {
         eyebrow={shipment.ref}
         title="Proof of delivery"
         subtitle={booking ? `${booking.pickupLocation} to ${booking.destination}, ${booking.cargoType}` : undefined}
-        actions={<Link href={`/dashboard/owner/shipments/${shipment.id}`} className="text-sm font-semibold text-brand hover:underline">Open shipment</Link>}
+        actions={role === "TRUCK_OWNER" ? <Link href={`/dashboard/owner/shipments/${shipment.id}`} className="text-sm font-semibold text-brand hover:underline">Open shipment</Link> : undefined}
       />
       <SimulationNotice kind="verification" />
       {evidence ? <EvidenceStatus evidence={evidence} /> : null}

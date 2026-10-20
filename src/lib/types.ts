@@ -1,4 +1,4 @@
-export type Role = "IMPORTER" | "TRUCK_OWNER" | "ADMIN";
+export type Role = "IMPORTER" | "TRUCK_OWNER" | "DRIVER" | "ADMIN";
 export type TruckStatus = "AVAILABLE" | "UNAVAILABLE";
 export type BookingStatus =
   | "PENDING"

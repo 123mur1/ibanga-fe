@@ -57,12 +57,12 @@ export function MilestonePanel({ shipment }: { shipment: Shipment }) {
     if (!actor) return;
     const done = await run(
       () => services.shipments.recordMilestone(actor, shipment.id, { kind, place: place.trim() || fallbackPlace, note: note.trim() }),
-      { success: "Milestone recorded." },
+      { success: kind === "DEPARTED" ? "Departure recorded. The importer has been notified." : "Milestone recorded." },
     );
     if (!done) return;
     setNote("");
     // Departure moves the coarse booking status forward, but only when the booking is confirmed and paid.
-    if (kind === "DEPARTED" && booking?.status === "ACCEPTED" && paid) {
+    if (actor.role === "TRUCK_OWNER" && kind === "DEPARTED" && booking?.status === "ACCEPTED" && paid) {
       await run(async () => {
         const problem = await setBookingStatus(booking.id, "IN_PROGRESS");
         if (problem) throw new Error(problem);

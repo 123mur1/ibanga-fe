@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
+import Link from "next/link";
 import { LoadingBlock } from "@/components/common/async-state";
 import { AdminPage } from "@/features/admin-platform/admin-page";
 import { TruckBadge } from "@/components/status-badge";
@@ -17,7 +18,7 @@ function AdminTrucksContent() {
   const searchParams = useSearchParams();
   const { trucks, bookings, setAvailability, deleteTruck } = useIbanga();
   const toast = useToast();
-  const { truckProfiles } = useOps();
+  const { truckProfiles, drivers, driverAssignments } = useOps();
   const [busyTruckId, setBusyTruckId] = useState<string | null>(null);
   const [removing, setRemoving] = useState<{ id: string; plateNumber: string } | null>(null);
 
@@ -61,7 +62,7 @@ function AdminTrucksContent() {
           }
         />
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <StatCard label="Fleet size" value={trucks.length} hint="Registered vehicles" href="/dashboard/admin/trucks" />
           <StatCard label="Available" value={available} hint="Ready for bookings" accent="good" href="/dashboard/admin/trucks?status=AVAILABLE" />
           <StatCard label="Owners" value={new Set(trucks.map((truck) => truck.ownerId)).size} hint="Active fleet partners" accent="accent" href="/dashboard/admin/trucks" />
@@ -69,22 +70,26 @@ function AdminTrucksContent() {
         <div className="mt-5">
           <DataTable
             initialFilter={searchParams.get("status") ?? ""}
-            columns={[{ label: "Vehicle" }, { label: "Owner" }, { label: "Capacity" }, { label: "Location" }, { label: "Route" }, { label: "Status" }, { label: "Verification" }, { label: "Actions", className: "text-right" }]}
+            columns={[{ label: "Vehicle" }, { label: "Associated driver" }, { label: "Owner" }, { label: "Capacity" }, { label: "Location" }, { label: "Route" }, { label: "Status" }, { label: "Verification" }, { label: "Actions", className: "text-right" }]}
             filterLabel="All availability"
-            rows={trucks.map((truck) => ({
-              id: truck.id,
-              searchText: `${truck.plateNumber} ${truck.truckType} ${truck.owner?.name ?? ""} ${truck.currentLocation} ${truck.preferredRoute}`,
-              filterValue: truck.status,
-              exportValues: [truck.plateNumber, truck.owner?.name ?? "", `${truck.capacity} tons`, truck.currentLocation, truck.preferredRoute, truck.status, truckProfiles.find((profile) => profile.truckId === truck.id)?.verification ?? "NOT_SUBMITTED", ""],
-              cells: [
-                <span key={`${truck.id}-vehicle`}><strong className="block">{truck.plateNumber}</strong><span className="text-xs text-muted">{truck.truckType}</span></span>,
-                truck.owner?.name ?? "—",
-                `${truck.capacity} tons`,
-                truck.currentLocation,
-                truck.preferredRoute,
-                <span key={`${truck.id}-status`}><TruckBadge status={truck.status} /></span>,
-                <StatusBadge key={`${truck.id}-verification`} family="verification" status={truckProfiles.find((profile) => profile.truckId === truck.id)?.verification ?? "NOT_SUBMITTED"} />,
-                <div key={`${truck.id}-actions`} className="flex min-w-44 items-center justify-end gap-2">
+            rows={trucks.map((truck) => {
+              const assignment = driverAssignments.find((item) => item.truckId === truck.id && item.status === "ACTIVE") ?? driverAssignments.find((item) => item.truckId === truck.id && item.status === "UPCOMING");
+              const driver = drivers.find((item) => item.id === assignment?.driverId) ?? drivers.find((item) => item.assignedTruckId === truck.id);
+              return {
+                id: truck.id,
+                searchText: `${truck.plateNumber} ${truck.truckType} ${truck.owner?.name ?? ""} ${truck.currentLocation} ${truck.preferredRoute} ${driver?.name ?? ""}`,
+                filterValue: truck.status,
+                exportValues: [truck.plateNumber, driver?.name ?? "Unassigned", truck.owner?.name ?? "", `${truck.capacity} tons`, truck.currentLocation, truck.preferredRoute, truck.status, truckProfiles.find((profile) => profile.truckId === truck.id)?.verification ?? "NOT_SUBMITTED", ""],
+                cells: [
+                  <span key={`${truck.id}-vehicle`}><strong className="block">{truck.plateNumber}</strong><span className="text-xs text-muted">{truck.truckType}</span></span>,
+                  driver ? <Link key={`${truck.id}-driver`} href={`/dashboard/admin/drivers/${driver.id}`} className="font-semibold text-brand hover:text-brand-dark">{driver.name}</Link> : <span key={`${truck.id}-driver`} className="text-muted">Unassigned</span>,
+                  truck.owner?.name ?? "—",
+                  `${truck.capacity} tons`,
+                  truck.currentLocation,
+                  truck.preferredRoute,
+                  <span key={`${truck.id}-status`}><TruckBadge status={truck.status} /></span>,
+                  <StatusBadge key={`${truck.id}-verification`} family="verification" status={truckProfiles.find((profile) => profile.truckId === truck.id)?.verification ?? "NOT_SUBMITTED"} />,
+                  <div key={`${truck.id}-actions`} className="flex min-w-44 items-center justify-end gap-2">
                   <ViewLink href={`/dashboard/admin/trucks/${truck.id}`} label={`View truck ${truck.plateNumber}`} />
                   <button
                     type="button"
@@ -102,9 +107,10 @@ function AdminTrucksContent() {
                   >
                     {truckIdsWithHistory.has(truck.id) ? "Has bookings" : "Remove"}
                   </button>
-                </div>,
-              ],
-            }))}
+                  </div>,
+                ],
+              };
+            })}
           />
         </div>
 

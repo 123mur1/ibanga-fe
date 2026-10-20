@@ -111,7 +111,7 @@ export interface QuotationService {
   accept(actor: Actor, id: Id, bookingId: Id): Promise<{ quotation: Quotation; shipment: Shipment }>;
 }
 
-export type DriverInput = Omit<Driver, "id" | "ref" | "ownerId" | "verification" | "joinedAt" | "tripsCompleted" | "onTimeRate" | "rating">;
+export type DriverInput = Omit<Driver, "id" | "ref" | "ownerId" | "userId" | "email" | "verification" | "joinedAt" | "tripsCompleted" | "onTimeRate" | "rating"> & { ownerId?: Id; userId: Id; email: string };
 
 export type AssignmentInput = {
   driverId: Id;

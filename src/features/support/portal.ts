@@ -5,4 +5,4 @@ export function portalBase(role: Role): string {
   return role === "TRUCK_OWNER" ? "/dashboard/owner" : "/dashboard/importer";
 }
 
-export type PortalRole = Exclude<Role, "ADMIN">;
+export type PortalRole = Exclude<Role, "ADMIN" | "DRIVER">;

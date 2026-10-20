@@ -29,7 +29,7 @@ export const TICKET_CATEGORIES: Record<TicketCategory, string> = {
 
 export const TICKET_PRIORITIES: TicketPriority[] = ["LOW", "NORMAL", "HIGH", "URGENT"];
 
-export const ROLE_LABEL = { IMPORTER: "Importer", TRUCK_OWNER: "Truck owner", ADMIN: "Administrator" } as const;
+export const ROLE_LABEL = { IMPORTER: "Importer", TRUCK_OWNER: "Truck owner", DRIVER: "Driver", ADMIN: "Administrator" } as const;
 
 export function optionList(map: Record<string, string>) {
   return Object.entries(map).map(([value, label]) => ({ value, label }));

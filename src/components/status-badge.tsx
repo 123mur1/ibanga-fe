@@ -88,6 +88,7 @@ export function RefundBadge({ status }: { status: RefundStatus }) {
 const roleStyles: Record<Role, BadgeStyle> = {
   IMPORTER: { wrap: "bg-brand-soft text-brand-dark ring-1 ring-brand/10", dot: "bg-brand" },
   TRUCK_OWNER: { wrap: "bg-navy text-white ring-1 ring-navy/20", dot: "bg-white" },
+  DRIVER: { wrap: "bg-brand-soft text-brand-dark ring-1 ring-brand/10", dot: "bg-brand" },
   ADMIN: { wrap: "bg-brand text-white ring-1 ring-brand/30", dot: "bg-white" },
 };
 

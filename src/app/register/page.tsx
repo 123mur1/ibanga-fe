@@ -16,7 +16,7 @@ function RegisterForm() {
   const router = useRouter();
   const params = useSearchParams();
   const preset = params.get("role") === "TRUCK_OWNER" ? "TRUCK_OWNER" : "IMPORTER";
-  const [role, setRole] = useState<Exclude<Role, "ADMIN">>(preset);
+  const [role, setRole] = useState<Exclude<Role, "ADMIN" | "DRIVER">>(preset);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({

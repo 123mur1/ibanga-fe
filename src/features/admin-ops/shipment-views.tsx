@@ -45,7 +45,7 @@ export function ShipmentList() {
                 <StatCard label="Evidence to verify" value={toVerify} hint="Delivery not yet verified" accent="bad" />
               </StatGrid>
               <DataTable
-                columns={[{ label: "Shipment" }, { label: "Route" }, { label: "Owner" }, { label: "Truck" }, { label: "ETA" }, { label: "Status" }, { label: "Delivery" }, { label: "Actions", className: "text-right" }]}
+                columns={[{ label: "Shipment" }, { label: "Route" }, { label: "Owner" }, { label: "Truck" }, { label: "Associated driver" }, { label: "ETA" }, { label: "Status" }, { label: "Delivery" }, { label: "Actions", className: "text-right" }]}
                 filterLabel="All statuses"
                 extraFilterLabel="All delivery states"
                 exportName="ibanga-admin-shipments"
@@ -53,18 +53,21 @@ export function ShipmentList() {
                 rows={data.items.map((item) => {
                   const booking = bookings.find((entry) => entry.id === item.bookingId);
                   const route = booking ? `${booking.pickupLocation} to ${booking.destination}` : item.bookingId;
+                  const assignment = ops.driverAssignments.find((entry) => entry.shipmentId === item.id && entry.status === "ACTIVE") ?? ops.driverAssignments.find((entry) => entry.shipmentId === item.id && entry.status === "UPCOMING");
+                  const driver = ops.drivers.find((entry) => entry.id === item.driverId) ?? ops.drivers.find((entry) => entry.id === assignment?.driverId);
                   const held = Boolean(item.settlementHold) || ops.disputeCases.some((entry) => entry.bookingId === item.bookingId && !["RESOLVED", "REJECTED"].includes(entry.status));
                   return {
                     id: item.id,
-                    searchText: `${item.ref} ${route} ${userName(item.ownerId)} ${userName(item.importerId)} ${truckLabel(item.truckId)}`,
+                    searchText: `${item.ref} ${route} ${userName(item.ownerId)} ${userName(item.importerId)} ${truckLabel(item.truckId)} ${driver?.name ?? ""}`,
                     filterValue: item.status,
                     extraFilterValue: item.evidence?.verification ?? "NO_EVIDENCE",
-                    exportValues: [item.ref, route, userName(item.ownerId), truckLabel(item.truckId), formatDate(item.etaDate), item.status, item.evidence?.verification ?? "NO_EVIDENCE", ""],
+                    exportValues: [item.ref, route, userName(item.ownerId), truckLabel(item.truckId), driver?.name ?? "Unassigned", formatDate(item.etaDate), item.status, item.evidence?.verification ?? "NO_EVIDENCE", ""],
                     cells: [
                       <span key="r"><strong className="block">{item.ref}</strong><span className="text-xs text-muted">{held ? "Settlement on hold" : `Booking ${item.bookingId}`}</span></span>,
                       route,
                       userName(item.ownerId),
                       truckLabel(item.truckId),
+                      driver?.name ?? <span key="d" className="text-muted">Unassigned</span>,
                       formatDate(item.etaDate),
                       <StatusBadge key="s" family="shipment" status={item.status} />,
                       item.evidence ? <StatusBadge key="e" family="evidence" status={item.evidence.verification} /> : <span key="e" className="text-sm text-muted">No evidence</span>,

@@ -9,13 +9,15 @@ export const driverSchema = z.object({
     .string()
     .trim()
     .regex(/^\+?[0-9 ]{9,15}$/, "Enter a valid phone number, e.g. +250 788 000 000."),
-  email: z.string().trim().refine((value) => value === "" || /^\S+@\S+\.\S+$/.test(value), "Enter a valid email address."),
+  email: z.string().trim().email("Enter a valid email address."),
   nationalId: z.string().trim().min(8, "Enter the national ID number (at least 8 characters)."),
   licenceNumber: z.string().trim().min(5, "Enter the licence number."),
   licenceCategory: z.string().min(1, "Choose the licence category."),
   licenceExpiry: z.string().min(1, "Enter the licence expiry date."),
   status: z.enum(DRIVER_STATUS_VALUES),
-  assignedTruckId: z.string().optional(),
+  assignedTruckId: z.string().min(1, "Associate this driver with a truck."),
+  password: z.string().optional(),
+  ownerId: z.string().optional(),
 });
 
 export type DriverFormValues = z.input<typeof driverSchema>;

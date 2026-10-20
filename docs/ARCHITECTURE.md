@@ -1,6 +1,6 @@
 # iBanga frontend architecture
 
-iBanga is a cargo transport management platform with three experiences: **importers**, **truck owners** and **administrators**. This repository is the **frontend only**. There is no backend, database, real authentication, payment gateway or GPS integration. Everything the user sees comes from demonstration data behind a service layer that a real API can later replace.
+iBanga is a cargo transport management platform with four roles: **importers**, **truck owners**, **drivers** and **administrators**. This repository is the **frontend only**. There is no backend, database, real authentication, payment gateway or GPS integration. Everything the user sees comes from demonstration data behind a service layer that a real API can later replace.
 
 > Everything on screen that involves money, tracking, verification or settlement is a **simulation**. Do not present it as real.
 
@@ -122,6 +122,8 @@ Forms: one Zod schema per form in `src/features/<domain>/schemas.ts`, `useZodFor
 **Importer** (`/dashboard/importer/...`): *(root)* · `cargo-requests`, `cargo-requests/new`, `cargo-requests/[id]`, `cargo-requests/[id]/edit` · `shipments`, `shipments/[id]` · *`bookings`*, *`bookings/[id]`*, `bookings/[id]/cancel` · *`payments`*, *`payments/[id]`*, *`payments/[id]/refund`* · *`refunds`* · `disputes`, `disputes/new?booking=<id>`, `disputes/[id]` · `documents` · `support`, `support/new`, `support/[id]` · `reports` · *`profile`*
 
 **Truck owner** (`/dashboard/owner/...`): *(root)* · `opportunities`, `opportunities/[id]` · *`bookings`*, *`bookings/[id]`* · `shipments`, `shipments/[id]` · `delivery-evidence`, `delivery-evidence/[shipmentId]` · *`trucks`*, *`trucks/new`*, *`trucks/[id]`*, *`trucks/[id]/edit`* · `drivers`, `drivers/new`, `drivers/[id]`, `drivers/[id]/edit` · `documents` · `incidents`, `incidents/new?shipment=<id>`, `incidents/[id]` · `earnings`, `earnings/[id]` · `payouts` · *`payments`*, *`payments/[id]`* · *`refunds`*, *`refunds/[id]`* · `disputes`, `disputes/new?booking=<id>`, `disputes/[id]` · `support`, `support/new`, `support/[id]` · `reports` · *`history`* · *`profile`*
+
+**Driver** (`/dashboard/driver/...`): `My trips` (only shipments assigned to the signed-in driver) · shared `notifications`. Drivers can record trip milestones; truck owners and administrators manage driver profiles, documents, truck associations and dated assignments.
 
 **Administrator** (`/dashboard/admin/...`): *(root)* · *`users`* · `verifications`, `verifications/[id]` · *`trucks`*, `trucks/[id]` · `drivers`, `drivers/[id]` · `cargo-requests`, `cargo-requests/[id]` · *`bookings`*, *`bookings/[id]`* · `shipments`, `shipments/[id]` · `incidents`, `incidents/[id]` · `document-expiry` · *`payments`*, *`payments/[id]`* · `settlements`, `settlements/[id]` · `refunds`, `refunds/[id]` · `cancellations`, `cancellations/[id]` · `reconciliation` · *`disputes`*, *`disputes/[id]`* · `insurance-claims` · `support`, `support/[id]` · `reports` · `announcements` · `audit-logs` · `settings` · `admins` · *`profile`*
 

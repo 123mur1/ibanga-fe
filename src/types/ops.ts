@@ -175,6 +175,8 @@ export type Driver = {
   id: Id;
   ref: string;
   ownerId: Id;
+  /** Linked sign-in account. Legacy demonstration drivers may not have one. */
+  userId?: Id;
   name: string;
   phone: string;
   email?: string;

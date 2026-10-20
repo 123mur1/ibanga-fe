@@ -56,11 +56,11 @@ const MILESTONE_LABEL: Record<MilestoneKind, string> = {
 
 /** Base path of the role's pages, used for cross-links. */
 function base(role: Role) {
-  return role === "ADMIN" ? "/dashboard/admin" : role === "TRUCK_OWNER" ? "/dashboard/owner" : "/dashboard/importer";
+  return role === "ADMIN" ? "/dashboard/admin" : role === "TRUCK_OWNER" ? "/dashboard/owner" : role === "DRIVER" ? "/dashboard/driver" : "/dashboard/importer";
 }
 
 /**
- * Read-only shipment content shared by importer, owner and administrator pages: status, facts,
+ * Read-only shipment content shared by importer, owner, driver and administrator pages: status, facts,
  * delay and hold warnings, milestone timeline, demonstration map and delivery evidence.
  * Pages add their own role-specific controls beside it (milestone buttons, evidence form,
  * verification). Submitted evidence is clearly distinguished from verified delivery.
@@ -93,10 +93,10 @@ export function ShipmentOverview({ shipment, role }: { shipment: Shipment; role:
     }));
 
   const links = [
-    booking ? { href: `${base(role)}/bookings/${booking.id}`, label: "Booking" } : null,
-    booking?.payment && role !== "TRUCK_OWNER" ? { href: `${base(role)}/payments/${booking.id}`, label: "Payment" } : null,
-    dispute ? { href: `${base(role)}/disputes/${dispute.id}`, label: `Dispute ${dispute.ref}` } : null,
-    incident && role !== "IMPORTER" ? { href: `${base(role)}/incidents/${incident.id}`, label: `Incident ${incident.ref}` } : null,
+    booking && role !== "DRIVER" ? { href: `${base(role)}/bookings/${booking.id}`, label: "Booking" } : null,
+    booking?.payment && role !== "TRUCK_OWNER" && role !== "DRIVER" ? { href: `${base(role)}/payments/${booking.id}`, label: "Payment" } : null,
+    dispute && role !== "DRIVER" ? { href: `${base(role)}/disputes/${dispute.id}`, label: `Dispute ${dispute.ref}` } : null,
+    incident && (role === "TRUCK_OWNER" || role === "ADMIN") ? { href: `${base(role)}/incidents/${incident.id}`, label: `Incident ${incident.ref}` } : null,
   ].filter((item): item is { href: string; label: string } => Boolean(item));
 
   return (
@@ -107,10 +107,10 @@ export function ShipmentOverview({ shipment, role }: { shipment: Shipment; role:
         </Notice>
       ) : null}
       {dispute ? (
-        <Notice tone="danger" title={`Disputed (${dispute.ref})`} action={{ href: `${base(role)}/disputes/${dispute.id}`, label: "Open dispute" }}>
+        <Notice tone="danger" title={`Disputed (${dispute.ref})`} action={role === "DRIVER" ? undefined : { href: `${base(role)}/disputes/${dispute.id}`, label: "Open dispute" }}>
           This shipment has an open dispute. The owner&apos;s settlement is on hold until it is resolved.
         </Notice>
-      ) : incident && role !== "IMPORTER" ? (
+      ) : incident && (role === "TRUCK_OWNER" || role === "ADMIN") ? (
         <Notice tone="warning" title={`Open incident (${incident.ref})`} action={{ href: `${base(role)}/incidents/${incident.id}`, label: "Open incident" }}>
           An unresolved incident holds this shipment&apos;s settlement.
         </Notice>

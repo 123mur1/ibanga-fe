@@ -8,6 +8,7 @@ import { TruckThumb } from "@/components/photos";
 import { DataTable, PageHeader, StatCard, ViewLink } from "@/components/ui";
 import { formatRwf } from "@/lib/payments";
 import { useIbanga } from "@/lib/store";
+import { useOps } from "@/hooks/use-ops";
 import { ACTIVE_BOOKING_STATUSES } from "@/lib/types";
 
 const truckIcon = (
@@ -20,6 +21,7 @@ const truckIcon = (
 
 export default function OwnerTrucksPage() {
   const { currentUser, trucks, bookings, trucksLoading } = useIbanga();
+  const { drivers, driverAssignments } = useOps();
   const mine = trucks.filter((truck) => truck.ownerId === currentUser?.id);
   const available = mine.filter((truck) => truck.status === "AVAILABLE").length;
   const onTrip = new Set(
@@ -62,6 +64,7 @@ export default function OwnerTrucksPage() {
             <DataTable
               columns={[
                 { label: "Vehicle" },
+                { label: "Associated driver" },
                 { label: "Capacity" },
                 { label: "Location" },
                 { label: "Route" },
@@ -72,21 +75,25 @@ export default function OwnerTrucksPage() {
               emptyMessage="You have not added any trucks yet."
               filterLabel="All availability"
               exportName="ibanga-my-trucks"
-              rows={mine.map((truck) => ({
-                id: truck.id,
-                searchText: `${truck.plateNumber} ${truck.truckType} ${truck.currentLocation} ${truck.preferredRoute}`,
-                filterValue: truck.status,
-                extraFilterValue: truck.truckType,
-                exportValues: [
-                  truck.plateNumber,
-                  `${truck.capacity} tons`,
-                  truck.currentLocation,
-                  truck.preferredRoute,
-                  truck.priceRwf == null ? "" : formatRwf(truck.priceRwf),
-                  truck.status,
-                  "",
-                ],
-                cells: [
+              rows={mine.map((truck) => {
+                const assignment = driverAssignments.find((item) => item.truckId === truck.id && item.status === "ACTIVE") ?? driverAssignments.find((item) => item.truckId === truck.id && item.status === "UPCOMING");
+                const driver = drivers.find((item) => item.id === assignment?.driverId) ?? drivers.find((item) => item.assignedTruckId === truck.id);
+                return {
+                  id: truck.id,
+                  searchText: `${truck.plateNumber} ${truck.truckType} ${truck.currentLocation} ${truck.preferredRoute} ${driver?.name ?? ""}`,
+                  filterValue: truck.status,
+                  extraFilterValue: truck.truckType,
+                  exportValues: [
+                    truck.plateNumber,
+                    driver?.name ?? "Unassigned",
+                    `${truck.capacity} tons`,
+                    truck.currentLocation,
+                    truck.preferredRoute,
+                    truck.priceRwf == null ? "" : formatRwf(truck.priceRwf),
+                    truck.status,
+                    "",
+                  ],
+                  cells: [
                   <div key={`${truck.id}-vehicle`} className="flex min-w-48 items-center gap-3">
                     <TruckThumb photos={truck.photos} alt={truck.plateNumber} className="h-12 w-16 shrink-0 rounded-lg" />
                     <span>
@@ -94,6 +101,7 @@ export default function OwnerTrucksPage() {
                       <span className="text-xs text-muted">{truck.truckType}</span>
                     </span>
                   </div>,
+                  driver ? <Link href={`/dashboard/owner/drivers/${driver.id}`} className="font-semibold text-brand hover:text-brand-dark">{driver.name}</Link> : <span className="text-muted">Unassigned</span>,
                   `${truck.capacity} tons`,
                   truck.currentLocation,
                   truck.preferredRoute,
@@ -102,8 +110,9 @@ export default function OwnerTrucksPage() {
                   <div key={`${truck.id}-actions`} className="flex justify-end">
                     <ViewLink href={`/dashboard/owner/trucks/${truck.id}`} label={`View truck ${truck.plateNumber}`} />
                   </div>,
-                ],
-              }))}
+                  ],
+                };
+              })}
             />
           )}
         </div>

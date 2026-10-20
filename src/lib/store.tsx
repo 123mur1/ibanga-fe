@@ -167,10 +167,11 @@ type Store = {
     location: string;
     company: string;
     password: string;
-    role: Exclude<Role, "ADMIN">;
+    role: Exclude<Role, "ADMIN" | "DRIVER">;
   }) => Promise<string | null>;
   logout: () => void;
   addUser: (input: {
+    id?: string;
     name: string;
     email: string;
     phone: string;
@@ -820,9 +821,13 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
 
   const deleteUser = useCallback<Store["deleteUser"]>(async (userId) => {
     if (demoEnabled && demoSession.current && currentUser) {
+      const email = demoSession.current.users.find((user) => user.id === userId)?.email.toLowerCase();
+      const credentials = { ...demoSession.current.credentials };
+      if (email) delete credentials[email];
       publishDemo({
         ...demoSession.current,
         users: demoSession.current.users.filter((user) => user.id !== userId),
+        credentials,
       }, currentUser.id);
       return null;
     }
@@ -1041,5 +1046,6 @@ export function useIbanga() {
 export function dashboardPath(role: Role) {
   if (role === "ADMIN") return "/dashboard/admin";
   if (role === "TRUCK_OWNER") return "/dashboard/owner";
+  if (role === "DRIVER") return "/dashboard/driver";
   return "/dashboard/importer";
 }

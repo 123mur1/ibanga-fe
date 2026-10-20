@@ -30,6 +30,10 @@ const MILESTONE_STATUS: Record<string, ShipmentStatus | undefined> = {
 function scoped(actor: Actor, shipments: Shipment[]): Shipment[] {
   if (actor.role === "ADMIN") return shipments;
   if (actor.role === "IMPORTER") return shipments.filter((item) => item.importerId === actor.id);
+  if (actor.role === "DRIVER") {
+    const driver = db().drivers.find((item) => item.userId === actor.id);
+    return driver ? shipments.filter((item) => item.driverId === driver.id) : [];
+  }
   return shipments.filter((item) => item.ownerId === actor.id);
 }
 
@@ -43,6 +47,7 @@ function find(actor: Actor, id: string): Shipment {
 function operate(actor: Actor, id: string): Shipment {
   const shipment = find(actor, id);
   if (actor.role === "IMPORTER") forbid("Only the truck owner or an administrator can update a shipment.");
+  if (actor.role === "DRIVER" && !scoped(actor, [shipment]).length) forbid("You can only update a shipment assigned to you.");
   return shipment;
 }
 
@@ -87,9 +92,15 @@ export const shipmentService: ShipmentService = {
     const updated: Shipment = { ...shipment, status: next, milestones: [...shipment.milestones, milestone], delay: next === "IN_TRANSIT" ? undefined : shipment.delay };
     commit((current) => ({ ...current, shipments: replaceById(current.shipments, id, () => updated) }), {
       audit: [audit(actor, "Recorded milestone (simulated)", "Shipment", shipment.ref, `${input.kind}: ${input.place}`)],
-      notifications: [
-        notification(shipment.importerId, "SHIPMENT", `Shipment ${next.replaceAll("_", " ").toLowerCase()}`, `${shipment.ref}: ${input.note.trim() || input.place}`, `/dashboard/importer/shipments/${id}`),
-      ],
+      notifications: [notification(
+        shipment.importerId,
+        "SHIPMENT",
+        input.kind === "DEPARTED" ? "Cargo departed from pickup" : `Shipment ${next.replaceAll("_", " ").toLowerCase()}`,
+        input.kind === "DEPARTED"
+          ? `${shipment.ref} has left ${input.place.trim()}${input.note.trim() ? `. ${input.note.trim()}` : ". Track the shipment for progress updates."}`
+          : `${shipment.ref}: ${input.note.trim() || input.place}`,
+        `/dashboard/importer/shipments/${id}`,
+      )],
     });
     return updated;
   },

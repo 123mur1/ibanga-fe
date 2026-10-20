@@ -256,7 +256,7 @@ export function demoRegister(
     location: string;
     company: string;
     password: string;
-    role: Exclude<Role, "ADMIN">;
+    role: Exclude<Role, "ADMIN" | "DRIVER">;
   },
 ): { session: DemoSession; user: User } | { error: string } {
   const email = input.email.trim().toLowerCase();
@@ -274,7 +274,7 @@ export function demoRegister(
     active: true,
     createdAt: new Date().toISOString(),
     termsAcceptedAt: new Date().toISOString(),
-    photo: input.role === "IMPORTER" ? "/photos/ibanga-importer-jeanine.png" : "/photos/ibanga-owner-eric.png",
+    photo: input.role === "IMPORTER" ? "/photos/ibanga-importer-jeanine.png" : input.role === "TRUCK_OWNER" ? "/photos/ibanga-owner-eric.png" : undefined,
   };
   return {
     user,
@@ -289,6 +289,7 @@ export function demoRegister(
 export function demoAddUser(
   session: DemoSession,
   input: {
+    id?: string;
     name: string;
     email: string;
     phone: string;
@@ -306,7 +307,7 @@ export function demoAddUser(
     return { error: "An account with that email already exists." };
   }
   const user: User = {
-    id: nextId("user"),
+    id: input.id ?? nextId("user"),
     name: input.name.trim(),
     email,
     phone: input.phone,
@@ -316,7 +317,7 @@ export function demoAddUser(
     active: true,
     createdAt: new Date().toISOString(),
     termsAcceptedAt: new Date().toISOString(),
-    photo: input.role === "IMPORTER" ? "/photos/ibanga-importer-jeanine.png" : "/photos/ibanga-owner-eric.png",
+    photo: input.role === "IMPORTER" ? "/photos/ibanga-importer-jeanine.png" : input.role === "TRUCK_OWNER" ? "/photos/ibanga-owner-eric.png" : undefined,
   };
   return {
     user,

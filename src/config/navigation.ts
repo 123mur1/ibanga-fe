@@ -48,6 +48,8 @@ export type NavItem = {
   icon: NavIconName;
   /** Admin permission needed to see this item. */
   permission?: Permission;
+  /** Admin item is visible when the user has any listed permission. */
+  permissionAny?: Permission[];
   /** Opens a public page outside the dashboard. */
   external?: boolean;
   /** Shows a live unread count next to the label. */
@@ -78,6 +80,7 @@ export const NAVIGATION: Record<Role, NavGroup[]> = {
       items: [
         { href: owner, label: "Dashboard", icon: "grid" },
         { href: `${owner}/trucks`, label: "My trucks", icon: "truck" },
+        { href: `${owner}/drivers`, label: "Drivers", icon: "steering" },
         { href: `${owner}/bookings`, label: "Bookings", icon: "calendar" },
         { href: `${owner}/history`, label: "History", icon: "history" },
         { href: "/dashboard/tracking", label: "Live cargo", icon: "pin" },
@@ -87,11 +90,21 @@ export const NAVIGATION: Record<Role, NavGroup[]> = {
     },
   ],
 
+  DRIVER: [
+    {
+      items: [
+        { href: "/dashboard/driver", label: "My trips", icon: "steering" },
+        { href: "/dashboard/notifications", label: "Notifications", icon: "bell", badge: "unreadNotifications" },
+        { href: "/dashboard/driver/profile", label: "My profile", icon: "user" },
+      ],
+    },
+  ],
+
   ADMIN: [
     {
       items: [
         { href: admin, label: "Overview", icon: "grid" },
-        { href: `${admin}/users`, label: "Users", icon: "users", permission: "users" },
+        { href: `${admin}/users`, label: "Users", icon: "users", permissionAny: ["users", "drivers"] },
         { href: `${admin}/trucks`, label: "Trucks", icon: "truck", permission: "trucks" },
         { href: `${admin}/bookings`, label: "Bookings", icon: "calendar", permission: "bookings" },
         { href: `${admin}/payments`, label: "Payments", icon: "card", permission: "payments" },
@@ -107,5 +120,5 @@ export function flattenNav(groups: NavGroup[]): NavItem[] {
 }
 
 export function profilePathFor(role: Role): string {
-  return role === "TRUCK_OWNER" ? `${owner}/profile` : role === "ADMIN" ? `${admin}/profile` : `${importer}/profile`;
+  return role === "TRUCK_OWNER" ? `${owner}/profile` : role === "ADMIN" ? `${admin}/profile` : role === "DRIVER" ? "/dashboard/driver/profile" : `${importer}/profile`;
 }

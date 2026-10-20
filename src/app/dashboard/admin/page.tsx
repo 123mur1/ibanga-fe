@@ -87,6 +87,7 @@ function getMonthlyUserRegistrations(users: AdminReportUser[]) {
       label: date.toLocaleDateString("en", { month: "short", timeZone: "UTC" }),
       IMPORTER: 0,
       TRUCK_OWNER: 0,
+      DRIVER: 0,
       ADMIN: 0,
     };
   });
@@ -169,11 +170,12 @@ export default function AdminHome() {
   const monthlyUserRegistrations = getMonthlyUserRegistrations(users);
   const maxRegistrations = Math.max(
     1,
-    ...monthlyUserRegistrations.flatMap((month) => [month.IMPORTER, month.TRUCK_OWNER, month.ADMIN]),
+    ...monthlyUserRegistrations.flatMap((month) => [month.IMPORTER, month.TRUCK_OWNER, month.DRIVER, month.ADMIN]),
   );
   const registrationSeries = [
     { key: "IMPORTER", label: "Importers", color: "#00628b" },
     { key: "TRUCK_OWNER", label: "Truck owners", color: "#3f86a5" },
+    { key: "DRIVER", label: "Drivers", color: "#69a8a0" },
     { key: "ADMIN", label: "Admins", color: "#8fbdd0" },
   ] as const;
   const registrationX = (index: number) =>
@@ -706,7 +708,7 @@ export default function AdminHome() {
                 className="mt-4 h-52 w-full overflow-visible"
                 viewBox="0 0 620 190"
                 role="img"
-                aria-label={`Monthly registrations by role: ${monthlyUserRegistrations.map((month) => `${month.label}: ${month.IMPORTER} importers, ${month.TRUCK_OWNER} truck owners, ${month.ADMIN} admins`).join("; ")}`}
+                aria-label={`Monthly registrations by role: ${monthlyUserRegistrations.map((month) => `${month.label}: ${month.IMPORTER} importers, ${month.TRUCK_OWNER} truck owners, ${month.DRIVER} drivers, ${month.ADMIN} admins`).join("; ")}`}
                 preserveAspectRatio="none"
               >
                 {[40, 103, 166].map((y) => (

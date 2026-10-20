@@ -15,7 +15,7 @@ import { services } from "@/services";
 import { announcementSchema } from "./schemas";
 import { useUserNames } from "./admin-page";
 
-const AUDIENCES = { ALL: "Everyone", IMPORTER: "Importers", TRUCK_OWNER: "Truck owners", ADMIN: "Administrators" } as const;
+const AUDIENCES = { ALL: "Everyone", IMPORTER: "Importers", TRUCK_OWNER: "Truck owners", DRIVER: "Drivers", ADMIN: "Administrators" } as const;
 const SEVERITY_TONE = { INFO: "info", WARNING: "warning", CRITICAL: "danger" } as const;
 
 export function AnnouncementsView() {

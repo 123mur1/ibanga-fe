@@ -8,12 +8,14 @@ import { AdminPage } from "@/features/admin-platform/admin-page";
 import { useToast } from "@/components/toast";
 import { DataTable, PageHeader, StatCard, ViewLink, formatDate, inputClass } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
+import { useOps } from "@/hooks/use-ops";
 import type { BookingStatus } from "@/lib/types";
 import { useSearchParams } from "next/navigation";
 
 function AdminBookingsContent() {
   const searchParams = useSearchParams();
   const { bookings, trucks, users, setBookingStatus } = useIbanga();
+  const { drivers, driverAssignments, shipments } = useOps();
   const toast = useToast();
   const statuses: BookingStatus[] = ["PENDING", "ACCEPTED", "IN_PROGRESS", "DELIVERED", "COMPLETED", "DISPUTED", "REJECTED"];
 
@@ -45,21 +47,25 @@ function AdminBookingsContent() {
         <div className="mt-5">
           <DataTable
             initialFilter={searchParams.get("status") ?? ""}
-            columns={[{ label: "Route" }, { label: "Importer" }, { label: "Truck" }, { label: "Pickup" }, { label: "Cargo" }, { label: "Status" }, { label: "Manage", className: "text-right" }]}
+            columns={[{ label: "Route" }, { label: "Importer" }, { label: "Truck" }, { label: "Associated driver" }, { label: "Pickup" }, { label: "Cargo" }, { label: "Status" }, { label: "Manage", className: "text-right" }]}
             filterLabel="All booking statuses"
             rows={bookings.map((booking) => {
               const truck = trucks.find((item) => item.id === booking.truckId);
               const importer = users.find((item) => item.id === booking.importerId);
+              const assignment = driverAssignments.find((item) => item.bookingId === booking.id && item.status === "ACTIVE") ?? driverAssignments.find((item) => item.bookingId === booking.id && item.status === "UPCOMING");
+              const shipment = shipments.find((item) => item.bookingId === booking.id);
+              const driver = drivers.find((item) => item.id === assignment?.driverId) ?? drivers.find((item) => item.id === shipment?.driverId) ?? drivers.find((item) => item.assignedTruckId === booking.truckId);
               const route = `${booking.pickupLocation} to ${booking.destination}`;
               return {
                 id: booking.id,
-                searchText: `${route} ${importer?.name ?? ""} ${truck?.plateNumber ?? ""} ${booking.cargoType}`,
+                searchText: `${route} ${importer?.name ?? ""} ${truck?.plateNumber ?? ""} ${driver?.name ?? ""} ${booking.cargoType}`,
                 filterValue: booking.status,
-                exportValues: [route, importer?.name ?? "", truck?.plateNumber ?? "", formatDate(booking.pickupDate), booking.cargoType, booking.status, ""],
+                exportValues: [route, importer?.name ?? "", truck?.plateNumber ?? "", driver?.name ?? "Unassigned", formatDate(booking.pickupDate), booking.cargoType, booking.status, ""],
                 cells: [
                   <span key={`${booking.id}-route`} className="font-semibold">{route}</span>,
                   importer?.name ?? "—",
                   truck ? <Link key={`${booking.id}-truck`} href={`/dashboard/admin/trucks/${truck.id}`} className="font-semibold text-brand hover:text-brand-dark">{truck.plateNumber}</Link> : "—",
+                  driver ? <Link key={`${booking.id}-driver`} href={`/dashboard/admin/drivers/${driver.id}`} className="font-semibold text-brand hover:text-brand-dark">{driver.name}</Link> : <span className="text-muted">Unassigned</span>,
                   formatDate(booking.pickupDate),
                   `${booking.cargoType} · ${booking.cargoWeight}`,
                   <span key={`${booking.id}-status`}><BookingBadge status={booking.status} /></span>,

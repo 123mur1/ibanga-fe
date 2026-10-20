@@ -7,7 +7,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "iBanga — Freight marketplace",
   description:
-    "A freight marketplace connecting importers, truck owners, and administrators.",
+    "A freight marketplace connecting importers, truck owners, drivers and administrators.",
 };
 
 export default function RootLayout({

@@ -2,15 +2,16 @@ import { driverEligibility, truckEligibility } from "@/config/business-rules";
 import type { Driver, DriverAssignment, OpsData, TruckProfile } from "@/types/ops";
 import type { AssignmentInput, DriverService, TruckOpsService } from "../contracts";
 import type { Actor } from "../types";
-import { findTruck } from "./directory";
+import { findTruck, findUser } from "./directory";
 import { audit, commit, conflict, db, delay, forbid, invalid, newId, nextRef, notFound, notification, nowIso, queryList, replaceById } from "./util";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
 function ownDriver(actor: Actor, id: string): Driver {
-  const driver = db().drivers.find((item) => item.id === id);
+  const driver = db().drivers.find((item) => actor.role === "DRIVER" ? item.userId === actor.id : item.id === id);
   if (!driver) notFound("Driver");
-  if (actor.role !== "ADMIN" && driver.ownerId !== actor.id) forbid("This driver belongs to another owner.");
+  if (actor.role === "DRIVER" && driver.userId !== actor.id) forbid("This driver account is not yours.");
+  if (actor.role !== "ADMIN" && actor.role !== "DRIVER" && driver.ownerId !== actor.id) forbid("This driver belongs to another owner.");
   return driver;
 }
 
@@ -35,7 +36,7 @@ function assignmentStatus(input: { startDate: string; endDate: string }): Driver
 export const driverService: DriverService = {
   async list(actor, query) {
     await delay(200);
-    const scoped = db().drivers.filter((driver) => actor.role === "ADMIN" || driver.ownerId === actor.id);
+    const scoped = db().drivers.filter((driver) => actor.role === "ADMIN" || (actor.role === "DRIVER" ? driver.userId === actor.id : driver.ownerId === actor.id));
     return queryList(scoped, { sort: { field: "name", direction: "asc" }, ...query }, (driver) => `${driver.ref} ${driver.name} ${driver.phone} ${driver.licenceNumber}`);
   },
 
@@ -53,8 +54,20 @@ export const driverService: DriverService = {
     if (!input.licenceNumber.trim()) errors.licenceNumber = "Enter the licence number.";
     if (!input.licenceExpiry) errors.licenceExpiry = "Enter the licence expiry date.";
     if (!input.nationalId.trim()) errors.nationalId = "Enter the national ID number.";
+    if (!input.email.trim()) errors.email = "Enter the driver's account email.";
+    if (!input.userId) errors.userId = "Create a driver sign-in account.";
+    if (!input.assignedTruckId) errors.assignedTruckId = "Associate the driver with a truck.";
+    if (input.userId && findUser(input.userId)?.role !== "DRIVER") errors.userId = "Create a driver sign-in account.";
     if (Object.keys(errors).length) invalid("Some driver details are missing.", errors);
     const data = db();
+    const ownerId = actor.role === "ADMIN" ? input.ownerId : actor.id;
+    if (!ownerId || findUser(ownerId)?.role !== "TRUCK_OWNER") {
+      invalid("Choose a registered truck owner for this driver.", { ownerId: "Choose a truck owner." });
+    }
+    if (input.assignedTruckId && findTruck(input.assignedTruckId)?.ownerId !== ownerId) {
+      invalid("Choose a truck that belongs to this driver's owner.", { assignedTruckId: "Choose one of this owner's trucks." });
+    }
+    if (data.drivers.some((driver) => driver.userId === input.userId)) conflict("This sign-in account is already linked to a driver.");
     if (data.drivers.some((driver) => driver.licenceNumber.toLowerCase() === input.licenceNumber.trim().toLowerCase())) {
       conflict("A driver with this licence number is already registered.");
     }
@@ -62,7 +75,7 @@ export const driverService: DriverService = {
       ...input,
       id: newId("d"),
       ref: nextRef("DRV", data.drivers),
-      ownerId: actor.role === "ADMIN" ? (input as Driver).ownerId ?? actor.id : actor.id,
+      ownerId,
       verification: "NOT_SUBMITTED",
       joinedAt: nowIso(),
       tripsCompleted: 0,
@@ -78,7 +91,10 @@ export const driverService: DriverService = {
   async update(actor, id, patch) {
     await delay();
     const driver = ownDriver(actor, id);
-    const updated = { ...driver, ...patch };
+    if (actor.role === "DRIVER") forbid("Drivers cannot edit their compliance profile.");
+    if (!patch.assignedTruckId && !driver.assignedTruckId) invalid("Associate the driver with a truck.", { assignedTruckId: "Choose a truck." });
+    if (patch.assignedTruckId && findTruck(patch.assignedTruckId)?.ownerId !== driver.ownerId) invalid("Choose a truck that belongs to this driver's owner.", { assignedTruckId: "Choose one of this owner's trucks." });
+    const updated = { ...driver, ...patch, ownerId: driver.ownerId, userId: driver.userId };
     commit((current) => ({ ...current, drivers: replaceById(current.drivers, id, () => updated) }), {
       audit: [audit(actor, "Edited driver", "Driver", driver.ref, driver.name)],
     });
@@ -88,6 +104,7 @@ export const driverService: DriverService = {
   async setStatus(actor, id, status) {
     await delay(200);
     const driver = ownDriver(actor, id);
+    if (actor.role === "DRIVER") forbid("Drivers cannot change their own status.");
     if (driver.status === "ON_TRIP" && status !== "ON_TRIP") conflict("This driver is on an active trip. Reassign the trip first.");
     const updated = { ...driver, status };
     commit((current) => ({ ...current, drivers: replaceById(current.drivers, id, () => updated) }), {
@@ -101,7 +118,7 @@ export const driverService: DriverService = {
     const data = db();
     return data.driverAssignments.filter((item) => {
       const driver = data.drivers.find((candidate) => candidate.id === item.driverId);
-      if (actor.role !== "ADMIN" && driver?.ownerId !== actor.id) return false;
+      if (actor.role === "DRIVER" ? driver?.userId !== actor.id : actor.role !== "ADMIN" && driver?.ownerId !== actor.id) return false;
       return (!filter?.driverId || item.driverId === filter.driverId)
         && (!filter?.truckId || item.truckId === filter.truckId)
         && (!filter?.status || item.status === filter.status);
@@ -114,10 +131,12 @@ export const driverService: DriverService = {
 
   async assign(actor, input) {
     await delay();
+    if (actor.role === "DRIVER") forbid("Only truck owners and administrators can assign drivers.");
     const data = db();
     const driver = ownDriver(actor, input.driverId);
     const truck = findTruck(input.truckId);
     if (!truck) notFound("Truck");
+    if (truck.ownerId !== driver.ownerId) forbid("Choose a truck that belongs to this driver's owner.");
     if (actor.role !== "ADMIN" && truck.ownerId !== actor.id) forbid("Choose one of your own trucks.");
     if (input.endDate < input.startDate) invalid("The end date cannot be before the start date.", { endDate: "End date is before start date." });
     const driverCheck = driverEligibility(driver, data.documents);
@@ -143,12 +162,14 @@ export const driverService: DriverService = {
 
   async reassign(actor, assignmentId, newDriverId) {
     await delay();
+    if (actor.role === "DRIVER") forbid("Only truck owners and administrators can change driver assignments.");
     const data = db();
     const assignment = data.driverAssignments.find((item) => item.id === assignmentId);
     if (!assignment) notFound("Assignment");
     const oldDriver = ownDriver(actor, assignment.driverId);
     const newDriver = ownDriver(actor, newDriverId);
     if (newDriver.id === oldDriver.id) invalid("Choose a different driver.");
+    if (newDriver.ownerId !== oldDriver.ownerId) forbid("Choose a replacement driver from the same truck owner.");
     const check = driverEligibility(newDriver, data.documents);
     if (!check.eligible) invalid(`This driver cannot be assigned: ${check.reasons.join(" ")}`);
     if (conflictsFor(data, { ...assignment, driverId: newDriver.id }, assignment.id).some((item) => item.driverId === newDriver.id)) {
@@ -179,6 +200,7 @@ export const driverService: DriverService = {
 
   async cancelAssignment(actor, assignmentId) {
     await delay(200);
+    if (actor.role === "DRIVER") forbid("Only truck owners and administrators can cancel driver assignments.");
     const assignment = db().driverAssignments.find((item) => item.id === assignmentId);
     if (!assignment) notFound("Assignment");
     ownDriver(actor, assignment.driverId);

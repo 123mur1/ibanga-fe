@@ -1,12 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { AdminPage } from "@/features/admin-platform/admin-page";
+import { RoleShell } from "@/components/common/role-shell";
+import { Notice } from "@/components/common/notices";
+import { hasPermission } from "@/config/permissions";
 import { RoleBadge } from "@/components/status-badge";
 import { useToast } from "@/components/toast";
-import { DataTable, Field, GhostButton, inputClass, Modal, PageHeader, PrimaryButton, RowActions, StatCard } from "@/components/ui";
+import { DataTable, Field, GhostButton, inputClass, Modal, PageHeader, PrimaryButton, RowActions, StatCard, ViewLink } from "@/components/ui";
 import { Avatar } from "@/components/photos";
+import Link from "next/link";
 import { useIbanga } from "@/lib/store";
+import { useOps } from "@/hooks/use-ops";
 import { LOCATIONS, type Role, type User } from "@/lib/types";
 
 const roleOptions: { value: Role; label: string; hint: string }[] = [
@@ -26,7 +30,12 @@ const emptyForm = {
 };
 
 export default function AdminUsersPage() {
-  const { users, currentUser, deleteUser, setUserActive, addUser } = useIbanga();
+  const { users, trucks, currentUser, deleteUser, setUserActive, addUser } = useIbanga();
+  const { drivers, driverAssignments, adminProfiles } = useOps();
+  const permissions = adminProfiles.find((profile) => profile.userId === currentUser?.id)?.permissions;
+  const usersAllowed = hasPermission(permissions, "users");
+  const driversAllowed = hasPermission(permissions, "drivers");
+  const visibleUsers = usersAllowed ? users : driversAllowed ? users.filter((user) => user.role === "DRIVER") : [];
   const toast = useToast();
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -72,12 +81,13 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <AdminPage permission="users">
+    <RoleShell role="ADMIN">
+      {!usersAllowed && !driversAllowed ? <Notice tone="danger" title="Your administrator role does not include this area" action={{ href: "/dashboard/admin", label: "Back to overview" }}>Ask a super administrator to grant user or driver management permission.</Notice> :
       <>
         <PageHeader
-          eyebrow="Community"
-          title="Users"
-          subtitle="Everyone on iBanga — importers, truck owners and admins."
+          eyebrow={usersAllowed ? "Community" : "People"}
+          title={usersAllowed ? "Users" : "Drivers"}
+          subtitle={usersAllowed ? "Everyone on iBanga — importers, truck owners, drivers and admins." : "Driver accounts and the trucks assigned to them."}
           icon={
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <circle cx="9" cy="8" r="3.5" />
@@ -86,20 +96,24 @@ export default function AdminUsersPage() {
             </svg>
           }
           actions={
-            <PrimaryButton type="button" onClick={() => setAddOpen(true)} className="rounded-xl shadow-soft hover:-translate-y-0.5 hover:shadow-card">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-              Add user
-            </PrimaryButton>
+            <div className="flex flex-wrap gap-2">
+              {driversAllowed ? <Link href="/dashboard/admin/drivers/new" className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-semibold text-navy shadow-soft transition hover:border-brand/40 hover:text-brand">Add driver</Link> : null}
+              {usersAllowed ? <PrimaryButton type="button" onClick={() => setAddOpen(true)} className="rounded-xl shadow-soft hover:-translate-y-0.5 hover:shadow-card">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                Add user
+              </PrimaryButton> : null}
+            </div>
           }
         />
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+        {usersAllowed ? <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Total users" value={users.length} hint="All accounts" />
           <StatCard label="Importers" value={users.filter((user) => user.role === "IMPORTER").length} hint="Cargo customers" accent="accent" />
           <StatCard label="Truck owners" value={users.filter((user) => user.role === "TRUCK_OWNER").length} hint="Fleet partners" accent="good" />
-        </div>
+          {driversAllowed ? <StatCard label="Drivers" value={drivers.length} hint="Filtered with other users" accent="accent" /> : null}
+        </div> : <div className="mt-6"><StatCard label="Drivers" value={visibleUsers.length} hint="Managed in the Users directory" accent="accent" /></div>}
         <div className="mt-5">
           <DataTable
             columns={[
@@ -110,19 +124,30 @@ export default function AdminUsersPage() {
               { label: "Status" },
               { label: "Actions", className: "text-right" },
             ]}
-            emptyMessage="No accounts are available."
+            emptyMessage={usersAllowed ? "No accounts are available." : "No driver accounts are available."}
             filterLabel="All roles"
-            rows={users.map((user) => ({
+            rows={visibleUsers.map((user) => {
+              const driver = user.role === "DRIVER" ? drivers.find((item) => item.userId === user.id) : undefined;
+              const assignedTruckIds = driver ? Array.from(new Set([
+                ...(driver.assignedTruckId ? [driver.assignedTruckId] : []),
+                ...driverAssignments.filter((assignment) => assignment.driverId === driver.id && ["ACTIVE", "UPCOMING"].includes(assignment.status)).map((assignment) => assignment.truckId),
+              ])) : [];
+              const assignedTrucks = assignedTruckIds.flatMap((id) => {
+                const truck = trucks.find((item) => item.id === id);
+                return truck ? [truck] : [];
+              });
+              return ({
               id: user.id,
-              searchText: `${user.name} ${user.email} ${user.company ?? ""} ${user.location ?? ""}`,
+              searchText: `${user.name} ${user.email} ${user.company ?? ""} ${user.location ?? ""} ${assignedTrucks.map((truck) => truck.plateNumber).join(" ")}`,
               filterValue: user.role,
-              exportValues: [user.name, user.role, user.email, user.location || "", user.active ? "Active" : "Inactive", ""],
+              exportValues: [user.name, user.role, user.email, user.location || "", user.active ? "Active" : "Inactive", assignedTrucks.map((truck) => truck.plateNumber).join(", ")],
               cells: [
               <div key={`${user.id}-user`} className="flex min-w-52 items-center gap-3">
                 <Avatar src={user.photo} name={user.name} size="sm" />
                 <div className="min-w-0">
                   <p className="truncate font-semibold">{user.name}</p>
                   <p className="truncate text-xs text-muted">{user.company || user.email}</p>
+                  {driver ? <p className="mt-1 text-xs text-muted">Truck{assignedTrucks.length === 1 ? "" : "s"}: {assignedTrucks.length ? assignedTrucks.map((truck) => truck.plateNumber).join(", ") : "Unassigned"}</p> : null}
                 </div>
               </div>,
               <span key={`${user.id}-role`}><RoleBadge role={user.role} /></span>,
@@ -135,8 +160,9 @@ export default function AdminUsersPage() {
                 <span className={`h-2 w-2 rounded-full ${user.active ? "bg-brand" : "bg-muted"}`} />
                 {user.active ? "Active" : "Inactive"}
               </span>,
-              <div key={`${user.id}-actions`} className="flex justify-end">
-                {user.role !== "ADMIN" ? (
+              <div key={`${user.id}-actions`} className="flex items-center justify-end gap-2">
+                  {driver && driversAllowed ? <ViewLink href={`/dashboard/admin/drivers/${driver.id}`} label={`View driver ${driver.name}`} /> : null}
+                  {(user.role !== "ADMIN" && (user.role !== "DRIVER" || usersAllowed || driversAllowed)) ? (
                   <RowActions
                     actions={[
                       {
@@ -166,10 +192,11 @@ export default function AdminUsersPage() {
                       },
                     ]}
                   />
-                ) : <span className="text-xs text-muted">Protected</span>}
+                  ) : user.role === "ADMIN" ? <span className="text-xs text-muted">Protected</span> : null}
               </div>,
               ],
-            }))}
+              });
+            })}
           />
         </div>
 
@@ -305,7 +332,7 @@ export default function AdminUsersPage() {
             </form>
           </Modal>
         ) : null}
-      </>
-    </AdminPage>
+      </>}
+    </RoleShell>
   );
 }

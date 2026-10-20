@@ -6,6 +6,7 @@ import { StatusBadge } from "@/components/common/status-badge";
 import { Tabs } from "@/components/common/tabs";
 import { DataTable, ViewLink } from "@/components/ui";
 import { useActor } from "@/hooks/use-actor";
+import { useOps } from "@/hooks/use-ops";
 import { useServiceQuery } from "@/hooks/use-service-query";
 import { formatDate } from "@/lib/format";
 import { useIbanga } from "@/lib/store";
@@ -17,6 +18,7 @@ const ACTIVE = ["SCHEDULED", "PICKUP_CONFIRMED", "LOADED", "DEPARTED", "IN_TRANS
 export function OwnerShipmentList() {
   const actor = useActor();
   const { bookings } = useIbanga();
+  const { drivers } = useOps();
   const [view, setView] = useState<View>("active");
   const query = useServiceQuery(() => services.shipments.list(actor!, { pageSize: 500 }), [actor?.id]);
 
@@ -38,21 +40,23 @@ export function OwnerShipmentList() {
             />
             <DataTable
               key={view}
-              columns={[{ label: "Shipment" }, { label: "Route" }, { label: "Cargo" }, { label: "Estimated delivery" }, { label: "Status" }, { label: "Evidence" }, { label: "Actions", className: "text-right" }]}
+              columns={[{ label: "Shipment" }, { label: "Route" }, { label: "Associated driver" }, { label: "Cargo" }, { label: "Estimated delivery" }, { label: "Status" }, { label: "Evidence" }, { label: "Actions", className: "text-right" }]}
               emptyMessage="No shipments match this view."
               filterLabel="All shipment statuses"
               exportName="ibanga-owner-shipments"
               rows={items.map((shipment) => {
                 const booking = bookings.find((item) => item.id === shipment.bookingId);
                 const route = booking ? `${booking.pickupLocation} to ${booking.destination}` : "Route unavailable";
+                const driver = drivers.find((item) => item.id === shipment.driverId);
                 return {
                   id: shipment.id,
-                  searchText: `${shipment.ref} ${route} ${booking?.cargoType ?? ""} ${shipment.status}`,
+                  searchText: `${shipment.ref} ${route} ${driver?.name ?? ""} ${booking?.cargoType ?? ""} ${shipment.status}`,
                   filterValue: shipment.status,
-                  exportValues: [shipment.ref, route, booking?.cargoType ?? "", formatDate(shipment.etaDate), shipment.status, shipment.evidence?.verification ?? "NONE", ""],
+                  exportValues: [shipment.ref, route, driver?.name ?? "Unassigned", booking?.cargoType ?? "", formatDate(shipment.etaDate), shipment.status, shipment.evidence?.verification ?? "NONE", ""],
                   cells: [
                     <strong key="ref">{shipment.ref}</strong>,
                     <span key="route" className="min-w-40 block">{route}</span>,
+                    driver?.name ?? <span key="driver" className="text-muted">Unassigned</span>,
                     booking?.cargoType ?? "—",
                     formatDate(shipment.etaDate),
                     <StatusBadge key="status" family="shipment" status={shipment.status} />,

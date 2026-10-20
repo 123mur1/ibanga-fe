@@ -351,13 +351,14 @@ function visibleGroups(role: Role, permissions: Permission[] | undefined): NavGr
   return NAVIGATION[role]
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => role !== "ADMIN" || !item.permission || hasPermission(permissions, item.permission)),
+      items: group.items.filter((item) => role !== "ADMIN" || (!item.permission && !item.permissionAny) || (item.permission ? hasPermission(permissions, item.permission) : item.permissionAny!.some((permission) => hasPermission(permissions, permission)))),
     }))
     .filter((group) => group.items.length > 0);
 }
 
 function roleLabel(role: Role) {
   if (role === "TRUCK_OWNER") return "Truck owner";
+  if (role === "DRIVER") return "Driver";
   if (role === "ADMIN") return "Admin";
   return "Importer";
 }

@@ -3,7 +3,7 @@ import { z } from "zod";
 export const announcementSchema = z.object({
   title: z.string().trim().min(4, "Enter a title of at least 4 characters.").max(100, "Keep the title under 100 characters."),
   body: z.string().trim().min(10, "Write at least 10 characters.").max(1000, "Keep the text under 1000 characters."),
-  audience: z.enum(["ALL", "IMPORTER", "TRUCK_OWNER", "ADMIN"]),
+  audience: z.enum(["ALL", "IMPORTER", "TRUCK_OWNER", "DRIVER", "ADMIN"]),
   severity: z.enum(["INFO", "WARNING", "CRITICAL"]),
   expiresOn: z
     .string()

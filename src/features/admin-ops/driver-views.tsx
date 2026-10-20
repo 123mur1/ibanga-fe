@@ -7,6 +7,7 @@ import { Notice } from "@/components/common/notices";
 import { StatusBadge } from "@/components/common/status-badge";
 import { driverEligibility } from "@/config/business-rules";
 import { DataTable, StatCard, ViewLink } from "@/components/ui";
+import Link from "next/link";
 import { useAction } from "@/hooks/use-action";
 import { useActor } from "@/hooks/use-actor";
 import { useOps } from "@/hooks/use-ops";
@@ -26,6 +27,7 @@ export function DriverList() {
 
   return (
     <div className="mt-6">
+      <div className="mb-4 flex justify-end"><Link href="/dashboard/admin/drivers/new" className="inline-flex items-center justify-center rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2">Add driver</Link></div>
       <QueryBoundary query={query} isEmpty={(data) => data.items.length === 0} empty={{ title: "No drivers yet", text: "Drivers appear here when truck owners add them." }}>
         {(data) => {
           const eligible = data.items.filter((driver) => driverEligibility(driver, ops.documents).eligible).length;
@@ -81,6 +83,10 @@ function DriverBody({ driver }: { driver: Driver }) {
   const { userName, truckLabel } = useAdminLookups();
   const documents = ops.documents.filter((doc) => doc.subjectKind === "DRIVER" && doc.subjectId === driver.id);
   const assignments = ops.driverAssignments.filter((item) => item.driverId === driver.id).sort((a, b) => b.startDate.localeCompare(a.startDate));
+  const assignedTruckIds = Array.from(new Set([
+    ...(driver.assignedTruckId ? [driver.assignedTruckId] : []),
+    ...assignments.filter((item) => ["ACTIVE", "UPCOMING"].includes(item.status)).map((item) => item.truckId),
+  ]));
   const result = driverEligibility(driver, ops.documents);
   const suspended = driver.status === "SUSPENDED";
   const onTrip = driver.status === "ON_TRIP";
@@ -98,7 +104,7 @@ function DriverBody({ driver }: { driver: Driver }) {
             { label: "Licence", value: `${driver.licenceNumber} · category ${driver.licenceCategory}` },
             { label: "Licence expiry", value: <span className="flex flex-wrap items-center gap-2">{formatDate(driver.licenceExpiry)} <ExpiryBadge expiryDate={driver.licenceExpiry} /></span> },
             { label: "Verification", value: <StatusBadge family="verification" status={driver.verification} /> },
-            { label: "Assigned truck", value: driver.assignedTruckId ? <TextLink href={`/dashboard/admin/trucks/${driver.assignedTruckId}`}>{truckLabel(driver.assignedTruckId)}</TextLink> : "None" },
+            { label: "Truck(s) in charge", value: assignedTruckIds.length ? <span className="flex flex-wrap gap-x-3 gap-y-1">{assignedTruckIds.map((truckId) => <TextLink key={truckId} href={`/dashboard/admin/trucks/${truckId}`}>{truckLabel(truckId)}</TextLink>)}</span> : "None" },
             { label: "Trips completed", value: driver.tripsCompleted },
             { label: "On-time rate", value: formatPercent(driver.onTimeRate) },
             { label: "Rating", value: driver.rating.toFixed(1) },
