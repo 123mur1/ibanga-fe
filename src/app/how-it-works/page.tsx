@@ -7,11 +7,11 @@ export const metadata = {
 };
 
 const importerSteps = [
-  { title: "Post a cargo request", text: "Describe the cargo, route, dates, weight and dimensions, and any special handling. Save a draft or publish it." },
-  { title: "Compare quotations", text: "Verified truck owners with suitable trucks send price offers. Compare price, truck, driver and delivery dates side by side." },
-  { title: "Book and pay", text: "Accept one quotation to confirm the booking. Pay by card or mobile money. Your payment is held by iBanga, not paid to the owner yet." },
-  { title: "Track the shipment", text: "Follow pickup, loading, departure and delivery milestones, with delay notices and a map for future live tracking." },
-  { title: "Confirm delivery", text: "The driver submits proof of delivery and an administrator verifies it. Raise a dispute or refund request if something is wrong." },
+  { title: "Choose an available truck", text: "Browse trucks and compare their listed price, capacity, location and preferred route. Open a listing to check its details." },
+  { title: "Send a booking request", text: "Choose a truck, then enter your cargo details, pickup and destination, dates and any driver instructions. Sending the request does not charge you." },
+  { title: "Wait for the owner", text: "The truck owner reviews your request and confirms availability or declines it. No payment is due while you wait." },
+  { title: "Pay after confirmation", text: "Once the owner accepts, pay the listed price by Visa, MTN MoMo or Airtel Money. iBanga holds your payment, and the trip can start once payment is recorded." },
+  { title: "Track and confirm delivery", text: "Follow trip updates as the owner records progress. When the cargo is marked delivered, confirm receipt or report a problem. Your payment stays held while delivery issues are reviewed." },
 ];
 
 const ownerSteps = [

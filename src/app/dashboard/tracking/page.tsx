@@ -11,7 +11,7 @@ import type { Booking, Role, Truck, User } from "@/lib/types";
 function visibleBookings(user: User, bookings: Booking[], trucks: Truck[]) {
   if (user.role === "ADMIN") return bookings;
   if (user.role === "IMPORTER") return bookings.filter((booking) => booking.importerId === user.id);
-  const owned = new Set(trucks.map((truck) => truck.id));
+  const owned = new Set(trucks.filter((truck) => truck.ownerId === user.id).map((truck) => truck.id));
   return bookings.filter((booking) => owned.has(booking.truckId));
 }
 

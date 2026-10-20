@@ -6,7 +6,7 @@ import { RequireAuth } from "@/components/require-auth";
 import { BarChartCard, DonutCard, LineChartCard, StatusBars, bucketByMonth } from "@/components/charts";
 import { DashboardWelcomeCard, StatCard } from "@/components/ui";
 import { formatRwf } from "@/lib/payments";
-import { OwnerKpis } from "@/features/owner-fleet/owner-kpis";
+import { useOps } from "@/hooks/use-ops";
 import { useIbanga } from "@/lib/store";
 import type { BookingStatus } from "@/lib/types";
 
@@ -22,7 +22,9 @@ const STATUS_SLICES: { status: BookingStatus; label: string; color: string }[] =
 
 export default function OwnerDashboard() {
   const { currentUser, trucks, bookings } = useIbanga();
+  const { drivers } = useOps();
   const mine = trucks.filter((truck) => truck.ownerId === currentUser?.id);
+  const myDrivers = drivers.filter((driver) => driver.ownerId === currentUser?.id);
   const firstName = (currentUser?.name ?? "").split(" ")[0] || "there";
 
   const myBookings = bookings.filter((b) =>
@@ -77,7 +79,7 @@ export default function OwnerDashboard() {
           }
         />
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
           <StatCard
             label="My trucks"
             value={mine.length}
@@ -128,6 +130,19 @@ export default function OwnerDashboard() {
             accent="accent"
             href="/dashboard/tracking"
           />
+          <StatCard
+            label="Drivers"
+            value={myDrivers.length}
+            hint="Registered with you"
+            icon={
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="8" r="3.5" />
+                <path d="M5 21a7 7 0 0 1 14 0M19 8a3 3 0 0 1 0 6" />
+              </svg>
+            }
+            accent="brand"
+            href="/dashboard/owner/drivers"
+          />
         </div>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
@@ -157,8 +172,6 @@ export default function OwnerDashboard() {
             </ul>
           </section>
         </div>
-
-        <OwnerKpis />
 
         <section className="mt-8">
           <div className="flex flex-wrap items-end justify-between gap-3">
