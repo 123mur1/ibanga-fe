@@ -64,6 +64,7 @@ export async function dialogText(page) {
 
 export async function check(label, condition, detail = "") {
   console.log(`${condition ? "PASS" : "FAIL"}  ${label}${detail ? "  -> " + detail : ""}`);
+  if (!condition) process.exitCode = 1;
   return condition;
 }
 
