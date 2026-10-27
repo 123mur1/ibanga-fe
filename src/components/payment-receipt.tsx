@@ -57,7 +57,12 @@ export function PaymentReceipt({ booking, plate }: { booking: Booking; plate?: s
 
   if (!payment) return null;
   const status = statusCopy[payment.status];
-  const filename = `ibanga-receipt-${payment.receiptNumber.toLowerCase().replace(/[^a-z0-9-]/g, "-")}.pdf`;
+  const receiptNumber = payment.receiptNumber || `IB-${booking.id.replace(/[^a-z0-9]/gi, "").slice(-10).toUpperCase()}`;
+  const paidAt = payment.paidAt || booking.createdAt;
+  const paymentMethod = methodLabel[payment.method] ?? "Simulated payment";
+  const payerName = payment.payerName || "Importer";
+  const accountMask = payment.accountMask || "Not provided";
+  const filename = `ibanga-receipt-${receiptNumber.toLowerCase().replace(/[^a-z0-9-]/g, "-")}.pdf`;
 
   async function makePdf() {
     if (!payment) return null;
@@ -104,19 +109,19 @@ export function PaymentReceipt({ booking, plate }: { booking: Booking; plate?: s
     doc.text("iBanga payment receipt", left + 7, y + 11);
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text(payment.receiptNumber, left + 7, y + 21);
+    doc.text(receiptNumber, left + 7, y + 21);
     doc.text(status.label, right - 7, y + 21, { align: "right" });
     y += 40;
 
     heading("Payment details");
-    row("Transaction reference", payment.receiptNumber);
+    row("Transaction reference", receiptNumber);
     row("Invoice number", `INV-${booking.id.toUpperCase()}`);
-    row("Invoice date", formatDateTime(payment.paidAt));
+    row("Invoice date", formatDateTime(paidAt));
     row("Payment status", status.label);
-    row("Paid at", formatDateTime(payment.paidAt));
-    row("Payment method", methodLabel[payment.method]);
-    row("Account", payment.accountMask);
-    row("Payer", payment.payerName);
+    row("Paid at", formatDateTime(paidAt));
+    row("Payment method", paymentMethod);
+    row("Account", accountMask);
+    row("Payer", payerName);
     y += 3;
 
     heading("Booking details");
@@ -185,17 +190,17 @@ export function PaymentReceipt({ booking, plate }: { booking: Booking; plate?: s
         <div className="flex flex-wrap items-start justify-between gap-3 border-b-4 border-brand bg-background px-5 py-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-brand">iBanga payment receipt</p>
-            <h2 className="mt-1 text-xl font-semibold text-navy">{payment.receiptNumber}</h2>
+            <h2 className="mt-1 text-xl font-semibold text-navy">{receiptNumber}</h2>
             <p className="mt-1 text-sm text-muted">Booking {booking.id}</p>
           </div>
           <span className={`rounded-full px-3 py-1 text-sm font-semibold ${status.tone}`}>{status.label}</span>
         </div>
         <dl className="grid gap-x-8 gap-y-4 px-5 py-5 sm:grid-cols-2">
-          <Item label="Paid at" value={formatDateTime(payment.paidAt)} />
-          <Item label="Payment method" value={methodLabel[payment.method]} />
-          <Item label="Payer" value={payment.payerName} />
+          <Item label="Paid at" value={formatDateTime(paidAt)} />
+          <Item label="Payment method" value={paymentMethod} />
+          <Item label="Payer" value={payerName} />
           <Item label="Invoice number" value={`INV-${booking.id.toUpperCase()}`} />
-          <Item label="Account" value={payment.accountMask} />
+          <Item label="Account" value={accountMask} />
           <Item label="Total paid" value={formatRwf(payment.amountRwf)} />
           <Item label="Platform fee (6%)" value={formatRwf(payment.commissionRwf)} />
           <Item label="Truck owner share" value={formatRwf(payment.ownerAmountRwf)} />

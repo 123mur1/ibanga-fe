@@ -2,11 +2,19 @@
  * Environment-specific configuration, kept in one place.
  *
  * `dataSource` decides which service implementations are used:
- *  - "mock": in-browser demonstration data (the default for this frontend-only phase)
- *  - "api":  real HTTP implementations (not written yet; see `src/services/index.ts`)
+ *  - "api":  backend-backed data (the default)
+ *  - "mock": in-browser demonstration data, enabled explicitly
  */
+const apiRequested =
+  process.env.NEXT_PUBLIC_OPS_DATA_SOURCE === "api" ||
+  process.env.NEXT_PUBLIC_DATA_SOURCE === "api";
+const demoRequested =
+  ["demo", "mock"].includes(process.env.NEXT_PUBLIC_OPS_DATA_SOURCE ?? "") ||
+  ["demo", "mock"].includes(process.env.NEXT_PUBLIC_DATA_SOURCE ?? "");
+
 export const env = {
-  dataSource: (process.env.NEXT_PUBLIC_OPS_DATA_SOURCE === "api" ? "api" : "mock") as "mock" | "api",
+  dataSource: (apiRequested || !demoRequested ? "api" : "mock") as
+    "mock" | "api",
   apiBaseUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001",
   /** Simulated network latency (ms) for mock services, so loading states are visible. */
   mockLatencyMs: Number(process.env.NEXT_PUBLIC_MOCK_LATENCY_MS ?? 350),

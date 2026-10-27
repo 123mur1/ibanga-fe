@@ -8,10 +8,30 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly fieldErrors?: Record<string, string>,
   ) {
     super(message);
     this.name = "ApiError";
   }
+}
+
+function readFieldErrors(payload: unknown): Record<string, string> | undefined {
+  if (
+    typeof payload !== "object" ||
+    payload === null ||
+    !("fieldErrors" in payload)
+  ) {
+    return undefined;
+  }
+  const value = payload.fieldErrors;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return undefined;
+  }
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  );
 }
 
 export function saveAuthToken(token: string) {
@@ -26,10 +46,7 @@ export function clearAuthToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
-export async function api<T>(
-  path: string,
-  init: RequestInit = {},
-): Promise<T> {
+export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const baseUrl = (
     process.env.NEXT_PUBLIC_API_URL?.trim() || DEFAULT_API_URL
   ).replace(/\/+$/, "");
@@ -43,32 +60,46 @@ export async function api<T>(
 
   let response: Response;
   try {
-    response = await fetch(`${baseUrl}${path.startsWith("/") ? path : `/${path}`}`, {
-      ...init,
-      headers,
-    });
+    response = await fetch(
+      `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`,
+      {
+        ...init,
+        headers,
+      },
+    );
   } catch {
     throw new Error(`Could not reach the iBanga API at ${baseUrl}.`);
   }
 
   const contentType = response.headers.get("content-type") ?? "";
-  const payload: unknown = response.status === 204
-    ? null
-    : contentType.includes("application/json")
-      ? await response.json()
-      : await response.text();
+  const payload: unknown =
+    response.status === 204
+      ? null
+      : contentType.includes("application/json")
+        ? await response.json()
+        : await response.text();
 
   if (!response.ok) {
     let message = `API request failed (${response.status}).`;
+    let fieldErrors: Record<string, string> | undefined;
     if (typeof payload === "string" && payload.trim()) {
       message = payload;
-    } else if (typeof payload === "object" && payload !== null && "message" in payload) {
+    } else if (
+      typeof payload === "object" &&
+      payload !== null &&
+      "message" in payload
+    ) {
       const apiMessage = payload.message;
+      fieldErrors = readFieldErrors(payload);
       message = Array.isArray(apiMessage)
-        ? apiMessage.filter((item): item is string => typeof item === "string").join(" ")
-        : typeof apiMessage === "string" ? apiMessage : message;
+        ? apiMessage
+            .filter((item): item is string => typeof item === "string")
+            .join(" ")
+        : typeof apiMessage === "string"
+          ? apiMessage
+          : message;
     }
-    throw new ApiError(message, response.status);
+    throw new ApiError(message, response.status, fieldErrors);
   }
 
   return payload as T;

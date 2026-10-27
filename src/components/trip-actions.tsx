@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useToast } from "@/components/toast";
 import { GhostButton, PrimaryButton } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
@@ -8,20 +9,27 @@ import type { Booking, BookingStatus } from "@/lib/types";
 export function TripActions({ booking }: { booking: Booking }) {
   const { setBookingStatus } = useIbanga();
   const toast = useToast();
+  const [busy, setBusy] = useState(false);
 
   async function move(status: BookingStatus, success: string) {
-    const error = await setBookingStatus(booking.id, status);
-    toast(error ?? success, error ? "bad" : "good");
+    if (busy) return;
+    setBusy(true);
+    try {
+      const error = await setBookingStatus(booking.id, status);
+      toast(error ?? success, error ? "bad" : "good");
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (booking.status === "PENDING") {
     return (
       <div className="flex flex-wrap gap-3 rounded-xl border border-line bg-card p-4">
-        <PrimaryButton type="button" onClick={() => void move("ACCEPTED", "Truck confirmed.")}>
-          Confirm truck is available
+        <PrimaryButton type="button" disabled={busy} onClick={() => void move("ACCEPTED", "Truck confirmed.")}>
+          {busy ? "Confirming…" : "Confirm truck is available"}
         </PrimaryButton>
-        <GhostButton type="button" className="hover:border-bad/30 hover:text-bad" onClick={() => void move("REJECTED", "Request declined.")}>
-          Decline request
+        <GhostButton type="button" disabled={busy} className="hover:border-bad/30 hover:text-bad" onClick={() => void move("REJECTED", "Request declined.")}>
+          {busy ? "Please wait…" : "Decline request"}
         </GhostButton>
       </div>
     );
@@ -31,8 +39,8 @@ export function TripActions({ booking }: { booking: Booking }) {
     return (
       <div className="rounded-xl border border-line bg-card p-4">
         <p className="text-sm text-muted">Payment is in. Start the trip when the truck leaves.</p>
-        <PrimaryButton className="mt-3" type="button" onClick={() => void move("IN_PROGRESS", "Trip started.")}>
-          Start trip
+        <PrimaryButton className="mt-3" type="button" disabled={busy} onClick={() => void move("IN_PROGRESS", "Trip started.")}>
+          {busy ? "Starting…" : "Start trip"}
         </PrimaryButton>
       </div>
     );
@@ -50,8 +58,8 @@ export function TripActions({ booking }: { booking: Booking }) {
     return (
       <div className="rounded-xl border border-line bg-card p-4">
         <p className="text-sm text-muted">Mark the cargo delivered when it reaches the destination.</p>
-        <PrimaryButton className="mt-3" type="button" onClick={() => void move("DELIVERED", "Delivery recorded.")}>
-          Confirm cargo delivered
+        <PrimaryButton className="mt-3" type="button" disabled={busy} onClick={() => void move("DELIVERED", "Delivery recorded.")}>
+          {busy ? "Updating…" : "Confirm cargo delivered"}
         </PrimaryButton>
       </div>
     );

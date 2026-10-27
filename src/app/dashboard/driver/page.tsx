@@ -12,6 +12,7 @@ import { useOps } from "@/hooks/use-ops";
 import { useServiceQuery } from "@/hooks/use-service-query";
 import { useIbanga } from "@/lib/store";
 import { services } from "@/services";
+import { DriverVerification } from "@/features/documents/driver-verification";
 
 export default function DriverDashboardPage() {
   const actor = useActor();
@@ -36,6 +37,7 @@ export default function DriverDashboardPage() {
             ]} />
           ) : <p className="text-sm text-muted">Your truck association is not available. Contact your truck owner.</p>}
         </Section>
+        <DriverVerification />
         <Section title="Assigned cargo" description="Only shipments assigned to your driver account appear here.">
           <QueryBoundary query={query} isEmpty={(result) => result.items.length === 0} empty={{ title: "No trips assigned", text: "Your truck owner will assign your next trip here." }}>
             {(data) => <div className="space-y-5">{data.items.map((shipment) => (
