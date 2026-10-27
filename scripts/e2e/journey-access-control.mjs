@@ -33,6 +33,9 @@ page = await loginForm(browser, "finance@ibanga.com", "admin123");
 await go(page, "/dashboard/admin", 2500);
 t = await text(page);
 await check("finance admin sidebar hides User management", !/User management/.test(t));
+// The Finance preset grants settlements, but NAVIGATION.ADMIN currently has
+// no settlements item. Keep this check as evidence until requirements clarify
+// whether the missing link is intentional or a navigation gap.
 await check("finance admin sidebar shows Settlements & payouts", /Settlements & payouts/.test(t));
 await go(page, "/dashboard/admin/users", 2500);
 t = await text(page);
@@ -44,6 +47,8 @@ await check("finance admin blocked on Admin permissions page", /does not include
 page = await loginForm(browser, "support@ibanga.com", "admin123");
 await go(page, "/dashboard/admin", 2500);
 t = await text(page);
+// The Support preset grants support, but NAVIGATION.ADMIN currently has no
+// Customer support item. This expectation remains intentionally visible.
 await check("support admin cannot see Settlements nav", !/Settlements & payouts/.test(t) && /Customer support/.test(t));
 await go(page, "/dashboard/admin/settlements/st3", 2500);
 t = await text(page);
