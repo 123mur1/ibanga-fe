@@ -8,6 +8,7 @@ import {
   seedVersion,
   seedWalletTransactions,
 } from "./mock-data";
+import { env } from "@/config/env";
 import { formatRwf, hydrateBooking, paymentShares } from "./payments";
 import type {
   Booking,
@@ -24,14 +25,16 @@ import type {
   WalletTransaction,
 } from "./types";
 
-export const demoEnabled =
-  process.env.NEXT_PUBLIC_DATA_SOURCE === "demo"
-  || (process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_DATA_SOURCE !== "api");
+export const demoEnabled = env.dataSource === "mock";
 
 export const demoAccounts = [
   { role: "Admin", email: "admin@ibanga.com", password: administratorPassword },
   { role: "Importer", email: "jeanine@importco.rw", password: accountPassword },
-  { role: "Truck owner", email: "eric@ndayitrans.rw", password: accountPassword },
+  {
+    role: "Truck owner",
+    email: "eric@ndayitrans.rw",
+    password: accountPassword,
+  },
 ] as const;
 
 export const demoBanks = [
@@ -107,7 +110,9 @@ function monthKey(value: string) {
 function recentMonths() {
   const now = new Date();
   return Array.from({ length: 6 }, (_, index) => {
-    const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5 + index, 1));
+    const date = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5 + index, 1),
+    );
     return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
   });
 }
@@ -130,13 +135,58 @@ export function freshDemoSession(): DemoSession {
     users,
     bookings,
     disputes: seedDisputes.map((dispute) => ({ ...dispute })),
-    trucks: seedTrucks.map((truck) => ({ ...truck, photos: [...truck.photos] })),
-    transactions: seedWalletTransactions.map((transaction) => ({ ...transaction })),
+    trucks: seedTrucks.map((truck) => ({
+      ...truck,
+      photos: [...truck.photos],
+    })),
+    transactions: seedWalletTransactions.map((transaction) => ({
+      ...transaction,
+    })),
     reviews: [
-      { id: "rv1", truckId: "t1", authorId: "u-importer", authorName: "Jeanine Uwase", authorPhoto: "/photos/ibanga-importer-jeanine.png", rating: 5, comment: "Arrived on time and the driver kept me updated all the way to Mombasa. Cargo was handled carefully.", createdAt: "2026-09-12T10:00:00.000Z" },
-      { id: "rv2", truckId: "t1", authorId: "u-importer-2", authorName: "David Okello", authorPhoto: "/photos/ibanga-importer-david.png", rating: 4, comment: "Good truck and fair price. Loading started a little late but everything arrived intact.", createdAt: "2026-09-28T14:20:00.000Z" },
-      { id: "rv3", truckId: "truck-u-owner-11", authorId: "u-importer", authorName: "Jeanine Uwase", authorPhoto: "/photos/ibanga-importer-jeanine.png", rating: 5, comment: "Clean truck, professional owner and clear communication. Would book again.", createdAt: "2026-10-02T08:45:00.000Z" },
-      { id: "rv4", truckId: "t2", authorId: "u-importer-2", authorName: "David Okello", authorPhoto: "/photos/ibanga-importer-david.png", rating: 5, comment: "The refrigeration held the right temperature for the whole trip.", createdAt: "2026-09-18T09:10:00.000Z" },
+      {
+        id: "rv1",
+        truckId: "t1",
+        authorId: "u-importer",
+        authorName: "Jeanine Uwase",
+        authorPhoto: "/photos/ibanga-importer-jeanine.png",
+        rating: 5,
+        comment:
+          "Arrived on time and the driver kept me updated all the way to Mombasa. Cargo was handled carefully.",
+        createdAt: "2026-09-12T10:00:00.000Z",
+      },
+      {
+        id: "rv2",
+        truckId: "t1",
+        authorId: "u-importer-2",
+        authorName: "David Okello",
+        authorPhoto: "/photos/ibanga-importer-david.png",
+        rating: 4,
+        comment:
+          "Good truck and fair price. Loading started a little late but everything arrived intact.",
+        createdAt: "2026-09-28T14:20:00.000Z",
+      },
+      {
+        id: "rv3",
+        truckId: "truck-u-owner-11",
+        authorId: "u-importer",
+        authorName: "Jeanine Uwase",
+        authorPhoto: "/photos/ibanga-importer-jeanine.png",
+        rating: 5,
+        comment:
+          "Clean truck, professional owner and clear communication. Would book again.",
+        createdAt: "2026-10-02T08:45:00.000Z",
+      },
+      {
+        id: "rv4",
+        truckId: "t2",
+        authorId: "u-importer-2",
+        authorName: "David Okello",
+        authorPhoto: "/photos/ibanga-importer-david.png",
+        rating: 5,
+        comment:
+          "The refrigeration held the right temperature for the whole trip.",
+        createdAt: "2026-09-18T09:10:00.000Z",
+      },
     ],
     refunds: [
       {
@@ -144,8 +194,11 @@ export function freshDemoSession(): DemoSession {
         bookingId: "b1",
         importerId: "u-importer",
         reason: "Cargo plans changed",
-        details: "The containers were rescheduled by the shipping line, so we no longer need the truck on 12 October.",
-        amountRwf: bookings.find((booking) => booking.id === "b1")?.payment?.amountRwf ?? 850000,
+        details:
+          "The containers were rescheduled by the shipping line, so we no longer need the truck on 12 October.",
+        amountRwf:
+          bookings.find((booking) => booking.id === "b1")?.payment?.amountRwf ??
+          850000,
         refundTo: "Original payment method",
         status: "REQUESTED",
         ownerNote: "",
@@ -161,7 +214,10 @@ export function freshDemoSession(): DemoSession {
   };
 }
 
-export function loadDemoSession(): { userId: string | null; session: DemoSession } {
+export function loadDemoSession(): {
+  userId: string | null;
+  session: DemoSession;
+} {
   if (typeof window === "undefined") {
     return { userId: null, session: freshDemoSession() };
   }
@@ -175,7 +231,8 @@ export function loadDemoSession(): { userId: string | null; session: DemoSession
     const session = {
       ...stored.session,
       bookings: stored.session.bookings.map((booking) =>
-        ["PENDING", "ACCEPTED"].includes(booking.status) && ["AUTHORIZED", "HELD"].includes(booking.payment?.status ?? "")
+        ["PENDING", "ACCEPTED"].includes(booking.status) &&
+        ["AUTHORIZED", "HELD"].includes(booking.payment?.status ?? "")
           ? { ...booking, payment: null }
           : booking,
       ),
@@ -194,8 +251,18 @@ export function saveDemoSession(session: DemoSession, userId: string | null) {
 
 export function walletBalanceFor(session: DemoSession, userId: string) {
   return session.transactions
-    .filter((transaction) => transaction.userId === userId && transaction.status === "SUCCEEDED")
-    .reduce((total, transaction) => total + (transaction.direction === "CREDIT" ? transaction.amountRwf : -transaction.amountRwf), 0);
+    .filter(
+      (transaction) =>
+        transaction.userId === userId && transaction.status === "SUCCEEDED",
+    )
+    .reduce(
+      (total, transaction) =>
+        total +
+        (transaction.direction === "CREDIT"
+          ? transaction.amountRwf
+          : -transaction.amountRwf),
+      0,
+    );
 }
 
 export function walletAccountsFor(session: DemoSession): DemoWalletAccount[] {
@@ -205,7 +272,9 @@ export function walletAccountsFor(session: DemoSession): DemoWalletAccount[] {
     email: user.email,
     role: user.role,
     balance: walletBalanceFor(session, user.id),
-    transactions: session.transactions.filter((transaction) => transaction.userId === user.id),
+    transactions: session.transactions.filter(
+      (transaction) => transaction.userId === user.id,
+    ),
   }));
 }
 
@@ -217,12 +286,18 @@ export function commissionFor(bookings: Booking[]): AdminCommissionSummary {
   for (const booking of bookings) {
     const payment = booking.payment;
     if (!payment) continue;
-    if (payment.status === "HELD" || payment.status === "FUNDED" || payment.status === "AUTHORIZED") {
+    if (
+      payment.status === "HELD" ||
+      payment.status === "FUNDED" ||
+      payment.status === "AUTHORIZED"
+    ) {
       availableRwf += payment.commissionRwf;
     }
     if (payment.status === "RELEASED") {
       totalEarnedRwf += payment.commissionRwf;
-      const month = monthKey(payment.releasedAt || payment.paidAt || booking.createdAt);
+      const month = monthKey(
+        payment.releasedAt || payment.paidAt || booking.createdAt,
+      );
       if (month in totals) totals[month] += payment.commissionRwf;
     }
   }
@@ -238,12 +313,22 @@ function nextId(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}`;
 }
 
-export function demoAuthenticate(session: DemoSession, email: string, password: string) {
-  const user = session.users.find((item) => item.email.toLowerCase() === email.trim().toLowerCase());
+export function demoAuthenticate(
+  session: DemoSession,
+  email: string,
+  password: string,
+) {
+  const user = session.users.find(
+    (item) => item.email.toLowerCase() === email.trim().toLowerCase(),
+  );
   if (!user || session.credentials[user.email.toLowerCase()] !== password) {
-    return { user: null, error: "Those demo credentials do not match an account." };
+    return {
+      user: null,
+      error: "Those demo credentials do not match an account.",
+    };
   }
-  if (!user.active) return { user: null, error: "This demo account is inactive." };
+  if (!user.active)
+    return { user: null, error: "This demo account is inactive." };
   return { user, error: null };
 }
 
@@ -274,7 +359,12 @@ export function demoRegister(
     active: true,
     createdAt: new Date().toISOString(),
     termsAcceptedAt: new Date().toISOString(),
-    photo: input.role === "IMPORTER" ? "/photos/ibanga-importer-jeanine.png" : input.role === "TRUCK_OWNER" ? "/photos/ibanga-owner-eric.png" : undefined,
+    photo:
+      input.role === "IMPORTER"
+        ? "/photos/ibanga-importer-jeanine.png"
+        : input.role === "TRUCK_OWNER"
+          ? "/photos/ibanga-owner-eric.png"
+          : undefined,
   };
   return {
     user,
@@ -302,7 +392,8 @@ export function demoAddUser(
   const email = input.email.trim().toLowerCase();
   if (!input.name.trim()) return { error: "Enter the account holder's name." };
   if (!email.includes("@")) return { error: "Enter a valid email address." };
-  if (input.password.length < 6) return { error: "Use a password of at least 6 characters." };
+  if (input.password.length < 6)
+    return { error: "Use a password of at least 6 characters." };
   if (session.users.some((user) => user.email.toLowerCase() === email)) {
     return { error: "An account with that email already exists." };
   }
@@ -317,7 +408,12 @@ export function demoAddUser(
     active: true,
     createdAt: new Date().toISOString(),
     termsAcceptedAt: new Date().toISOString(),
-    photo: input.role === "IMPORTER" ? "/photos/ibanga-importer-jeanine.png" : input.role === "TRUCK_OWNER" ? "/photos/ibanga-owner-eric.png" : undefined,
+    photo:
+      input.role === "IMPORTER"
+        ? "/photos/ibanga-importer-jeanine.png"
+        : input.role === "TRUCK_OWNER"
+          ? "/photos/ibanga-owner-eric.png"
+          : undefined,
   };
   return {
     user,
@@ -336,8 +432,10 @@ export function demoCreateBooking(
   input: Omit<Booking, "id" | "status" | "createdAt">,
 ): { session: DemoSession } | { error: string } {
   const cargoWeight = Number(input.cargoWeight);
-  if (!Number.isFinite(cargoWeight) || cargoWeight <= 0) return { error: "Enter a valid cargo weight." };
-  if (truck.status !== "AVAILABLE") return { error: "That truck is no longer available." };
+  if (!Number.isFinite(cargoWeight) || cargoWeight <= 0)
+    return { error: "Enter a valid cargo weight." };
+  if (truck.status !== "AVAILABLE")
+    return { error: "That truck is no longer available." };
   const amount = truck.priceRwf ?? 0;
   const booking: Booking = {
     ...input,
@@ -355,19 +453,32 @@ export function demoCreateBooking(
     session: {
       ...session,
       bookings: [booking, ...session.bookings],
-      trucks: session.trucks.map((item) => item.id === truck.id ? { ...item, status: "UNAVAILABLE" } : item),
+      trucks: session.trucks.map((item) =>
+        item.id === truck.id ? { ...item, status: "UNAVAILABLE" } : item,
+      ),
     },
   };
 }
 
-export function demoSetBookingStatus(session: DemoSession, id: string, status: BookingStatus): DemoSession {
+export function demoSetBookingStatus(
+  session: DemoSession,
+  id: string,
+  status: BookingStatus,
+): DemoSession {
   const booking = session.bookings.find((item) => item.id === id);
   return {
     ...session,
-    bookings: session.bookings.map((item) => item.id === id ? { ...item, status } : item),
-    trucks: status === "REJECTED" && booking
-      ? session.trucks.map((truck) => truck.id === booking.truckId ? { ...truck, status: "AVAILABLE" } : truck)
-      : session.trucks,
+    bookings: session.bookings.map((item) =>
+      item.id === id ? { ...item, status } : item,
+    ),
+    trucks:
+      status === "REJECTED" && booking
+        ? session.trucks.map((truck) =>
+            truck.id === booking.truckId
+              ? { ...truck, status: "AVAILABLE" }
+              : truck,
+          )
+        : session.trucks,
   };
 }
 
@@ -378,9 +489,15 @@ export function demoPayBooking(
   checkout?: CheckoutDetails,
 ): { session: DemoSession } | { error: string } {
   const booking = session.bookings.find((item) => item.id === bookingId);
-  if (!booking || booking.importerId !== user.id) return { error: "Booking not found." };
-  if (booking.status !== "ACCEPTED") return { error: "Pay after the owner confirms the truck." };
-  if (booking.payment && booking.payment.status !== "PENDING" && booking.payment.status !== "REFUNDED") {
+  if (!booking || booking.importerId !== user.id)
+    return { error: "Booking not found." };
+  if (booking.status !== "ACCEPTED")
+    return { error: "Pay after the owner confirms the truck." };
+  if (
+    booking.payment &&
+    booking.payment.status !== "PENDING" &&
+    booking.payment.status !== "REFUNDED"
+  ) {
     return { error: "This booking is already paid." };
   }
   const amount = booking.agreedPriceRwf ?? 0;
@@ -393,9 +510,15 @@ export function demoPayBooking(
     method,
     status: "FUNDED" as const,
     payerName: checkout?.payerName || booking.payment?.payerName || user.name,
-    accountMask: checkout?.accountMask || booking.payment?.accountMask || "078 *** 220",
+    accountMask:
+      checkout?.accountMask || booking.payment?.accountMask || "078 *** 220",
     paidAt: now,
-    receiptNumber: booking.payment?.receiptNumber || `IB-${booking.id.replace(/[^a-z0-9]/gi, "").slice(-10).toUpperCase()}`,
+    receiptNumber:
+      booking.payment?.receiptNumber ||
+      `IB-${booking.id
+        .replace(/[^a-z0-9]/gi, "")
+        .slice(-10)
+        .toUpperCase()}`,
     heldAt: now,
     releasedAt: null,
     refundedAt: null,
@@ -403,7 +526,9 @@ export function demoPayBooking(
   return {
     session: {
       ...session,
-      bookings: session.bookings.map((item) => item.id === bookingId ? { ...item, payment } : item),
+      bookings: session.bookings.map((item) =>
+        item.id === bookingId ? { ...item, payment } : item,
+      ),
     },
   };
 }
@@ -414,10 +539,17 @@ export function demoAddReview(
   truckId: string,
   input: { rating: number; comment: string },
 ): { session: DemoSession } | { error: string } {
-  if (!session.trucks.some((truck) => truck.id === truckId)) return { error: "Truck not found." };
-  if (!Number.isInteger(input.rating) || input.rating < 1 || input.rating > 5) return { error: "Choose a rating from 1 to 5 stars." };
-  if (input.comment.trim().length < 10) return { error: "Write at least a short sentence about your experience." };
-  if ((session.reviews ?? []).some((item) => item.truckId === truckId && item.authorId === user.id)) {
+  if (!session.trucks.some((truck) => truck.id === truckId))
+    return { error: "Truck not found." };
+  if (!Number.isInteger(input.rating) || input.rating < 1 || input.rating > 5)
+    return { error: "Choose a rating from 1 to 5 stars." };
+  if (input.comment.trim().length < 10)
+    return { error: "Write at least a short sentence about your experience." };
+  if (
+    (session.reviews ?? []).some(
+      (item) => item.truckId === truckId && item.authorId === user.id,
+    )
+  ) {
     return { error: "You have already reviewed this truck." };
   }
   const review: Review = {
@@ -430,28 +562,54 @@ export function demoAddReview(
     comment: input.comment.trim(),
     createdAt: new Date().toISOString(),
   };
-  return { session: { ...session, reviews: [review, ...(session.reviews ?? [])] } };
+  return {
+    session: { ...session, reviews: [review, ...(session.reviews ?? [])] },
+  };
 }
 
-export const REFUNDABLE_STATUSES: PaymentStatus[] = ["AUTHORIZED", "FUNDED", "HELD"];
+export const REFUNDABLE_STATUSES: PaymentStatus[] = [
+  "AUTHORIZED",
+  "FUNDED",
+  "HELD",
+];
 
 export function demoRequestRefund(
   session: DemoSession,
   user: User,
   bookingId: string,
-  input: { reason: string; details: string; amountRwf: number; refundTo: string },
+  input: {
+    reason: string;
+    details: string;
+    amountRwf: number;
+    refundTo: string;
+  },
 ): { session: DemoSession } | { error: string } {
   const booking = session.bookings.find((item) => item.id === bookingId);
   const payment = booking?.payment;
-  if (!booking || !payment || booking.importerId !== user.id) return { error: "Payment not found." };
-  if (!REFUNDABLE_STATUSES.includes(payment.status)) return { error: "This payment can no longer be refunded." };
-  if ((session.refunds ?? []).some((item) => item.bookingId === bookingId && item.status === "REQUESTED")) {
-    return { error: "A refund request is already waiting for the truck owner." };
+  if (!booking || !payment || booking.importerId !== user.id)
+    return { error: "Payment not found." };
+  if (!REFUNDABLE_STATUSES.includes(payment.status))
+    return { error: "This payment can no longer be refunded." };
+  if (
+    (session.refunds ?? []).some(
+      (item) => item.bookingId === bookingId && item.status === "REQUESTED",
+    )
+  ) {
+    return {
+      error: "A refund request is already waiting for the truck owner.",
+    };
   }
   if (!input.reason) return { error: "Choose a reason for the refund." };
-  if (input.details.trim().length < 10) return { error: "Describe what happened in a few words." };
-  if (!Number.isFinite(input.amountRwf) || input.amountRwf <= 0 || input.amountRwf > payment.amountRwf) {
-    return { error: `Enter an amount between RWF 1 and ${formatRwf(payment.amountRwf)}.` };
+  if (input.details.trim().length < 10)
+    return { error: "Describe what happened in a few words." };
+  if (
+    !Number.isFinite(input.amountRwf) ||
+    input.amountRwf <= 0 ||
+    input.amountRwf > payment.amountRwf
+  ) {
+    return {
+      error: `Enter an amount between RWF 1 and ${formatRwf(payment.amountRwf)}.`,
+    };
   }
   const refund: RefundRequest = {
     id: nextId("refund"),
@@ -465,7 +623,9 @@ export function demoRequestRefund(
     ownerNote: "",
     createdAt: new Date().toISOString(),
   };
-  return { session: { ...session, refunds: [refund, ...(session.refunds ?? [])] } };
+  return {
+    session: { ...session, refunds: [refund, ...(session.refunds ?? [])] },
+  };
 }
 
 export function demoProcessRefund(
@@ -476,7 +636,8 @@ export function demoProcessRefund(
 ): { session: DemoSession } | { error: string } {
   const refund = (session.refunds ?? []).find((item) => item.id === refundId);
   if (!refund) return { error: "Refund request not found." };
-  if (refund.status !== "REQUESTED") return { error: "This request has already been processed." };
+  if (refund.status !== "REQUESTED")
+    return { error: "This request has already been processed." };
   const now = new Date().toISOString();
   const approved = decision === "APPROVED";
   const booking = session.bookings.find((item) => item.id === refund.bookingId);
@@ -486,25 +647,42 @@ export function demoProcessRefund(
     session: {
       ...session,
       refunds: (session.refunds ?? []).map((item) =>
-        item.id === refundId ? { ...item, status: decision, ownerNote: note, resolvedAt: now } : item,
+        item.id === refundId
+          ? { ...item, status: decision, ownerNote: note, resolvedAt: now }
+          : item,
       ),
       bookings: session.bookings.map((item) => {
-        if (item.id !== refund.bookingId || !approved || !item.payment) return item;
+        if (item.id !== refund.bookingId || !approved || !item.payment)
+          return item;
         return {
           ...item,
           status: cancel ? ("REJECTED" as const) : item.status,
-          payment: { ...item.payment, status: "REFUNDED" as const, refundedAt: now },
+          payment: {
+            ...item.payment,
+            status: "REFUNDED" as const,
+            refundedAt: now,
+          },
         };
       }),
-      trucks: cancel && booking
-        ? session.trucks.map((truck) => truck.id === booking.truckId ? { ...truck, status: "AVAILABLE" as const } : truck)
-        : session.trucks,
+      trucks:
+        cancel && booking
+          ? session.trucks.map((truck) =>
+              truck.id === booking.truckId
+                ? { ...truck, status: "AVAILABLE" as const }
+                : truck,
+            )
+          : session.trucks,
     },
   };
 }
 
-export function demoDeposit(session: DemoSession, user: User, amount: number): { session: DemoSession } | { error: string } {
-  if (!Number.isFinite(amount) || amount < 1000) return { error: "Enter an amount of at least RWF 1,000." };
+export function demoDeposit(
+  session: DemoSession,
+  user: User,
+  amount: number,
+): { session: DemoSession } | { error: string } {
+  if (!Number.isFinite(amount) || amount < 1000)
+    return { error: "Enter an amount of at least RWF 1,000." };
   const transaction: WalletTransaction = {
     id: nextId("tx"),
     userId: user.id,
@@ -516,7 +694,12 @@ export function demoDeposit(session: DemoSession, user: User, amount: number): {
     description: "Demo wallet top-up",
     createdAt: new Date().toISOString(),
   };
-  return { session: { ...session, transactions: [transaction, ...session.transactions] } };
+  return {
+    session: {
+      ...session,
+      transactions: [transaction, ...session.transactions],
+    },
+  };
 }
 
 export function demoWithdraw(
@@ -524,8 +707,10 @@ export function demoWithdraw(
   user: User,
   amount: number,
 ): { session: DemoSession } | { error: string } {
-  if (!Number.isFinite(amount) || amount < 1000) return { error: "Enter an amount of at least RWF 1,000." };
-  if (walletBalanceFor(session, user.id) < amount) return { error: "That amount is higher than the available balance." };
+  if (!Number.isFinite(amount) || amount < 1000)
+    return { error: "Enter an amount of at least RWF 1,000." };
+  if (walletBalanceFor(session, user.id) < amount)
+    return { error: "That amount is higher than the available balance." };
   const transaction: WalletTransaction = {
     id: nextId("tx"),
     userId: user.id,
@@ -537,10 +722,20 @@ export function demoWithdraw(
     description: "Demo withdrawal",
     createdAt: new Date().toISOString(),
   };
-  return { session: { ...session, transactions: [transaction, ...session.transactions] } };
+  return {
+    session: {
+      ...session,
+      transactions: [transaction, ...session.transactions],
+    },
+  };
 }
 
-export function demoReportProblem(session: DemoSession, user: User, bookingId: string, reason: string): DemoSession {
+export function demoReportProblem(
+  session: DemoSession,
+  user: User,
+  bookingId: string,
+  reason: string,
+): DemoSession {
   const dispute: Dispute = {
     id: nextId("dispute"),
     bookingId,
@@ -553,29 +748,48 @@ export function demoReportProblem(session: DemoSession, user: User, bookingId: s
   return {
     ...session,
     disputes: [dispute, ...session.disputes],
-    bookings: session.bookings.map((booking) => booking.id === bookingId ? { ...booking, status: "DISPUTED", dispute } : booking),
+    bookings: session.bookings.map((booking) =>
+      booking.id === bookingId
+        ? { ...booking, status: "DISPUTED", dispute }
+        : booking,
+    ),
   };
 }
 
-export function demoResolveDispute(session: DemoSession, disputeId: string, notes: string): DemoSession {
+export function demoResolveDispute(
+  session: DemoSession,
+  disputeId: string,
+  notes: string,
+): DemoSession {
   return {
     ...session,
-    disputes: session.disputes.map((dispute) => dispute.id === disputeId
-      ? { ...dispute, status: "RESOLVED", resolutionNotes: notes, resolvedAt: new Date().toISOString() }
-      : dispute),
+    disputes: session.disputes.map((dispute) =>
+      dispute.id === disputeId
+        ? {
+            ...dispute,
+            status: "RESOLVED",
+            resolutionNotes: notes,
+            resolvedAt: new Date().toISOString(),
+          }
+        : dispute,
+    ),
   };
 }
 
-export function demoAddTruck(session: DemoSession, user: User, input: {
-  plateNumber: string;
-  truckType: string;
-  capacity: number;
-  priceRwf: number;
-  currentLocation?: string;
-  preferredRoute?: string;
-  description?: string;
-  photos?: string[];
-}): DemoSession {
+export function demoAddTruck(
+  session: DemoSession,
+  user: User,
+  input: {
+    plateNumber: string;
+    truckType: string;
+    capacity: number;
+    priceRwf: number;
+    currentLocation?: string;
+    preferredRoute?: string;
+    description?: string;
+    photos?: string[];
+  },
+): DemoSession {
   const truck: Truck = {
     id: nextId("truck"),
     ownerId: user.id,
@@ -595,7 +809,9 @@ export function demoAddTruck(session: DemoSession, user: User, input: {
     preferredRoute: input.preferredRoute ?? "",
     description: input.description ?? "",
     status: "AVAILABLE",
-    photos: input.photos?.length ? input.photos : ["/photos/ibanga-container-highway.png"],
+    photos: input.photos?.length
+      ? input.photos
+      : ["/photos/ibanga-container-highway.png"],
   };
   return { ...session, trucks: [truck, ...session.trucks] };
 }
@@ -607,13 +823,21 @@ export function demoUpdateTruck(
 ): DemoSession {
   return {
     ...session,
-    trucks: session.trucks.map((truck) => truck.id === id ? { ...truck, ...patch } : truck),
+    trucks: session.trucks.map((truck) =>
+      truck.id === id ? { ...truck, ...patch } : truck,
+    ),
   };
 }
 
-export function demoSetAvailability(session: DemoSession, id: string, status: TruckStatus): DemoSession {
+export function demoSetAvailability(
+  session: DemoSession,
+  id: string,
+  status: TruckStatus,
+): DemoSession {
   return {
     ...session,
-    trucks: session.trucks.map((truck) => truck.id === id ? { ...truck, status } : truck),
+    trucks: session.trucks.map((truck) =>
+      truck.id === id ? { ...truck, status } : truck,
+    ),
   };
 }

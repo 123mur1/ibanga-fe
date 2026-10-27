@@ -2,7 +2,7 @@
 
 iBanga is a cargo transport management platform for Rwanda and the region. Importers post cargo requests, compare truck-owner quotations, book, pay, track and confirm delivery. Truck owners register trucks and drivers, quote on cargo, run shipments, submit proof of delivery and get settled. Administrators verify the marketplace, oversee shipments, settlements, refunds, disputes, incidents and reconciliation.
 
-> **This repository is the frontend only.** There is no backend, database, real authentication, payment gateway or GPS integration. All data is demonstration data behind a service layer that a real API can replace. Payments, tracking, verification and settlements shown in the app are **simulations**; no money moves.
+> The frontend connects to the iBanga backend by default. Payments, tracking, verification and settlements shown in the app may still be **simulations**; no money moves.
 
 ## Run locally
 
@@ -11,14 +11,20 @@ npm install
 npm run dev          # http://localhost:3000
 ```
 
-Demo accounts (also available as one-click buttons on the login page):
+Set up and run the backend before signing in with database accounts. The
+frontend uses `http://localhost:3001` by default; set `NEXT_PUBLIC_API_URL` in
+`.env.local` to use a different backend. The production build defaults to the
+deployed iBanga API. The API must be available for database sign-in.
 
-| Role | Email | Password |
-| --- | --- | --- |
-| Administrator (all permissions) | `admin@ibanga.com` | `admin123` |
-| Importer | `jeanine@importco.rw` | `ibanga123` |
-| Truck owner | `eric@ndayitrans.rw` | `ibanga123` |
-| Operations / finance / support admins | `ops@ibanga.com`, `finance@ibanga.com`, `support@ibanga.com` | `admin123` |
+To explicitly use browser-only demo data, set `NEXT_PUBLIC_DATA_SOURCE=demo`.
+Demo accounts (shown on the login page only in demo mode):
+
+| Role                                  | Email                                                        | Password    |
+| ------------------------------------- | ------------------------------------------------------------ | ----------- |
+| Administrator (all permissions)       | `admin@ibanga.com`                                           | `admin123`  |
+| Importer                              | `jeanine@importco.rw`                                        | `ibanga123` |
+| Truck owner                           | `eric@ndayitrans.rw`                                         | `ibanga123` |
+| Operations / finance / support admins | `ops@ibanga.com`, `finance@ibanga.com`, `support@ibanga.com` | `admin123`  |
 
 The three limited administrators see only the sidebar items their role allows. This is for demonstration; real permissions must be enforced by the backend.
 
@@ -60,19 +66,23 @@ Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for conventions, the route c
 
 ## Demonstration data and reset
 
-Seed data (users, trucks, bookings, shipments, settlements, disputes, documents, incidents, notifications, ...) is consistent across modules and anchored to today's date so document expiry warnings stay realistic. Changes you make are saved in your browser. **Settings → Reset demonstration data** (also in the admin System settings) restores the originals. Nothing sensitive is stored; never enter real payment or identity details.
+Demo seed data is stored in the browser and is used only when demo mode is
+explicitly enabled. It does not create, update, or delete database records.
+Changes made in demo mode are saved in the browser; **Settings → Reset
+demonstration data** restores those browser-only records.
 
-## Connecting a backend later
+## Backend data coverage
 
-1. Implement the interfaces in `src/services/contracts.ts` with HTTP clients and select them in `src/services/index.ts` (`NEXT_PUBLIC_OPS_DATA_SOURCE=api`).
-2. Replace the demo branches in `src/lib/store.tsx` (the marketplace store already has an API mode driven by `NEXT_PUBLIC_API_URL`, which expects the older marketplace endpoints).
-3. Enforce on the server: authentication, ownership and role checks, admin permissions, server-authoritative payment/delivery/settlement status, idempotent accept-quotation, payouts and refunds, document-expiry restrictions, signed upload URLs, pagination/filter/sort.
+Database-backed marketplace features include authentication, users, trucks,
+bookings, payments, refunds and reviews. Cargo requests and quotations also
+use the backend. Other operations modules still use browser demo services and
+are not yet database-backed.
 
 ## Known limitations
 
-- Everything is simulated. A payment is never real, GPS positions are illustrative, verification and settlement outcomes are demonstration states.
+- Simulated payment, GPS, verification and settlement behavior is not real money movement or authoritative tracking.
 - Frontend route guards and role-based menus are presentation only; the backend must enforce access.
 - Uploaded files are read into the browser as data URLs (size-limited); a real build needs an upload service.
 - Email, SMS and push notifications are placeholders; only in-app notifications work.
 - The map uses OpenStreetMap tiles and the public OSRM service when online and falls back to a straight line.
-- Marketplace API mode (`NEXT_PUBLIC_DATA_SOURCE=api`) covers the original marketplace features only; refunds, reviews and all operations modules run on demonstration data.
+- Only the backend-backed features listed above persist to the database; the remaining operations modules use demo data.

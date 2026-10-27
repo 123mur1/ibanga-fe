@@ -9,8 +9,16 @@
  */
 import { env } from "@/config/env";
 import type { Services } from "./contracts";
+import { apiCargoRequestService, apiQuotationService } from "./api/cargo";
+import { apiDriverService } from "./api/drivers";
+import { createPersistedServices } from "./api/persisted-services";
 import { cargoRequestService, quotationService } from "./mock/cargo";
-import { cancellationService, disputeService, incidentService, supportService } from "./mock/cases";
+import {
+  cancellationService,
+  disputeService,
+  incidentService,
+  supportService,
+} from "./mock/cases";
 import { documentService } from "./mock/documents";
 import { driverService, truckOpsService } from "./mock/drivers";
 import { adminService, notificationService } from "./mock/platform";
@@ -34,8 +42,12 @@ const mockServices: Services = {
 
 function createServices(): Services {
   if (env.dataSource === "api") {
-    // Not implemented in this frontend-only phase. Fall back to mocks so the app still runs.
-    console.warn("NEXT_PUBLIC_OPS_DATA_SOURCE=api is set but no API services exist yet. Using demonstration data.");
+    return createPersistedServices({
+      ...mockServices,
+      cargoRequests: apiCargoRequestService,
+      quotations: apiQuotationService,
+      drivers: { ...driverService, ...apiDriverService },
+    });
   }
   return mockServices;
 }

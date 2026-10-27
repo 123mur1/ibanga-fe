@@ -140,7 +140,18 @@ export function ShipmentOverview({ shipment, role }: { shipment: Shipment; role:
         ) : null}
       </Section>
 
-      <Section title="Map" description={`${from} to ${to} · about ${route.totalKm} km in a straight line`}>
+      <Section
+        title="Map"
+        description={`${from} to ${to} · about ${route.totalKm} km in a straight line`}
+        actions={booking ? (
+          <Link
+            href={`/dashboard/tracking/${booking.id}`}
+            className="inline-flex min-h-10 items-center rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
+          >
+            Open cargo map
+          </Link>
+        ) : undefined}
+      >
         <SimulationNotice kind="tracking" />
         <div className="mt-4">
           <TruckMap pickup={from} destination={to} progress={PROGRESS[shipment.status]} moving={false} />

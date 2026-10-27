@@ -47,7 +47,12 @@ function allowedSubject(actor: Actor, kind: DocumentSubjectKind, subjectId: stri
   if (actor.role === "ADMIN") return;
   if (kind === "USER" && subjectId !== actor.id) forbid("You can only upload documents for your own account.");
   if (kind === "TRUCK" && findTruck(subjectId)?.ownerId !== actor.id) forbid("This truck belongs to another owner.");
-  if (kind === "DRIVER" && data.drivers.find((driver) => driver.id === subjectId)?.ownerId !== actor.id) forbid("This driver belongs to another owner.");
+  if (kind === "DRIVER") {
+    const driver = data.drivers.find((item) => item.id === subjectId);
+    const isOwner = driver?.ownerId === actor.id;
+    const isDriver = actor.role === "DRIVER" && driver?.userId === actor.id;
+    if (!isOwner && !isDriver) forbid("You can only upload documents for a driver account you manage.");
+  }
 }
 
 function scoped(actor: Actor, docs: OpsDocument[]) {

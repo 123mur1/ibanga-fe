@@ -12,6 +12,41 @@ import type { OpsData } from "@/types/ops";
 type Listener = () => void;
 type Stored = { version: number; data: OpsData };
 
+function emptyOpsData(): OpsData {
+  return {
+    cargoRequests: [],
+    quotations: [],
+    drivers: [],
+    driverAssignments: [],
+    truckProfiles: [],
+    shipments: [],
+    settlements: [],
+    payouts: [],
+    documents: [],
+    verificationRequests: [],
+    cancellations: [],
+    disputeCases: [],
+    incidents: [],
+    insurancePolicies: [],
+    insuranceClaims: [],
+    supportTickets: [],
+    notifications: [],
+    notificationPrefs: {},
+    announcements: [],
+    auditLog: [],
+    reconciliation: [],
+    adminProfiles: [],
+    settings: {
+      platformFeePct: 0,
+      quotationValidityDays: 0,
+      documentWarningDays: 0,
+      cancellationFreeWindowHours: 0,
+      maxQuotationsPerRequest: 0,
+      maintenanceBanner: "",
+    },
+  };
+}
+
 class MockDb {
   private data: OpsData;
   private readonly seed: OpsData;
@@ -19,7 +54,7 @@ class MockDb {
   private hydrated = false;
 
   constructor() {
-    this.seed = buildSeedOpsData();
+    this.seed = env.dataSource === "api" ? emptyOpsData() : buildSeedOpsData();
     this.data = this.seed;
   }
 
@@ -53,7 +88,15 @@ class MockDb {
     const next = change(current);
     if (next === current) return;
     this.data = next;
-    this.persist();
+    if (env.dataSource === "mock") this.persist();
+    this.emit();
+  }
+
+  /** Replace the in-memory cache with records returned by the authenticated API. */
+  replaceFromApi(data: OpsData): void {
+    if (env.dataSource !== "api") return;
+    this.data = data;
+    this.hydrated = true;
     this.emit();
   }
 
@@ -71,6 +114,7 @@ class MockDb {
 
   private hydrate() {
     this.hydrated = true;
+    if (env.dataSource === "api") return;
     try {
       const raw = window.localStorage.getItem(env.storageKey);
       if (!raw) return;

@@ -16,6 +16,8 @@ import {
   readAuthToken,
   saveAuthToken,
 } from "./api";
+import { loadOperationsSnapshot } from "@/services/api/operations-records";
+import { mockDb } from "@/services/mock-db";
 import {
   commissionFor,
   demoAddTruck,
@@ -85,7 +87,10 @@ type ApiRelatedUser = {
 type ApiUser = ApiRelatedUser & { role: Role };
 type ApiOwner = ApiRelatedUser;
 
-type ApiTruck = Omit<Truck, "currentLocation" | "preferredRoute" | "description" | "photos" | "owner"> & {
+type ApiTruck = Omit<
+  Truck,
+  "currentLocation" | "preferredRoute" | "description" | "photos" | "owner"
+> & {
   currentLocation: string | null;
   preferredRoute: string | null;
   description: string | null;
@@ -95,7 +100,12 @@ type ApiTruck = Omit<Truck, "currentLocation" | "preferredRoute" | "description"
 
 type ApiBooking = Omit<
   Booking,
-  "cargoWeight" | "cargoDescription" | "additionalInstructions" | "agreedPrice" | "payment" | "dispute"
+  | "cargoWeight"
+  | "cargoDescription"
+  | "additionalInstructions"
+  | "agreedPrice"
+  | "payment"
+  | "dispute"
 > & {
   cargoWeight: number;
   cargoDescription: string | null;
@@ -145,6 +155,7 @@ type AdminCommission = {
 type Store = {
   ready: boolean;
   connectionError: string | null;
+  refreshMarketplace: () => Promise<void>;
   currentUser: User | null;
   users: User[];
   bookings: Booking[];
@@ -157,8 +168,13 @@ type Store = {
   transactions: WalletTransaction[];
   walletAccounts: WalletAccount[];
   adminCommission: AdminCommission | null;
-  login: (email: string, password: string) => Promise<{ user: User | null; error: string | null }>;
-  requestPasswordReset: (email: string) => Promise<{ message: string; error?: string } | null>;
+  login: (
+    email: string,
+    password: string,
+  ) => Promise<{ user: User | null; error: string | null }>;
+  requestPasswordReset: (
+    email: string,
+  ) => Promise<{ message: string; error?: string } | null>;
   resetPassword: (token: string, password: string) => Promise<string | null>;
   register: (input: {
     name: string;
@@ -180,7 +196,11 @@ type Store = {
     company: string;
     password: string;
   }) => Promise<string | null>;
-  updateProfile: (patch: Partial<Pick<User, "name" | "phone" | "location" | "company" | "photo">>) => Promise<string | null>;
+  updateProfile: (
+    patch: Partial<
+      Pick<User, "name" | "phone" | "location" | "company" | "photo">
+    >,
+  ) => Promise<string | null>;
   fetchTruck: (id: string) => Promise<Truck>;
   addTruck: (input: NewTruckInput) => Promise<string | null>;
   updateTruck: (
@@ -189,8 +209,14 @@ type Store = {
   ) => Promise<string | null>;
   deleteTruck: (id: string) => Promise<string | null>;
   setAvailability: (id: string, status: TruckStatus) => Promise<string | null>;
-  createBooking: (truck: Truck, input: NewBookingInput) => Promise<string | null>;
-  setBookingStatus: (id: string, status: BookingStatus) => Promise<string | null>;
+  createBooking: (
+    truck: Truck,
+    input: NewBookingInput,
+  ) => Promise<string | null>;
+  setBookingStatus: (
+    id: string,
+    status: BookingStatus,
+  ) => Promise<string | null>;
   reportProblem: (bookingId: string, reason: string) => Promise<string | null>;
   resolveDispute: (disputeId: string, notes: string) => Promise<string | null>;
   setUserActive: (userId: string, active: boolean) => Promise<string | null>;
@@ -205,7 +231,10 @@ type Store = {
     branchCode?: string;
     accountNumber?: string;
   }) => Promise<string | null>;
-  payBooking: (bookingId: string, checkout?: CheckoutDetails) => Promise<string | null>;
+  payBooking: (
+    bookingId: string,
+    checkout?: CheckoutDetails,
+  ) => Promise<string | null>;
   /**
    * Demonstration only: adds a booking record (used when a quotation is accepted) and marks its truck
    * unavailable. A real backend creates the booking inside the "accept quotation" transaction.
@@ -213,17 +242,32 @@ type Store = {
   addBooking: (booking: Booking) => Promise<string | null>;
   /** Demonstration only: merge changes into a booking (payment state, status). Backend-authoritative later. */
   patchBooking: (id: string, patch: Partial<Booking>) => Promise<string | null>;
-  addReview: (truckId: string, input: { rating: number; comment: string }) => Promise<string | null>;
+  addReview: (
+    truckId: string,
+    input: { rating: number; comment: string },
+  ) => Promise<string | null>;
   requestRefund: (
     bookingId: string,
-    input: { reason: string; details: string; amountRwf: number; refundTo: string },
+    input: {
+      reason: string;
+      details: string;
+      amountRwf: number;
+      refundTo: string;
+    },
   ) => Promise<string | null>;
-  processRefund: (refundId: string, decision: "APPROVED" | "REJECTED", note: string) => Promise<string | null>;
+  processRefund: (
+    refundId: string,
+    decision: "APPROVED" | "REJECTED",
+    note: string,
+  ) => Promise<string | null>;
 };
 
 const StoreContext = createContext<Store | null>(null);
 
-function mapUser(user: ApiRelatedUser, role: Role = user.role ?? "IMPORTER"): User {
+function mapUser(
+  user: ApiRelatedUser,
+  role: Role = user.role ?? "IMPORTER",
+): User {
   return {
     ...user,
     phone: user.phone ?? "",
@@ -256,13 +300,36 @@ function mapTruck(truck: ApiTruck): Truck {
 }
 
 function mapBooking(booking: ApiBooking): Booking {
+  const apiPayment = booking.payment as
+    | (BookingPayment & {
+        fundedAt?: string | null;
+        createdAt?: string;
+      })
+    | null;
+  const payment: BookingPayment | null = apiPayment
+    ? {
+        ...apiPayment,
+        method: apiPayment.method ?? "MTN",
+        paidAt:
+          apiPayment.paidAt ??
+          apiPayment.fundedAt ??
+          apiPayment.createdAt ??
+          booking.createdAt,
+        receiptNumber:
+          apiPayment.receiptNumber ??
+          `IB-${booking.id.replace(/[^a-z0-9]/gi, "").slice(-10).toUpperCase()}`,
+        payerName: apiPayment.payerName ?? booking.importer?.name ?? "Importer",
+        accountMask: apiPayment.accountMask ?? "Simulated payment",
+        heldAt: apiPayment.heldAt ?? apiPayment.fundedAt ?? null,
+      }
+    : null;
   return {
     ...booking,
     cargoWeight: String(booking.cargoWeight),
     cargoDescription: booking.cargoDescription ?? "",
     additionalInstructions: booking.additionalInstructions ?? "",
     agreedPrice: booking.agreedPrice ?? "",
-    payment: booking.payment ?? null,
+    payment,
     dispute: booking.dispute ? mapDispute(booking.dispute) : null,
   };
 }
@@ -300,24 +367,39 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     useState<AdminCommission | null>(null);
   const demoSession = useRef<DemoSession | null>(null);
 
-  const publishDemo = useCallback((session: DemoSession, userId: string | null) => {
-    demoSession.current = session;
-    saveDemoSession(session, userId);
-    const user = userId ? session.users.find((item) => item.id === userId) ?? null : null;
-    setCurrentUser(user);
-    setUsers(session.users);
-    setBookings(session.bookings);
-    setDisputes(session.disputes);
-    setRefunds(session.refunds ?? []);
-    setReviews(session.reviews ?? []);
-    setTrucks(session.trucks);
-    setWalletBalance(user ? walletBalanceFor(session, user.id) : 0);
-    setTransactions(user ? session.transactions.filter((transaction) => transaction.userId === user.id) : []);
-    setWalletAccounts(user?.role === "ADMIN" ? walletAccountsFor(session) : []);
-    setAdminCommission(user?.role === "ADMIN" ? commissionFor(session.bookings) : null);
-    setConnectionError(null);
-    setTrucksLoading(false);
-  }, []);
+  const publishDemo = useCallback(
+    (session: DemoSession, userId: string | null) => {
+      demoSession.current = session;
+      saveDemoSession(session, userId);
+      const user = userId
+        ? (session.users.find((item) => item.id === userId) ?? null)
+        : null;
+      setCurrentUser(user);
+      setUsers(session.users);
+      setBookings(session.bookings);
+      setDisputes(session.disputes);
+      setRefunds(session.refunds ?? []);
+      setReviews(session.reviews ?? []);
+      setTrucks(session.trucks);
+      setWalletBalance(user ? walletBalanceFor(session, user.id) : 0);
+      setTransactions(
+        user
+          ? session.transactions.filter(
+              (transaction) => transaction.userId === user.id,
+            )
+          : [],
+      );
+      setWalletAccounts(
+        user?.role === "ADMIN" ? walletAccountsFor(session) : [],
+      );
+      setAdminCommission(
+        user?.role === "ADMIN" ? commissionFor(session.bookings) : null,
+      );
+      setConnectionError(null);
+      setTrucksLoading(false);
+    },
+    [],
+  );
 
   const loadPublicTrucks = useCallback(async () => {
     setTrucksLoading(true);
@@ -338,17 +420,30 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const loadMarketplace = useCallback(async (user: User) => {
-    setTrucksLoading(true);
-    try {
-      const truckPath = user.role === "TRUCK_OWNER" ? "/trucks?mine=true" : "/trucks";
-      const [truckRecords, bookingRecords, disputeRecords, wallet, adminUsers, adminWalletAccounts, commissionSummary, refundRecords, reviewRecords] =
-        await Promise.all([
+  const loadMarketplace = useCallback(
+    async (user: User) => {
+      setTrucksLoading(true);
+      try {
+        const truckPath =
+          user.role === "TRUCK_OWNER" ? "/trucks?mine=true" : "/trucks";
+        const [
+          truckRecords,
+          bookingRecords,
+          disputeRecords,
+          wallet,
+          adminUsers,
+          adminWalletAccounts,
+          commissionSummary,
+          refundRecords,
+          reviewRecords,
+        ] = await Promise.all([
           api<ApiTruck[]>(truckPath),
           api<ApiBooking[]>("/bookings"),
           api<ApiDispute[]>("/disputes"),
           api<ApiWallet>("/wallet"),
-          user.role === "ADMIN" ? api<ApiUser[]>("/users") : Promise.resolve([]),
+          user.role === "ADMIN"
+            ? api<ApiUser[]>("/users")
+            : Promise.resolve([]),
           user.role === "ADMIN"
             ? api<ApiAdminWalletAccount[]>("/wallet/admin/accounts")
             : Promise.resolve([]),
@@ -359,80 +454,100 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
           api<Review[]>("/reviews").catch(() => [] as Review[]),
         ]);
 
-      const mappedBookings = bookingRecords.map(mapBooking);
-      const mappedTrucks = truckRecords.map(mapTruck);
-      const nestedTrucks = bookingRecords.map((booking) => mapTruck(booking.truck));
-      const allTrucks = uniqueById([...mappedTrucks, ...nestedTrucks]);
-      const mappedDisputes = disputeRecords.map(mapDispute);
-      const mappedUsers = adminUsers.map((user) => mapUser(user));
-      const relatedUsers = [
-        ...bookingRecords.flatMap((booking) => [
-          mapUser(booking.importer, "IMPORTER"),
-          ...(booking.truck.owner ? [mapUser(booking.truck.owner, "TRUCK_OWNER")] : []),
-        ]),
-        ...mappedTrucks.flatMap((truck) =>
-          truck.owner ? [mapUser(truck.owner, "TRUCK_OWNER")] : [],
-        ),
-      ];
-      const allUsers = uniqueById([
-        ...mappedUsers,
-        ...relatedUsers,
-        user,
-      ]);
+        const mappedBookings = bookingRecords.map(mapBooking);
+        const mappedTrucks = truckRecords.map(mapTruck);
+        const nestedTrucks = bookingRecords.map((booking) =>
+          mapTruck(booking.truck),
+        );
+        const allTrucks = uniqueById([...mappedTrucks, ...nestedTrucks]);
+        const mappedDisputes = disputeRecords.map(mapDispute);
+        const mappedUsers = adminUsers.map((user) => mapUser(user));
+        const relatedUsers = [
+          ...bookingRecords.flatMap((booking) => [
+            mapUser(booking.importer, "IMPORTER"),
+            ...(booking.truck.owner
+              ? [mapUser(booking.truck.owner, "TRUCK_OWNER")]
+              : []),
+          ]),
+          ...mappedTrucks.flatMap((truck) =>
+            truck.owner ? [mapUser(truck.owner, "TRUCK_OWNER")] : [],
+          ),
+        ];
+        const allUsers = uniqueById([...mappedUsers, ...relatedUsers, user]);
 
-      setCurrentUser(user);
-      setUsers(allUsers);
-      setBookings(mappedBookings);
-      setDisputes(mappedDisputes);
-      setRefunds(refundRecords);
-      setReviews(reviewRecords);
-      setTrucks(allTrucks);
-      setWalletBalance(wallet.balanceRwf);
-      setTransactions(
-        wallet.transactions.map((transaction) => ({
-          ...transaction,
-          userId: user.id,
-        })),
-      );
-      setWalletAccounts(
-        adminWalletAccounts.map((account) => ({
-          userId: account.userId,
-          name: account.name,
-          email: account.email,
-          role: account.role,
-          balance: account.balanceRwf,
-          transactions: account.transactions.map((transaction) => ({
+        setCurrentUser(user);
+        setUsers(allUsers);
+        setBookings(mappedBookings);
+        setDisputes(mappedDisputes);
+        setRefunds(refundRecords);
+        setReviews(reviewRecords);
+        setTrucks(allTrucks);
+        setWalletBalance(wallet.balanceRwf);
+        setTransactions(
+          wallet.transactions.map((transaction) => ({
             ...transaction,
-            userId: account.userId,
+            userId: user.id,
           })),
-        })),
-      );
-      setAdminCommission(commissionSummary);
-      setConnectionError(null);
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 401) {
-        clearAuthToken();
-        setCurrentUser(null);
-        setUsers([]);
-        setBookings([]);
-        setDisputes([]);
-        setRefunds([]);
-        setTrucks([]);
-        setWalletBalance(0);
-        setTransactions([]);
-        setWalletAccounts([]);
+        );
+        setWalletAccounts(
+          adminWalletAccounts.map((account) => ({
+            userId: account.userId,
+            name: account.name,
+            email: account.email,
+            role: account.role,
+            balance: account.balanceRwf,
+            transactions: account.transactions.map((transaction) => ({
+              ...transaction,
+              userId: account.userId,
+            })),
+          })),
+        );
+        setAdminCommission(commissionSummary);
+        setConnectionError(null);
+        try {
+          const operationsData = await loadOperationsSnapshot({
+            id: user.id,
+            name: user.name,
+            role: user.role,
+            adminUserIds: mappedUsers
+              .filter((admin) => admin.role === "ADMIN")
+              .map((admin) => admin.id),
+          });
+          mockDb.replaceFromApi(operationsData);
+        } catch (error) {
+          const message = errorMessage(
+            error,
+            "Could not load operations data.",
+          );
+          setConnectionError(message);
+          console.error("Could not load operations data.", error);
+        }
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 401) {
+          clearAuthToken();
+          setCurrentUser(null);
+          setUsers([]);
+          setBookings([]);
+          setDisputes([]);
+          setRefunds([]);
+          setTrucks([]);
+          setWalletBalance(0);
+          setTransactions([]);
+          setWalletAccounts([]);
+          setAdminCommission(null);
+          await loadPublicTrucks();
+          return;
+        }
         setAdminCommission(null);
-        await loadPublicTrucks();
-        return;
+        const message = errorMessage(error, "Could not load marketplace data.");
+        setConnectionError(message);
+        console.error("Could not load marketplace data.", error);
+      } finally {
+        setTrucksLoading(false);
       }
-      setAdminCommission(null);
-      const message = errorMessage(error, "Could not load marketplace data.");
-      setConnectionError(message);
-      console.error("Could not load marketplace data.", error);
-    } finally {
-      setTrucksLoading(false);
-    }
-  }, [loadPublicTrucks]);
+    },
+    [loadPublicTrucks],
+  );
 
   const refreshAfterMutation = useCallback(async () => {
     if (currentUser) {
@@ -441,6 +556,10 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
       await loadPublicTrucks();
     }
   }, [currentUser, loadMarketplace, loadPublicTrucks]);
+
+  const refreshMarketplace = useCallback(async () => {
+    if (currentUser) await loadMarketplace(currentUser);
+  }, [currentUser, loadMarketplace]);
 
   useEffect(() => {
     let active = true;
@@ -473,7 +592,10 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         }
         if (active && !readAuthToken()) await loadPublicTrucks();
       } catch (error) {
-        const message = errorMessage(error, "Could not connect to the iBanga API.");
+        const message = errorMessage(
+          error,
+          "Could not connect to the iBanga API.",
+        );
         if (active) setConnectionError(message);
         console.error("Could not initialize the marketplace.", error);
       } finally {
@@ -487,31 +609,39 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     };
   }, [loadMarketplace, loadPublicTrucks, publishDemo]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    if (demoEnabled && demoSession.current) {
-      const result = demoAuthenticate(demoSession.current, email, password);
-      if (!result.user) return { user: null, error: result.error };
-      publishDemo(demoSession.current, result.user.id);
-      return { user: result.user, error: null };
-    }
-    try {
-      const result = await api<{ token: string; user: ApiUser }>("/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-      });
-      saveAuthToken(result.token);
-      const user = mapUser(result.user);
-      setCurrentUser(user);
-      await loadMarketplace(user);
-      return { user, error: null };
-    } catch (error) {
-      return { user: null, error: errorMessage(error, "Could not sign in.") };
-    }
-  }, [loadMarketplace, publishDemo]);
+  const login = useCallback(
+    async (email: string, password: string) => {
+      if (demoEnabled && demoSession.current) {
+        const result = demoAuthenticate(demoSession.current, email, password);
+        if (!result.user) return { user: null, error: result.error };
+        publishDemo(demoSession.current, result.user.id);
+        return { user: result.user, error: null };
+      }
+      try {
+        const result = await api<{ token: string; user: ApiUser }>(
+          "/auth/login",
+          {
+            method: "POST",
+            body: JSON.stringify({ email, password }),
+          },
+        );
+        saveAuthToken(result.token);
+        const user = mapUser(result.user);
+        setCurrentUser(user);
+        await loadMarketplace(user);
+        return { user, error: null };
+      } catch (error) {
+        return { user: null, error: errorMessage(error, "Could not sign in.") };
+      }
+    },
+    [loadMarketplace, publishDemo],
+  );
 
   const requestPasswordReset = useCallback(async (email: string) => {
     if (demoEnabled) {
-      const known = demoSession.current?.users.some((user) => user.email.toLowerCase() === email.trim().toLowerCase());
+      const known = demoSession.current?.users.some(
+        (user) => user.email.toLowerCase() === email.trim().toLowerCase(),
+      );
       return known
         ? { message: "Demo mode: use the password shown on the sign-in page." }
         : { message: "", error: "No demo account uses that email." };
@@ -522,12 +652,16 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ email }),
       });
     } catch (error) {
-      return { message: "", error: errorMessage(error, "Could not request a password reset.") };
+      return {
+        message: "",
+        error: errorMessage(error, "Could not request a password reset."),
+      };
     }
   }, []);
 
   const resetPassword = useCallback(async (token: string, password: string) => {
-    if (demoEnabled) return "Password reset stays on the sign-in page while demo data is in use.";
+    if (demoEnabled)
+      return "Password reset stays on the sign-in page while demo data is in use.";
     try {
       await api("/auth/password-reset/reset", {
         method: "POST",
@@ -539,45 +673,53 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const register = useCallback<Store["register"]>(async (input) => {
-    if (demoEnabled && demoSession.current) {
-      const result = demoRegister(demoSession.current, input);
-      if ("error" in result) return result.error;
-      publishDemo(result.session, result.user.id);
-      return null;
-    }
-    try {
-      const result = await api<{ token: string; user: ApiUser }>("/auth/register", {
-        method: "POST",
-        body: JSON.stringify({
-          name: input.name,
-          email: input.email,
-          phone: input.phone,
-          location: input.location,
-          password: input.password,
-          role: input.role,
-        }),
-      });
-      saveAuthToken(result.token);
-      let user = mapUser(result.user);
-      setCurrentUser(user);
-      if (input.company.trim()) {
-        try {
-          user = mapUser(await api<ApiUser>("/auth/me", {
-            method: "PATCH",
-            body: JSON.stringify({ company: input.company }),
-          }));
-        } catch (error) {
-          await loadMarketplace(user);
-          return `Your account was created, but the company profile could not be saved: ${errorMessage(error, "API request failed.")}`;
-        }
+  const register = useCallback<Store["register"]>(
+    async (input) => {
+      if (demoEnabled && demoSession.current) {
+        const result = demoRegister(demoSession.current, input);
+        if ("error" in result) return result.error;
+        publishDemo(result.session, result.user.id);
+        return null;
       }
-      await loadMarketplace(user);
-      return null;
-    } catch (error) {
-      return errorMessage(error, "Could not create your account.");
-    }
-  }, [loadMarketplace, publishDemo]);
+      try {
+        const result = await api<{ token: string; user: ApiUser }>(
+          "/auth/register",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              name: input.name,
+              email: input.email,
+              phone: input.phone,
+              location: input.location,
+              password: input.password,
+              role: input.role,
+            }),
+          },
+        );
+        saveAuthToken(result.token);
+        let user = mapUser(result.user);
+        setCurrentUser(user);
+        if (input.company.trim()) {
+          try {
+            user = mapUser(
+              await api<ApiUser>("/auth/me", {
+                method: "PATCH",
+                body: JSON.stringify({ company: input.company }),
+              }),
+            );
+          } catch (error) {
+            await loadMarketplace(user);
+            return `Your account was created, but the company profile could not be saved: ${errorMessage(error, "API request failed.")}`;
+          }
+        }
+        await loadMarketplace(user);
+        return null;
+      } catch (error) {
+        return errorMessage(error, "Could not create your account.");
+      }
+    },
+    [loadMarketplace, publishDemo],
+  );
 
   const logout = useCallback(() => {
     if (demoEnabled && demoSession.current) {
@@ -597,43 +739,53 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     void loadPublicTrucks();
   }, [loadPublicTrucks, publishDemo]);
 
-  const addUser = useCallback<Store["addUser"]>(async (input) => {
-    if (demoEnabled && demoSession.current && currentUser) {
-      const result = demoAddUser(demoSession.current, input);
-      if ("error" in result) return result.error;
-      publishDemo(result.session, currentUser.id);
-      return null;
-    }
-    try {
-      await api("/users", {
-        method: "POST",
-        body: JSON.stringify(input),
-      });
-      await refreshAfterMutation();
-      return null;
-    } catch (error) {
-      return errorMessage(error, "Could not create the account.");
-    }
-  }, [currentUser, publishDemo, refreshAfterMutation]);
+  const addUser = useCallback<Store["addUser"]>(
+    async (input) => {
+      if (demoEnabled && demoSession.current && currentUser) {
+        const result = demoAddUser(demoSession.current, input);
+        if ("error" in result) return result.error;
+        publishDemo(result.session, currentUser.id);
+        return null;
+      }
+      try {
+        await api("/users", {
+          method: "POST",
+          body: JSON.stringify(input),
+        });
+        await refreshAfterMutation();
+        return null;
+      } catch (error) {
+        return errorMessage(error, "Could not create the account.");
+      }
+    },
+    [currentUser, publishDemo, refreshAfterMutation],
+  );
 
-  const updateProfile = useCallback<Store["updateProfile"]>(async (patch) => {
-    if (!currentUser) return "Sign in to update your profile.";
-    if (demoEnabled && demoSession.current) {
-      const users = demoSession.current.users.map((user) => user.id === currentUser.id ? { ...user, ...patch } : user);
-      publishDemo({ ...demoSession.current, users }, currentUser.id);
-      return null;
-    }
-    try {
-      const user = mapUser(await api<ApiUser>("/auth/me", {
-        method: "PATCH",
-        body: JSON.stringify(patch),
-      }));
-      await loadMarketplace(user);
-      return null;
-    } catch (error) {
-      return errorMessage(error, "Could not update your profile.");
-    }
-  }, [currentUser, loadMarketplace, publishDemo]);
+  const updateProfile = useCallback<Store["updateProfile"]>(
+    async (patch) => {
+      if (!currentUser) return "Sign in to update your profile.";
+      if (demoEnabled && demoSession.current) {
+        const users = demoSession.current.users.map((user) =>
+          user.id === currentUser.id ? { ...user, ...patch } : user,
+        );
+        publishDemo({ ...demoSession.current, users }, currentUser.id);
+        return null;
+      }
+      try {
+        const user = mapUser(
+          await api<ApiUser>("/auth/me", {
+            method: "PATCH",
+            body: JSON.stringify(patch),
+          }),
+        );
+        await loadMarketplace(user);
+        return null;
+      } catch (error) {
+        return errorMessage(error, "Could not update your profile.");
+      }
+    },
+    [currentUser, loadMarketplace, publishDemo],
+  );
 
   const fetchTruck = useCallback<Store["fetchTruck"]>(async (id) => {
     if (demoEnabled) {
@@ -645,390 +797,669 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     return mapTruck(truck);
   }, []);
 
-  const addTruck = useCallback<Store["addTruck"]>(async (input) => {
-    if (!currentUser) return "Sign in to list a truck.";
-    if (demoEnabled && demoSession.current) {
-      publishDemo(demoAddTruck(demoSession.current, currentUser, input), currentUser.id);
-      return null;
-    }
-    try {
-      await api("/trucks", {
-        method: "POST",
-        body: JSON.stringify(input),
-      });
-      await refreshAfterMutation();
-      return null;
-    } catch (error) {
-      return errorMessage(error, "Could not add the truck.");
-    }
-  }, [currentUser, publishDemo, refreshAfterMutation]);
-
-  const updateTruck = useCallback<Store["updateTruck"]>(async (id, patch) => {
-    if (demoEnabled && demoSession.current && currentUser) {
-      publishDemo(demoUpdateTruck(demoSession.current, id, patch), currentUser.id);
-      return null;
-    }
-    try {
-      await api(`/trucks/${encodeURIComponent(id)}`, {
-        method: "PATCH",
-        body: JSON.stringify(patch),
-      });
-      await refreshAfterMutation();
-      return null;
-    } catch (error) {
-      return errorMessage(error, "Could not update the truck.");
-    }
-  }, [currentUser, publishDemo, refreshAfterMutation]);
-
-  const deleteTruck = useCallback<Store["deleteTruck"]>(async (id) => {
-    if (demoEnabled && demoSession.current && currentUser) {
-      publishDemo({
-        ...demoSession.current,
-        trucks: demoSession.current.trucks.filter((truck) => truck.id !== id),
-      }, currentUser.id);
-      return null;
-    }
-    try {
-      await api(`/trucks/${encodeURIComponent(id)}`, { method: "DELETE" });
-      await refreshAfterMutation();
-      return null;
-    } catch (error) {
-      return errorMessage(error, "Could not remove the truck.");
-    }
-  }, [currentUser, publishDemo, refreshAfterMutation]);
-
-  const setAvailability = useCallback<Store["setAvailability"]>(async (id, status) => {
-    if (demoEnabled && demoSession.current && currentUser) {
-      publishDemo(demoSetAvailability(demoSession.current, id, status), currentUser.id);
-      return null;
-    }
-    try {
-      await api(`/trucks/${encodeURIComponent(id)}/availability`, {
-        method: "PATCH",
-        body: JSON.stringify({ status }),
-      });
-      await refreshAfterMutation();
-      return null;
-    } catch (error) {
-      return errorMessage(error, "Could not update truck availability.");
-    }
-  }, [currentUser, publishDemo, refreshAfterMutation]);
-
-  const createBooking = useCallback<Store["createBooking"]>(async (truck, input) => {
-    if (!currentUser) return "Sign in to book a truck.";
-    if (demoEnabled && demoSession.current) {
-      const result = demoCreateBooking(demoSession.current, currentUser, truck, input);
-      if ("error" in result) return result.error;
-      publishDemo(result.session, currentUser.id);
-      return null;
-    }
-    try {
-      const cargoWeight = Number(input.cargoWeight);
-      if (!Number.isFinite(cargoWeight) || cargoWeight <= 0) {
-        return "Enter a valid cargo weight.";
+  const addTruck = useCallback<Store["addTruck"]>(
+    async (input) => {
+      if (!currentUser) return "Sign in to list a truck.";
+      if (demoEnabled && demoSession.current) {
+        publishDemo(
+          demoAddTruck(demoSession.current, currentUser, input),
+          currentUser.id,
+        );
+        return null;
       }
-      await api("/bookings", {
-        method: "POST",
-        body: JSON.stringify({
-          truckId: truck.id,
-          cargoType: input.cargoType,
-          cargoDescription: input.cargoDescription,
-          cargoWeight,
-          pickupLocation: input.pickupLocation,
-          destination: input.destination,
-          pickupDate: input.pickupDate,
-          expectedDeliveryDate: input.expectedDeliveryDate,
-          additionalInstructions: input.additionalInstructions,
-        }),
-      });
-      await refreshAfterMutation();
-      return null;
-    } catch (error) {
-      return errorMessage(error, "Could not create the booking.");
-    }
-  }, [currentUser, publishDemo, refreshAfterMutation]);
+      try {
+        await api("/trucks", {
+          method: "POST",
+          body: JSON.stringify(input),
+        });
+        await refreshAfterMutation();
+        return null;
+      } catch (error) {
+        return errorMessage(error, "Could not add the truck.");
+      }
+    },
+    [currentUser, publishDemo, refreshAfterMutation],
+  );
 
-  const setBookingStatus = useCallback<Store["setBookingStatus"]>(async (id, status) => {
-    if (demoEnabled && demoSession.current && currentUser) {
-      publishDemo(demoSetBookingStatus(demoSession.current, id, status), currentUser.id);
-      return null;
-    }
-    try {
-      await api(`/bookings/${encodeURIComponent(id)}`, {
-        method: "PATCH",
-        body: JSON.stringify({ status }),
-      });
-      await refreshAfterMutation();
-      return null;
-    } catch (error) {
-      return errorMessage(error, "Could not update the booking.");
-    }
-  }, [currentUser, publishDemo, refreshAfterMutation]);
+  const updateTruck = useCallback<Store["updateTruck"]>(
+    async (id, patch) => {
+      if (demoEnabled && demoSession.current && currentUser) {
+        publishDemo(
+          demoUpdateTruck(demoSession.current, id, patch),
+          currentUser.id,
+        );
+        return null;
+      }
+      try {
+        await api(`/trucks/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          body: JSON.stringify(patch),
+        });
+        await refreshAfterMutation();
+        return null;
+      } catch (error) {
+        return errorMessage(error, "Could not update the truck.");
+      }
+    },
+    [currentUser, publishDemo, refreshAfterMutation],
+  );
 
-  const reportProblem = useCallback<Store["reportProblem"]>(async (bookingId, reason) => {
-    if (demoEnabled && demoSession.current && currentUser) {
-      publishDemo(demoReportProblem(demoSession.current, currentUser, bookingId, reason), currentUser.id);
-      return null;
-    }
-    try {
-      await api("/disputes", {
-        method: "POST",
-        body: JSON.stringify({ bookingId, reason }),
-      });
-      await refreshAfterMutation();
-      return null;
-    } catch (error) {
-      return errorMessage(error, "Could not report the booking problem.");
-    }
-  }, [currentUser, publishDemo, refreshAfterMutation]);
+  const deleteTruck = useCallback<Store["deleteTruck"]>(
+    async (id) => {
+      if (demoEnabled && demoSession.current && currentUser) {
+        publishDemo(
+          {
+            ...demoSession.current,
+            trucks: demoSession.current.trucks.filter(
+              (truck) => truck.id !== id,
+            ),
+          },
+          currentUser.id,
+        );
+        return null;
+      }
+      try {
+        await api(`/trucks/${encodeURIComponent(id)}`, { method: "DELETE" });
+        await refreshAfterMutation();
+        return null;
+      } catch (error) {
+        return errorMessage(error, "Could not remove the truck.");
+      }
+    },
+    [currentUser, publishDemo, refreshAfterMutation],
+  );
 
-  const resolveDispute = useCallback<Store["resolveDispute"]>(async (disputeId, notes) => {
-    if (demoEnabled && demoSession.current && currentUser) {
-      publishDemo(demoResolveDispute(demoSession.current, disputeId, notes), currentUser.id);
-      return null;
-    }
-    try {
-      await api(`/disputes/${encodeURIComponent(disputeId)}/resolve`, {
-        method: "PATCH",
-        body: JSON.stringify({ resolutionNotes: notes }),
-      });
-      await refreshAfterMutation();
-      return null;
-    } catch (error) {
-      return errorMessage(error, "Could not resolve the dispute.");
-    }
-  }, [currentUser, publishDemo, refreshAfterMutation]);
+  const setAvailability = useCallback<Store["setAvailability"]>(
+    async (id, status) => {
+      if (demoEnabled && demoSession.current && currentUser) {
+        publishDemo(
+          demoSetAvailability(demoSession.current, id, status),
+          currentUser.id,
+        );
+        return null;
+      }
+      try {
+        await api(`/trucks/${encodeURIComponent(id)}/availability`, {
+          method: "PATCH",
+          body: JSON.stringify({ status }),
+        });
+        await refreshAfterMutation();
+        return null;
+      } catch (error) {
+        return errorMessage(error, "Could not update truck availability.");
+      }
+    },
+    [currentUser, publishDemo, refreshAfterMutation],
+  );
 
-  const setUserActive = useCallback<Store["setUserActive"]>(async (userId, active) => {
-    if (demoEnabled && demoSession.current && currentUser) {
-      publishDemo({
-        ...demoSession.current,
-        users: demoSession.current.users.map((user) => user.id === userId ? { ...user, active } : user),
-      }, currentUser.id);
-      return null;
-    }
-    try {
-      await api(`/users/${encodeURIComponent(userId)}/status`, {
-        method: "PATCH",
-        body: JSON.stringify({ active }),
-      });
-      await refreshAfterMutation();
-      return null;
-    } catch (error) {
-      return errorMessage(error, "Could not update the account status.");
-    }
-  }, [currentUser, publishDemo, refreshAfterMutation]);
+  const createBooking = useCallback<Store["createBooking"]>(
+    async (truck, input) => {
+      if (!currentUser) return "Sign in to book a truck.";
+      if (demoEnabled && demoSession.current) {
+        const result = demoCreateBooking(
+          demoSession.current,
+          currentUser,
+          truck,
+          input,
+        );
+        if ("error" in result) return result.error;
+        const createdBooking = result.session.bookings.find(
+          (item) => !demoSession.current?.bookings.some((previous) => previous.id === item.id),
+        );
+        if (!createdBooking) return "Could not create the booking.";
+        const ownerId = truck.ownerId;
+        mockDb.update((data) => {
+          const notificationId = `booking-${createdBooking.id}-${ownerId}-${Date.now()}`;
+          return {
+            ...data,
+            notifications: [{
+              id: notificationId,
+              userId: ownerId,
+              category: "BOOKING",
+              title: "New truck booking",
+              body: `A customer booked your truck for cargo from ${input.pickupLocation} to ${input.destination}.`,
+              href: `/dashboard/owner/bookings/${createdBooking.id}`,
+              read: false,
+              createdAt: new Date().toISOString(),
+            }, ...data.notifications],
+          };
+        });
+        publishDemo(result.session, currentUser.id);
+        return null;
+      }
+      try {
+        const cargoWeight = Number(input.cargoWeight);
+        if (!Number.isFinite(cargoWeight) || cargoWeight <= 0) {
+          return "Enter a valid cargo weight.";
+        }
+        await api("/bookings", {
+          method: "POST",
+          body: JSON.stringify({
+            truckId: truck.id,
+            cargoType: input.cargoType,
+            cargoDescription: input.cargoDescription,
+            cargoWeight,
+            pickupLocation: input.pickupLocation,
+            destination: input.destination,
+            pickupDate: input.pickupDate,
+            expectedDeliveryDate: input.expectedDeliveryDate,
+            additionalInstructions: input.additionalInstructions,
+          }),
+        });
+        await refreshAfterMutation();
+        return null;
+      } catch (error) {
+        return errorMessage(error, "Could not create the booking.");
+      }
+    },
+    [currentUser, publishDemo, refreshAfterMutation],
+  );
 
-  const deleteUser = useCallback<Store["deleteUser"]>(async (userId) => {
-    if (demoEnabled && demoSession.current && currentUser) {
-      const email = demoSession.current.users.find((user) => user.id === userId)?.email.toLowerCase();
-      const credentials = { ...demoSession.current.credentials };
-      if (email) delete credentials[email];
-      publishDemo({
-        ...demoSession.current,
-        users: demoSession.current.users.filter((user) => user.id !== userId),
-        credentials,
-      }, currentUser.id);
-      return null;
-    }
-    try {
-      await api(`/users/${encodeURIComponent(userId)}`, { method: "DELETE" });
-      await refreshAfterMutation();
-      return null;
-    } catch (error) {
-      return errorMessage(error, "Could not remove the account.");
-    }
-  }, [currentUser, publishDemo, refreshAfterMutation]);
+  const setBookingStatus = useCallback<Store["setBookingStatus"]>(
+    async (id, status) => {
+      if (demoEnabled && demoSession.current && currentUser) {
+        const session = demoSession.current;
+        const booking = session.bookings.find((item) => item.id === id);
+        const result = demoSetBookingStatus(session, id, status);
+        if (booking && booking.status !== status) {
+          const owner = session.trucks.find((item) => item.id === booking.truckId)?.ownerId;
+          const notice = {
+            ACCEPTED: { userId: booking.importerId, title: "Owner accepted your booking", body: `The truck owner accepted booking ${id}. You can now arrange payment.` },
+            REJECTED: { userId: booking.importerId, title: "Booking declined", body: `The truck owner declined booking ${id}.` },
+            IN_PROGRESS: { userId: booking.importerId, title: "Trip started", body: `Booking ${id} has left pickup and is now in transit.` },
+            DELIVERED: { userId: booking.importerId, title: "Cargo delivered", body: `Booking ${id} is marked delivered. Confirm receipt or report a problem.` },
+            COMPLETED: { userId: owner, title: "Receipt confirmed", body: `The importer confirmed receipt. Booking ${id} is complete.` },
+            DISPUTED: { userId: owner, title: "Booking disputed", body: `The importer reported a problem with booking ${id}.` },
+            PENDING: { userId: undefined, title: "Booking updated", body: `Booking ${id} was updated.` },
+          }[status];
+          const recipient = notice.userId;
+          if (recipient && recipient !== currentUser.id) {
+          mockDb.update((data) => ({
+            ...data,
+            notifications: [
+              {
+                id: `booking-${id}-${recipient}-${Date.now()}`,
+                userId: recipient,
+                category: "BOOKING" as const,
+                title: notice.title,
+                body: notice.body,
+                href: `/dashboard/${recipient === booking.importerId ? "importer" : "owner"}/bookings/${id}`,
+                read: false,
+                createdAt: new Date().toISOString(),
+              },
+              ...data.notifications,
+            ],
+          }));
+          }
+        }
+        publishDemo(result, currentUser.id);
+        return null;
+      }
+      try {
+        const updated = await api<ApiBooking>(
+          `/bookings/${encodeURIComponent(id)}`,
+          {
+            method: "PATCH",
+            body: JSON.stringify({ status }),
+          },
+        );
+        const mappedBooking = mapBooking(updated);
+        setBookings((previous) =>
+          previous.map((booking) =>
+            booking.id === mappedBooking.id ? mappedBooking : booking,
+          ),
+        );
+        if (status === "REJECTED" || status === "COMPLETED") {
+          setTrucks((previous) =>
+            previous.map((truck) =>
+              truck.id === mappedBooking.truckId
+                ? { ...truck, status: "AVAILABLE" }
+                : truck,
+            ),
+          );
+        }
+        return null;
+      } catch (error) {
+        return errorMessage(error, "Could not update the booking.");
+      }
+    },
+    [currentUser, publishDemo],
+  );
 
-  const depositFunds = useCallback<Store["depositFunds"]>(async (amount, phoneNumber) => {
-    if (demoEnabled && demoSession.current && currentUser) {
-      const result = demoDeposit(demoSession.current, currentUser, amount);
-      if ("error" in result) return result.error;
-      publishDemo(result.session, currentUser.id);
-      return null;
-    }
-    try {
-      await api("/wallet/deposits", {
-        method: "POST",
-        body: JSON.stringify({ amountRwf: amount, phoneNumber }),
-      });
-      await refreshAfterMutation();
-      return null;
-    } catch (error) {
-      return errorMessage(error, "Could not deposit funds.");
-    }
-  }, [currentUser, publishDemo, refreshAfterMutation]);
+  const reportProblem = useCallback<Store["reportProblem"]>(
+    async (bookingId, reason) => {
+      if (demoEnabled && demoSession.current && currentUser) {
+        publishDemo(
+          demoReportProblem(
+            demoSession.current,
+            currentUser,
+            bookingId,
+            reason,
+          ),
+          currentUser.id,
+        );
+        return null;
+      }
+      try {
+        await api("/disputes", {
+          method: "POST",
+          body: JSON.stringify({ bookingId, reason }),
+        });
+        await refreshAfterMutation();
+        return null;
+      } catch (error) {
+        return errorMessage(error, "Could not report the booking problem.");
+      }
+    },
+    [currentUser, publishDemo, refreshAfterMutation],
+  );
 
-  const withdrawFunds = useCallback<Store["withdrawFunds"]>(async (input) => {
-    if (demoEnabled && demoSession.current && currentUser) {
-      const result = demoWithdraw(demoSession.current, currentUser, input.amountRwf);
-      if ("error" in result) return result.error;
-      publishDemo(result.session, currentUser.id);
-      return null;
-    }
-    try {
-      await api("/wallet/withdrawals", {
-        method: "POST",
-        body: JSON.stringify(input),
-      });
-      await refreshAfterMutation();
-      return null;
-    } catch (error) {
-      return errorMessage(error, "Could not withdraw funds.");
-    }
-  }, [currentUser, publishDemo, refreshAfterMutation]);
+  const resolveDispute = useCallback<Store["resolveDispute"]>(
+    async (disputeId, notes) => {
+      if (demoEnabled && demoSession.current && currentUser) {
+        publishDemo(
+          demoResolveDispute(demoSession.current, disputeId, notes),
+          currentUser.id,
+        );
+        return null;
+      }
+      try {
+        await api(`/disputes/${encodeURIComponent(disputeId)}/resolve`, {
+          method: "PATCH",
+          body: JSON.stringify({ resolutionNotes: notes }),
+        });
+        await refreshAfterMutation();
+        return null;
+      } catch (error) {
+        return errorMessage(error, "Could not resolve the dispute.");
+      }
+    },
+    [currentUser, publishDemo, refreshAfterMutation],
+  );
 
-  const payBooking = useCallback<Store["payBooking"]>(async (bookingId, checkout) => {
-    if (demoEnabled && demoSession.current && currentUser) {
-      const result = demoPayBooking(demoSession.current, currentUser, bookingId, checkout);
-      if ("error" in result) return result.error;
-      publishDemo(result.session, currentUser.id);
-      return null;
-    }
-    try {
-      await api(`/wallet/bookings/${encodeURIComponent(bookingId)}/pay`, {
-        method: "POST",
-        body: checkout ? JSON.stringify(checkout) : undefined,
-      });
-      await refreshAfterMutation();
-      return null;
-    } catch (error) {
-      return errorMessage(error, "Could not pay for the booking.");
-    }
-  }, [currentUser, publishDemo, refreshAfterMutation]);
+  const setUserActive = useCallback<Store["setUserActive"]>(
+    async (userId, active) => {
+      if (demoEnabled && demoSession.current && currentUser) {
+        publishDemo(
+          {
+            ...demoSession.current,
+            users: demoSession.current.users.map((user) =>
+              user.id === userId ? { ...user, active } : user,
+            ),
+          },
+          currentUser.id,
+        );
+        return null;
+      }
+      try {
+        await api(`/users/${encodeURIComponent(userId)}/status`, {
+          method: "PATCH",
+          body: JSON.stringify({ active }),
+        });
+        await refreshAfterMutation();
+        return null;
+      } catch (error) {
+        return errorMessage(error, "Could not update the account status.");
+      }
+    },
+    [currentUser, publishDemo, refreshAfterMutation],
+  );
 
-  const addBooking = useCallback<Store["addBooking"]>(async (booking) => {
-    if (!(demoEnabled && demoSession.current && currentUser)) return "Creating bookings from quotations is only available in demonstration mode.";
-    const session = demoSession.current;
-    if (session.bookings.some((item) => item.id === booking.id)) return "That booking already exists.";
-    publishDemo({
-      ...session,
-      bookings: [booking, ...session.bookings],
-      trucks: session.trucks.map((truck) => (truck.id === booking.truckId ? { ...truck, status: "UNAVAILABLE" } : truck)),
-    }, currentUser.id);
-    return null;
-  }, [currentUser, publishDemo]);
+  const deleteUser = useCallback<Store["deleteUser"]>(
+    async (userId) => {
+      if (demoEnabled && demoSession.current && currentUser) {
+        const email = demoSession.current.users
+          .find((user) => user.id === userId)
+          ?.email.toLowerCase();
+        const credentials = { ...demoSession.current.credentials };
+        if (email) delete credentials[email];
+        publishDemo(
+          {
+            ...demoSession.current,
+            users: demoSession.current.users.filter(
+              (user) => user.id !== userId,
+            ),
+            credentials,
+          },
+          currentUser.id,
+        );
+        return null;
+      }
+      try {
+        await api(`/users/${encodeURIComponent(userId)}`, { method: "DELETE" });
+        await refreshAfterMutation();
+        return null;
+      } catch (error) {
+        return errorMessage(error, "Could not remove the account.");
+      }
+    },
+    [currentUser, publishDemo, refreshAfterMutation],
+  );
 
-  const patchBooking = useCallback<Store["patchBooking"]>(async (id, patch) => {
-    if (!(demoEnabled && demoSession.current && currentUser)) return "Editing bookings this way is only available in demonstration mode.";
-    const session = demoSession.current;
-    const booking = session.bookings.find((item) => item.id === id);
-    if (!booking) return "Booking not found.";
-    publishDemo({
-      ...session,
-      bookings: session.bookings.map((item) => (item.id === id ? { ...item, ...patch } : item)),
-      trucks: patch.status === "REJECTED" || patch.status === "COMPLETED"
-        ? session.trucks.map((truck) => (truck.id === booking.truckId ? { ...truck, status: "AVAILABLE" } : truck))
-        : session.trucks,
-    }, currentUser.id);
-    return null;
-  }, [currentUser, publishDemo]);
+  const depositFunds = useCallback<Store["depositFunds"]>(
+    async (amount, phoneNumber) => {
+      if (demoEnabled && demoSession.current && currentUser) {
+        const result = demoDeposit(demoSession.current, currentUser, amount);
+        if ("error" in result) return result.error;
+        publishDemo(result.session, currentUser.id);
+        return null;
+      }
+      try {
+        await api("/wallet/deposits", {
+          method: "POST",
+          body: JSON.stringify({ amountRwf: amount, phoneNumber }),
+        });
+        await refreshAfterMutation();
+        return null;
+      } catch (error) {
+        return errorMessage(error, "Could not deposit funds.");
+      }
+    },
+    [currentUser, publishDemo, refreshAfterMutation],
+  );
 
-  const addReview = useCallback<Store["addReview"]>(async (truckId, input) => {
-    if (demoEnabled && demoSession.current && currentUser) {
-      const result = demoAddReview(demoSession.current, currentUser, truckId, input);
-      if ("error" in result) return result.error;
-      publishDemo(result.session, currentUser.id);
-      return null;
-    }
-    try {
-      await api(`/trucks/${encodeURIComponent(truckId)}/reviews`, { method: "POST", body: JSON.stringify(input) });
-      await refreshAfterMutation();
-      return null;
-    } catch (error) {
-      return errorMessage(error, "Could not post your review.");
-    }
-  }, [currentUser, publishDemo, refreshAfterMutation]);
+  const withdrawFunds = useCallback<Store["withdrawFunds"]>(
+    async (input) => {
+      if (demoEnabled && demoSession.current && currentUser) {
+        const result = demoWithdraw(
+          demoSession.current,
+          currentUser,
+          input.amountRwf,
+        );
+        if ("error" in result) return result.error;
+        publishDemo(result.session, currentUser.id);
+        return null;
+      }
+      try {
+        await api("/wallet/withdrawals", {
+          method: "POST",
+          body: JSON.stringify(input),
+        });
+        await refreshAfterMutation();
+        return null;
+      } catch (error) {
+        return errorMessage(error, "Could not withdraw funds.");
+      }
+    },
+    [currentUser, publishDemo, refreshAfterMutation],
+  );
 
-  const requestRefund = useCallback<Store["requestRefund"]>(async (bookingId, input) => {
-    if (demoEnabled && demoSession.current && currentUser) {
-      const result = demoRequestRefund(demoSession.current, currentUser, bookingId, input);
-      if ("error" in result) return result.error;
-      publishDemo(result.session, currentUser.id);
-      return null;
-    }
-    try {
-      await api("/refunds", { method: "POST", body: JSON.stringify({ bookingId, ...input }) });
-      await refreshAfterMutation();
-      return null;
-    } catch (error) {
-      return errorMessage(error, "Could not send the refund request.");
-    }
-  }, [currentUser, publishDemo, refreshAfterMutation]);
+  const payBooking = useCallback<Store["payBooking"]>(
+    async (bookingId, checkout) => {
+      if (demoEnabled && demoSession.current && currentUser) {
+        const booking = demoSession.current.bookings.find((item) => item.id === bookingId);
+        const ownerId = booking
+          ? demoSession.current.trucks.find((item) => item.id === booking.truckId)?.ownerId
+          : undefined;
+        const result = demoPayBooking(
+          demoSession.current,
+          currentUser,
+          bookingId,
+          checkout,
+        );
+        if ("error" in result) return result.error;
+        if (ownerId) {
+          mockDb.update((data) => ({
+            ...data,
+            notifications: [{
+              id: `payment-${bookingId}-${ownerId}-${Date.now()}`,
+              userId: ownerId,
+              category: "PAYMENT",
+              title: "Importer paid for your booking",
+              body: `Payment for booking ${bookingId} is recorded and held until delivery is confirmed.`,
+              href: `/dashboard/owner/payments/${bookingId}`,
+              read: false,
+              createdAt: new Date().toISOString(),
+            }, ...data.notifications],
+          }));
+        }
+        publishDemo(result.session, currentUser.id);
+        return null;
+      }
+      try {
+        await api(`/wallet/bookings/${encodeURIComponent(bookingId)}/pay`, {
+          method: "POST",
+          body: checkout ? JSON.stringify(checkout) : undefined,
+        });
+        await refreshAfterMutation();
+        return null;
+      } catch (error) {
+        return errorMessage(error, "Could not pay for the booking.");
+      }
+    },
+    [currentUser, publishDemo, refreshAfterMutation],
+  );
 
-  const processRefund = useCallback<Store["processRefund"]>(async (refundId, decision, note) => {
-    if (demoEnabled && demoSession.current && currentUser) {
-      const result = demoProcessRefund(demoSession.current, refundId, decision, note);
-      if ("error" in result) return result.error;
-      publishDemo(result.session, currentUser.id);
+  const addBooking = useCallback<Store["addBooking"]>(
+    async (booking) => {
+      if (!(demoEnabled && demoSession.current && currentUser))
+        return "Creating bookings from quotations is only available in demonstration mode.";
+      const session = demoSession.current;
+      if (session.bookings.some((item) => item.id === booking.id))
+        return "That booking already exists.";
+      publishDemo(
+        {
+          ...session,
+          bookings: [booking, ...session.bookings],
+          trucks: session.trucks.map((truck) =>
+            truck.id === booking.truckId
+              ? { ...truck, status: "UNAVAILABLE" }
+              : truck,
+          ),
+        },
+        currentUser.id,
+      );
       return null;
-    }
-    try {
-      await api(`/refunds/${encodeURIComponent(refundId)}`, {
-        method: "PATCH",
-        body: JSON.stringify({ status: decision, ownerNote: note }),
-      });
-      await refreshAfterMutation();
-      return null;
-    } catch (error) {
-      return errorMessage(error, "Could not process the refund request.");
-    }
-  }, [currentUser, publishDemo, refreshAfterMutation]);
+    },
+    [currentUser, publishDemo],
+  );
 
-  const value = useMemo<Store>(() => ({
-    ready,
-    connectionError,
-    currentUser,
-    users,
-    bookings,
-    disputes,
-    refunds,
-    reviews,
-    trucks,
-    trucksLoading,
-    walletBalance,
-    transactions,
-    walletAccounts,
-    adminCommission,
-    login,
-    requestPasswordReset,
-    resetPassword,
-    register,
-    logout,
-    addUser,
-    updateProfile,
-    fetchTruck,
-    addTruck,
-    updateTruck,
-    deleteTruck,
-    setAvailability,
-    createBooking,
-    setBookingStatus,
-    reportProblem,
-    resolveDispute,
-    setUserActive,
-    deleteUser,
-    depositFunds,
-    withdrawFunds,
-    payBooking,
-    addBooking,
-    patchBooking,
-    addReview,
-    requestRefund,
-    processRefund,
-  }), [
-    ready, connectionError, currentUser, users, bookings, disputes, refunds, reviews, trucks,
-    trucksLoading, walletBalance, transactions, walletAccounts, adminCommission, login, requestPasswordReset,
-    resetPassword, register, logout, addUser, updateProfile, fetchTruck, addTruck,
-    updateTruck, deleteTruck, setAvailability, createBooking, setBookingStatus,
-    reportProblem, resolveDispute, setUserActive, deleteUser,
-    depositFunds, withdrawFunds, payBooking, addBooking, patchBooking, addReview, requestRefund, processRefund,
-  ]);
+  const patchBooking = useCallback<Store["patchBooking"]>(
+    async (id, patch) => {
+      if (!(demoEnabled && demoSession.current && currentUser))
+        return "Editing bookings this way is only available in demonstration mode.";
+      const session = demoSession.current;
+      const booking = session.bookings.find((item) => item.id === id);
+      if (!booking) return "Booking not found.";
+      publishDemo(
+        {
+          ...session,
+          bookings: session.bookings.map((item) =>
+            item.id === id ? { ...item, ...patch } : item,
+          ),
+          trucks:
+            patch.status === "REJECTED" || patch.status === "COMPLETED"
+              ? session.trucks.map((truck) =>
+                  truck.id === booking.truckId
+                    ? { ...truck, status: "AVAILABLE" }
+                    : truck,
+                )
+              : session.trucks,
+        },
+        currentUser.id,
+      );
+      return null;
+    },
+    [currentUser, publishDemo],
+  );
+
+  const addReview = useCallback<Store["addReview"]>(
+    async (truckId, input) => {
+      if (demoEnabled && demoSession.current && currentUser) {
+        const result = demoAddReview(
+          demoSession.current,
+          currentUser,
+          truckId,
+          input,
+        );
+        if ("error" in result) return result.error;
+        publishDemo(result.session, currentUser.id);
+        return null;
+      }
+      try {
+        await api(`/trucks/${encodeURIComponent(truckId)}/reviews`, {
+          method: "POST",
+          body: JSON.stringify(input),
+        });
+        await refreshAfterMutation();
+        return null;
+      } catch (error) {
+        return errorMessage(error, "Could not post your review.");
+      }
+    },
+    [currentUser, publishDemo, refreshAfterMutation],
+  );
+
+  const requestRefund = useCallback<Store["requestRefund"]>(
+    async (bookingId, input) => {
+      if (demoEnabled && demoSession.current && currentUser) {
+        const result = demoRequestRefund(
+          demoSession.current,
+          currentUser,
+          bookingId,
+          input,
+        );
+        if ("error" in result) return result.error;
+        publishDemo(result.session, currentUser.id);
+        return null;
+      }
+      try {
+        await api("/refunds", {
+          method: "POST",
+          body: JSON.stringify({ bookingId, ...input }),
+        });
+        await refreshAfterMutation();
+        return null;
+      } catch (error) {
+        return errorMessage(error, "Could not send the refund request.");
+      }
+    },
+    [currentUser, publishDemo, refreshAfterMutation],
+  );
+
+  const processRefund = useCallback<Store["processRefund"]>(
+    async (refundId, decision, note) => {
+      if (demoEnabled && demoSession.current && currentUser) {
+        const result = demoProcessRefund(
+          demoSession.current,
+          refundId,
+          decision,
+          note,
+        );
+        if ("error" in result) return result.error;
+        publishDemo(result.session, currentUser.id);
+        return null;
+      }
+      try {
+        await api(`/refunds/${encodeURIComponent(refundId)}`, {
+          method: "PATCH",
+          body: JSON.stringify({ status: decision, ownerNote: note }),
+        });
+        await refreshAfterMutation();
+        return null;
+      } catch (error) {
+        return errorMessage(error, "Could not process the refund request.");
+      }
+    },
+    [currentUser, publishDemo, refreshAfterMutation],
+  );
+
+  const value = useMemo<Store>(
+    () => ({
+      ready,
+      connectionError,
+      refreshMarketplace,
+      currentUser,
+      users,
+      bookings,
+      disputes,
+      refunds,
+      reviews,
+      trucks,
+      trucksLoading,
+      walletBalance,
+      transactions,
+      walletAccounts,
+      adminCommission,
+      login,
+      requestPasswordReset,
+      resetPassword,
+      register,
+      logout,
+      addUser,
+      updateProfile,
+      fetchTruck,
+      addTruck,
+      updateTruck,
+      deleteTruck,
+      setAvailability,
+      createBooking,
+      setBookingStatus,
+      reportProblem,
+      resolveDispute,
+      setUserActive,
+      deleteUser,
+      depositFunds,
+      withdrawFunds,
+      payBooking,
+      addBooking,
+      patchBooking,
+      addReview,
+      requestRefund,
+      processRefund,
+    }),
+    [
+      ready,
+      connectionError,
+      refreshMarketplace,
+      currentUser,
+      users,
+      bookings,
+      disputes,
+      refunds,
+      reviews,
+      trucks,
+      trucksLoading,
+      walletBalance,
+      transactions,
+      walletAccounts,
+      adminCommission,
+      login,
+      requestPasswordReset,
+      resetPassword,
+      register,
+      logout,
+      addUser,
+      updateProfile,
+      fetchTruck,
+      addTruck,
+      updateTruck,
+      deleteTruck,
+      setAvailability,
+      createBooking,
+      setBookingStatus,
+      reportProblem,
+      resolveDispute,
+      setUserActive,
+      deleteUser,
+      depositFunds,
+      withdrawFunds,
+      payBooking,
+      addBooking,
+      patchBooking,
+      addReview,
+      requestRefund,
+      processRefund,
+    ],
+  );
 
   return (
     <StoreContext.Provider value={value}>
       {connectionError ? (
-        <p role="alert" className="border-b border-bad/20 bg-bad-soft px-4 py-2 text-center text-sm text-bad">
+        <p
+          role="alert"
+          className="border-b border-bad/20 bg-bad-soft px-4 py-2 text-center text-sm text-bad"
+        >
           API connection: {connectionError}
         </p>
       ) : null}
