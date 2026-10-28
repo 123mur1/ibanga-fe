@@ -12,7 +12,7 @@ import { StatusBadge } from "@/components/common/status-badge";
 import { RefundBadge } from "@/components/status-badge";
 import { PageHeader, formatDate, formatDateTime } from "@/components/ui";
 import { useAdminAllowed } from "@/hooks/use-admin-allowed";
-import { canRequestRefund } from "@/lib/refunds";
+import { canRequestRefund, refundBlockedReason } from "@/lib/refunds";
 import { useIbanga } from "@/lib/store";
 import { formatRwf } from "@/lib/payments";
 import type { Role } from "@/lib/types";
@@ -143,7 +143,7 @@ export function PaymentDetail({
                   </div>
                 </section>
 
-                {role !== "ADMIN" && (refund || refundable) ? (
+                {role !== "ADMIN" && (refund || (role === "IMPORTER" && payment)) ? (
                   <section className="overflow-hidden rounded-2xl border border-line bg-card shadow-soft">
                     <div className="flex items-center justify-between gap-3 border-b border-line bg-background/60 px-5 py-4">
                       <h2 className="font-display text-lg text-navy">Refund</h2>
@@ -161,7 +161,11 @@ export function PaymentDetail({
                           </Link>
                         </>
                       ) : (
-                        <p className="text-sm text-muted">Something went wrong with this booking? Ask for your money back. An administrator reviews the case and decides.</p>
+                        <p className="text-sm text-muted">
+                          {refundable
+                            ? "Something went wrong with this booking? Ask for your money back. An administrator reviews the case and decides."
+                            : refundBlockedReason(booking, refunds)}
+                        </p>
                       )}
                       {refundable && !refund ? (
                         <Link

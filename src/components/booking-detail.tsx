@@ -13,7 +13,7 @@ import { TripActions } from "@/components/trip-actions";
 import { BookingBadge, DisputeBadge, PaymentBadge, TruckBadge } from "@/components/status-badge";
 import { Field, GhostButton, inputClass, Modal, PageHeader, PrimaryButton, formatDate, formatDateTime } from "@/components/ui";
 import { hasHeldPayment, SettlePaymentPanel } from "@/features/admin-cases/settle-payment";
-import { canRequestRefund } from "@/lib/refunds";
+import { canRequestRefund, refundBlockedReason } from "@/lib/refunds";
 import { useIbanga } from "@/lib/store";
 import { formatRwf, maskAccount, validatePaymentAccount } from "@/lib/payments";
 import type { Booking, BookingStatus, PaymentMethod, Review, Role } from "@/lib/types";
@@ -487,6 +487,7 @@ function ImporterActions({ booking }: { booking: Booking }) {
           <PrimaryButton type="button" disabled={busy} onClick={() => void run(() => setBookingStatus(booking.id, "COMPLETED"), "Receipt confirmed. Trip completed.")}>
             Confirm receipt
           </PrimaryButton>
+          <p className="text-xs text-muted">Confirming releases your payment to the truck owner. If something is wrong, report a problem or request a refund instead: a refund is no longer possible once the owner is paid.</p>
           {booking.status === "DELIVERED" ? (
             <div className="space-y-3 border-t border-line pt-4">
               <Field label="Or report a problem">
@@ -513,8 +514,9 @@ function ImporterActions({ booking }: { booking: Booking }) {
 
       {!canPay && !canConfirm ? <p className="text-sm text-muted">{subtitle}</p> : null}
 
-      {refundable || refundRequest ? (
+      {booking.payment || refundRequest ? (
         <div className="mt-4 rounded-xl border border-line bg-background/60 p-4">
+          <p className="mb-1 text-sm font-semibold text-navy">Refund</p>
           {refundRequest?.status === "REQUESTED" ? (
             <p className="text-sm text-navy">Your refund request for {formatRwf(refundRequest.amountRwf)} is waiting for an administrator. Your payment stays held until then.</p>
           ) : refundRequest?.status === "APPROVED" ? (
@@ -529,6 +531,8 @@ function ImporterActions({ booking }: { booking: Booking }) {
                 Request a refund
               </Link>
             </>
+          ) : refundRequest?.status !== "REQUESTED" ? (
+            <p className="text-sm text-muted">{refundBlockedReason(booking, refunds)}</p>
           ) : null}
         </div>
       ) : null}
