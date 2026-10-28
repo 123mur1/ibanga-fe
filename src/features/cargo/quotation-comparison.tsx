@@ -52,7 +52,8 @@ export function QuotationComparison({ request, quotations, onBooked }: { request
       <ul className="grid gap-4 xl:grid-cols-2">
         {sorted.map((quote) => {
           const truck = trucks.find((item) => item.id === quote.truckId);
-          const profile = ops.truckProfiles.find((item) => item.truckId === quote.truckId);
+          // Importers cannot see owners' documents, so this comes from the API's truck record.
+          const verification = truck?.verification ?? "NOT_SUBMITTED";
           const driver = ops.drivers.find((item) => item.id === quote.driverId);
           const expired = quote.status === "SUBMITTED" && new Date(quote.validUntil).getTime() < now;
           const open = quote.status === "SUBMITTED" && !expired;
@@ -77,7 +78,7 @@ export function QuotationComparison({ request, quotations, onBooked }: { request
               </div>
 
               <dl className="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
-                <Info label="Owner company" value={ownerName(quote)} extra={profile ? <StatusBadge family="verification" status={profile.verification} /> : undefined} />
+                <Info label="Owner company" value={ownerName(quote)} extra={<StatusBadge family="verification" status={verification} />} />
                 <Info label="Truck" value={truck ? `${truck.plateNumber} · ${truck.truckType}` : "—"} extra={truck ? <span className="text-xs text-muted">{truck.capacity} t capacity</span> : undefined} />
                 <Info label="Driver" value={driver ? driver.name : "Not named yet"} />
                 <Info label="Valid until" value={formatDateTime(quote.validUntil)} />
@@ -85,7 +86,7 @@ export function QuotationComparison({ request, quotations, onBooked }: { request
                 <Info label="Delivery" value={formatDate(quote.estimatedDeliveryDate)} />
               </dl>
               {quote.notes ? <p className="mt-3 rounded-lg bg-background/70 px-3 py-2 text-sm text-navy">“{quote.notes}”</p> : null}
-              {profile && profile.verification !== "APPROVED" ? <div className="mt-3"><Notice tone="warning" title="Truck not fully verified">Check the owner&apos;s documents before you accept.</Notice></div> : null}
+              {verification !== "APPROVED" ? <div className="mt-3"><Notice tone="warning" title="Truck not fully verified">Check the owner&apos;s documents before you accept.</Notice></div> : null}
 
               {open && canAccept ? (
                 <div className="mt-4 flex justify-end">

@@ -11,17 +11,36 @@ import { TripActions } from "@/components/trip-actions";
 import { WorkspaceLoading } from "@/components/loading";
 import { BookingBadge } from "@/components/status-badge";
 import { PageHeader, StatCard, formatDate } from "@/components/ui";
+import { env } from "@/config/env";
+import { api } from "@/lib/api";
 import { useIbanga } from "@/lib/store";
 import { positionAt } from "@/lib/geo";
 import type { Booking, CargoPing, TripNotice } from "@/lib/types";
 
-function buildTrail(booking: Booking): { pings: CargoPing[]; notices: TripNotice[] } {
-  const { totalKm } = positionAt(booking.pickupLocation, booking.destination, 0);
-  const progress = booking.status === "DELIVERED" ? 1 : booking.status === "IN_PROGRESS" ? 0.62 : 0.15;
-  const coveredKm = Math.max(2, Math.round(totalKm * progress));
+type ApiLocation = { latitude: number; longitude: number; accuracy: number | null; updatedAt: string };
+type GpsFix = { lat: number; lng: number; updatedAt: string };
+
+/** A GPS fix older than this is treated as stale and the estimate is shown instead. */
+const GPS_MAX_AGE_MS = 30 * 60 * 1000;
+
+/**
+ * Share of the trip covered, estimated from the schedule until GPS data is reliable: the trip is
+ * assumed to run evenly from pickup to expected delivery.
+ */
+function estimatedProgress(booking: Booking, now: number): number {
+  if (booking.status === "DELIVERED" || booking.status === "COMPLETED") return 1;
+  if (booking.status !== "IN_PROGRESS") return 0;
+  const start = new Date(booking.pickupDate).getTime();
+  const end = new Date(booking.expectedDeliveryDate).getTime();
+  if (!(end > start)) return 0.5;
+  return Math.min(0.95, Math.max(0.05, (now - start) / (end - start)));
+}
+
+function buildTrail(booking: Booking, totalKm: number, progress: number): { pings: CargoPing[]; notices: TripNotice[] } {
+  const coveredKm = Math.max(progress > 0 ? 2 : 0, Math.round(totalKm * progress));
   const steps = Math.min(12, Math.max(2, Math.round(coveredKm / Math.max(2, totalKm / 10)) + 1));
-  const start = new Date(booking.createdAt).getTime();
-  const pings: CargoPing[] = Array.from({ length: steps }, (_, index) => {
+  const start = new Date(booking.pickupDate).getTime();
+  const pings: CargoPing[] = coveredKm === 0 ? [] : Array.from({ length: steps }, (_, index) => {
     const km = Math.round((coveredKm * index) / (steps - 1));
     const point = positionAt(booking.pickupLocation, booking.destination, km);
     const last = index === steps - 1;
@@ -31,7 +50,7 @@ function buildTrail(booking: Booking): { pings: CargoPing[]; notices: TripNotice
       kmFromStart: km,
       lat: point.lat,
       lng: point.lng,
-      label: km === 0 ? booking.pickupLocation : last ? "Current position" : `${km} km from ${booking.pickupLocation}`,
+      label: km === 0 ? booking.pickupLocation : last ? "Estimated current position" : `About ${km} km from ${booking.pickupLocation}`,
       recordedAt: new Date(start + index * 75 * 60 * 1000).toISOString(),
       kind: km === 0 ? "DEPARTURE" : last && booking.status === "DELIVERED" ? "DELIVERY" : "CHECKPOINT",
     };
@@ -62,23 +81,45 @@ export default function TrackingDetailPage() {
     ),
   );
 
-  const [extraKm, setExtraKm] = useState(0);
   const moving = booking?.status === "IN_PROGRESS";
+  const [now, setNow] = useState(() => Date.now());
+  const [routeKm, setRouteKm] = useState<number | null>(null);
+  const [gps, setGps] = useState<GpsFix | null>(null);
 
-  // Simulated live movement: the truck keeps advancing while the trip is in progress.
+  // The schedule-based estimate moves with the clock; once a minute is plenty.
   useEffect(() => {
     if (!moving) return;
-    const timer = window.setInterval(() => setExtraKm((value) => value + 1), 2500);
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
     return () => window.clearInterval(timer);
   }, [moving]);
 
+  // Use the GPS position the truck owner shares, when there is a recent one.
+  useEffect(() => {
+    if (!moving || !allowed || env.dataSource !== "api") return;
+    let active = true;
+    const load = () =>
+      api<ApiLocation | null>(`/bookings/${encodeURIComponent(id)}/location`)
+        .then((location) => {
+          if (!active) return;
+          const fresh = location && Date.now() - new Date(location.updatedAt).getTime() < GPS_MAX_AGE_MS;
+          setGps(fresh ? { lat: location.latitude, lng: location.longitude, updatedAt: location.updatedAt } : null);
+        })
+        .catch(() => undefined);
+    void load();
+    const timer = window.setInterval(() => void load(), 30_000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [id, moving, allowed]);
+
   if (!currentUser) return <WorkspaceLoading />;
 
-  const trail = booking ? buildTrail(booking) : null;
-  const route = booking ? positionAt(booking.pickupLocation, booking.destination, 0) : null;
-  const recordedKm = trail?.pings.at(-1)?.kmFromStart ?? 0;
-  const covered = route ? Math.min(Math.max(route.totalKm - 1, recordedKm), recordedKm + extraKm) : recordedKm;
-  const progress = route && route.totalKm ? Math.round((covered / route.totalKm) * 100) : 0;
+  const totalKm = booking ? (routeKm ?? positionAt(booking.pickupLocation, booking.destination, 0).totalKm) : 0;
+  const fraction = booking ? estimatedProgress(booking, now) : 0;
+  const trail = booking ? buildTrail(booking, totalKm, fraction) : null;
+  const covered = Math.round(totalKm * fraction);
+  const progress = Math.round(fraction * 100);
 
   return (
     <RequireAuth>
@@ -108,16 +149,16 @@ export default function TrackingDetailPage() {
             />
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <StatCard label="Progress" value={`${progress}%`} hint="Of planned route" />
-              <StatCard label="Distance covered" value={`${covered} km`} hint={`of ${route?.totalKm ?? 0} km`} />
-              <StatCard label="Remaining" value={`${Math.max(0, (route?.totalKm ?? 0) - covered)} km`} hint="To destination" />
+              <StatCard label="Progress" value={`${progress}%`} hint="Estimated from the schedule" />
+              <StatCard label="Distance covered" value={`${covered} km`} hint={`of about ${totalKm} km by road`} />
+              <StatCard label="Remaining" value={`${Math.max(0, totalKm - covered)} km`} hint="To destination" />
               <StatCard label="Payment" value={booking.payment?.status.replaceAll("_", " ") ?? "Not paid"} hint={booking.agreedPrice || "No price set"} />
             </div>
 
             {(currentUser.role === "TRUCK_OWNER" && truck?.ownerId === currentUser.id) || currentUser.role === "ADMIN" ? (
               <TripActions booking={booking} />
             ) : null}
-            <LiveTrack booking={booking} pings={trail.pings} notices={trail.notices} coveredKm={covered} />
+            <LiveTrack booking={booking} pings={trail.pings} notices={trail.notices} coveredKm={covered} totalKm={totalKm} position={gps} onRouteKm={setRouteKm} />
             <PaymentReceipt booking={booking} plate={truck?.plateNumber} />
           </div>
         )}

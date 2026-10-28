@@ -14,7 +14,7 @@ import { BookingBadge, DisputeBadge, PaymentBadge, TruckBadge } from "@/componen
 import { Field, GhostButton, inputClass, Modal, PageHeader, PrimaryButton, formatDate, formatDateTime } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
 import { formatRwf, maskAccount, validatePaymentAccount } from "@/lib/payments";
-import type { Booking, BookingStatus, PaymentMethod, Role } from "@/lib/types";
+import type { Booking, BookingStatus, PaymentMethod, Review, Role } from "@/lib/types";
 
 const statuses: BookingStatus[] = ["PENDING", "ACCEPTED", "IN_PROGRESS", "DELIVERED", "COMPLETED", "DISPUTED", "REJECTED"];
 
@@ -368,7 +368,7 @@ function OwnerActions({ booking }: { booking: Booking }) {
 }
 
 function ImporterActions({ booking }: { booking: Booking }) {
-  const { setBookingStatus, reportProblem, payBooking, currentUser } = useIbanga();
+  const { setBookingStatus, reportProblem, payBooking, currentUser, reviews } = useIbanga();
   const toast = useToast();
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -498,6 +498,10 @@ function ImporterActions({ booking }: { booking: Booking }) {
       ) : null}
 
       {!canPay && !canConfirm ? <p className="text-sm text-muted">{subtitle}</p> : null}
+
+      {booking.status === "DELIVERED" || booking.status === "COMPLETED" ? (
+        <RateTruckPrompt truckId={booking.truckId} review={reviews.find((item) => item.truckId === booking.truckId && item.authorId === currentUser?.id)} />
+      ) : null}
     </CardShell>
   );
 }
@@ -542,5 +546,27 @@ function TimelineItem({ tone, title, detail }: { tone: string; title: string; de
         <p className="text-sm text-muted">{detail}</p>
       </div>
     </li>
+  );
+}
+
+/** After delivery: invites the importer to rate the truck, or shows the rating they gave. */
+function RateTruckPrompt({ truckId, review }: { truckId: string; review?: Review }) {
+  return (
+    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+      {review ? (
+        <p className="text-sm text-navy">
+          You rated this truck <span className="font-semibold text-amber-600">{"★".repeat(review.rating)}</span>
+          <span className="text-line">{"★".repeat(5 - review.rating)}</span>. Thank you for your review.
+        </p>
+      ) : (
+        <>
+          <p className="font-semibold text-navy">How did this truck do?</p>
+          <p className="mt-1 text-sm text-muted">Your rating and review help other importers choose a reliable truck.</p>
+          <Link href={`/trucks/${truckId}#reviews`} className="mt-3 inline-flex rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark">
+            Rate this truck
+          </Link>
+        </>
+      )}
+    </div>
   );
 }

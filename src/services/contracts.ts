@@ -308,6 +308,8 @@ export type DocumentInput = {
 export interface DocumentService {
   /** GET /documents */
   list(actor: Actor, query?: ListQuery): Promise<Paged<OpsDocument>>;
+  /** GET /documents/:id. Lists leave file contents out; this returns the file URL to open. */
+  getFile(actor: Actor, id: Id): Promise<string>;
   /** POST /documents */
   upload(actor: Actor, input: DocumentInput): Promise<OpsDocument>;
   /** POST /documents/:id/resubmit (new version after rejection or expiry) */

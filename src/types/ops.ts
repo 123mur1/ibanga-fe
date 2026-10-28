@@ -40,8 +40,12 @@ export type OpsDocument = {
   ownerId: Id;
   title: string;
   fileName: string;
-  /** Data URL or sample path. A real backend would return a signed file URL. */
+  /**
+   * Data URL or sample path. A real backend would return a signed file URL. Empty in API lists,
+   * where `hasFile` says a file exists and `loadDocumentFile` fetches it on demand.
+   */
   fileUrl: string;
+  hasFile?: boolean;
   mimeType: string;
   issueDate?: string;
   expiryDate?: string;
@@ -155,6 +159,8 @@ export type TruckOpsStatus = "AVAILABLE" | "RESERVED" | "IN_TRANSIT" | "MAINTENA
 
 /** Operational detail for a marketplace truck (`@/lib/types` Truck), keyed by the same ID. */
 export type TruckProfile = {
+  /** Record id. Without it a new profile is never saved to the API. */
+  id?: Id;
   truckId: Id;
   opsStatus: TruckOpsStatus;
   lengthM: number;

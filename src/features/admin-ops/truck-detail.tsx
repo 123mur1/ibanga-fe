@@ -6,7 +6,7 @@ import { controlClass, FormField } from "@/components/common/form-fields";
 import { DetailList, Section } from "@/components/common/layout-blocks";
 import { Notice } from "@/components/common/notices";
 import { StatusBadge } from "@/components/common/status-badge";
-import { truckEligibility } from "@/config/business-rules";
+import { effectiveDocumentStatus, truckEligibility, truckVerification } from "@/config/business-rules";
 import { STATUS_DEFS } from "@/config/status";
 import { TruckBadge, BookingBadge } from "@/components/status-badge";
 import { EmptyState } from "@/components/ui";
@@ -19,6 +19,7 @@ import { useIbanga } from "@/lib/store";
 import { ACTIVE_BOOKING_STATUSES } from "@/lib/types";
 import { services } from "@/services";
 import type { TruckOpsStatus } from "@/types/ops";
+import { TRUCK_DOCUMENT_TYPES } from "@/features/owner-fleet/schemas";
 import { DocumentList } from "./document-list";
 import { EligibilityNotice } from "./eligibility-card";
 import { TextLink } from "./use-admin";
@@ -37,7 +38,10 @@ export function AdminTruckDetail({ id }: { id: string }) {
     return <div className="mt-6"><EmptyState title="Truck not found" text="This truck does not exist or was removed." /></div>;
   }
   const profile = ops.truckProfiles.find((item) => item.truckId === truck.id);
-  const documents = ops.documents.filter((doc) => doc.subjectKind === "TRUCK" && doc.subjectId === truck.id);
+  const documents = ops.documents
+    .filter((doc) => doc.subjectKind === "TRUCK" && doc.subjectId === truck.id)
+    .sort((a, b) => Number(b.status === "PENDING") - Number(a.status === "PENDING") || b.submittedAt.localeCompare(a.submittedAt));
+  const pendingCount = documents.filter((doc) => doc.status === "PENDING").length;
   const eligibility = truckEligibility(profile, ops.documents);
   const owner = users.find((item) => item.id === truck.ownerId);
   const truckBookings = bookings.filter((item) => item.truckId === truck.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -59,6 +63,26 @@ export function AdminTruckDetail({ id }: { id: string }) {
     <div className="mt-6 space-y-5">
       <EligibilityNotice subject={truck.plateNumber} result={eligibility} />
 
+      <Section
+        title="Documents submitted by the owner"
+        description={pendingCount ? `${pendingCount} document${pendingCount === 1 ? "" : "s"} waiting for your review.` : "Vehicle registration, inspection and insurance are required to take work."}
+        actions={<StatusBadge family="verification" status={truckVerification(truck.id, ops.documents)} />}
+      >
+        <ul className="mb-4 grid gap-2 sm:grid-cols-3">
+          {TRUCK_DOCUMENT_TYPES.map(({ value, label }) => {
+            const doc = documents.find((item) => item.type === value);
+            return (
+              <li key={value} className="flex items-center justify-between gap-2 rounded-lg border border-line px-3 py-2 text-sm">
+                <span className="font-semibold text-navy">{label}</span>
+                <StatusBadge family="verification" status={doc ? effectiveDocumentStatus(doc) : "NOT_SUBMITTED"} />
+              </li>
+            );
+          })}
+        </ul>
+        <DocumentList documents={documents} reviewable />
+        <div className="mt-4"><TextLink href="/dashboard/admin/verifications">Open verification requests</TextLink></div>
+      </Section>
+
       <Section title="Marketplace listing" actions={<TruckBadge status={truck.status} />}>
         <DetailList
           items={[
@@ -79,7 +103,7 @@ export function AdminTruckDetail({ id }: { id: string }) {
           <DetailList
             columns={3}
             items={[
-              { label: "Verification", value: <StatusBadge family="verification" status={profile.verification} /> },
+              { label: "Verification", value: <StatusBadge family="verification" status={truckVerification(truck.id, ops.documents)} /> },
               { label: "Dimensions", value: `${profile.lengthM} x ${profile.widthM} x ${profile.heightM} m (${profile.volumeM3} m³)` },
               { label: "Suitable for", value: profile.suitability.length ? profile.suitability.map(titleCase).join(", ") : "—" },
               { label: "Trips completed", value: profile.tripsCompleted },
@@ -90,11 +114,6 @@ export function AdminTruckDetail({ id }: { id: string }) {
         ) : (
           <p className="text-sm text-muted">No operations profile exists for this truck yet.</p>
         )}
-      </Section>
-
-      <Section title="Documents" description="Vehicle registration, inspection and insurance are required to take work.">
-        <DocumentList documents={documents} />
-        <div className="mt-4"><TextLink href="/dashboard/admin/verifications">Open verification requests</TextLink></div>
       </Section>
 
       <Section title="Bookings on this truck" description={`${truckBookings.length} on record`}>

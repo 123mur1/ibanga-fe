@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { env } from "@/config/env";
 import { useIbanga } from "@/lib/store";
 import { services } from "@/services";
 import { setDirectory } from "@/services/mock/directory";
@@ -16,13 +17,21 @@ import { setDirectory } from "@/services/mock/directory";
  * effect, and effects run after every render has finished, so the data is always ready by then.
  */
 export function OpsBridge() {
-  const { users, trucks, bookings } = useIbanga();
+  const { currentUser, users, trucks, bookings } = useIbanga();
   setDirectory({ users, trucks, bookings });
 
   useEffect(() => {
     if (!bookings.length) return;
-    void services.shipments.syncFromBookings(bookings);
-  }, [bookings, trucks]);
+    if (
+      env.dataSource === "api" &&
+      currentUser?.role !== "TRUCK_OWNER"
+    ) {
+      return;
+    }
+    void services.shipments.syncFromBookings(bookings).catch((error: unknown) => {
+      console.error("Could not sync shipments.", error);
+    });
+  }, [bookings, currentUser, trucks]);
 
   return null;
 }

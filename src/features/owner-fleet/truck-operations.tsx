@@ -8,7 +8,7 @@ import { DetailList, Section } from "@/components/common/layout-blocks";
 import { Notice } from "@/components/common/notices";
 import { StatusBadge } from "@/components/common/status-badge";
 import { PrimaryButton } from "@/components/ui";
-import { truckEligibility } from "@/config/business-rules";
+import { truckEligibility, truckVerification } from "@/config/business-rules";
 import { statusOf } from "@/config/status";
 import { useAction } from "@/hooks/use-action";
 import { useActor } from "@/hooks/use-actor";
@@ -39,15 +39,17 @@ export function TruckOperations({ truck }: { truck: Truck }) {
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="font-display text-xl text-navy">Operations</h2>
         {profile ? <StatusBadge family="truckOps" status={profile.opsStatus} /> : null}
-        {profile ? <StatusBadge family="verification" status={profile.verification} /> : null}
+        <StatusBadge family="verification" status={truckVerification(truck.id, ops.documents)} />
       </div>
       <EligibilityPanel result={eligibility} subject="truck" />
+      <div id="truck-documents" className="scroll-mt-24">
+        <TruckDocuments truckId={truck.id} plateNumber={truck.plateNumber} />
+      </div>
       <div className="grid gap-5 xl:grid-cols-2">
         <StatusControl truck={truck} profile={profile} activeCount={active.length} />
         <Performance profile={profile} />
       </div>
       <ProfileForm key={profile ? `${profile.truckId}-${profile.lengthM}-${profile.widthM}-${profile.heightM}-${profile.volumeM3}-${profile.suitability.join()}` : truck.id} truck={truck} profile={profile} />
-      <TruckDocuments truckId={truck.id} plateNumber={truck.plateNumber} />
       <Section title="Assignments and bookings" description="Active work and drivers assigned to this truck.">
         {active.length === 0 && assignments.length === 0 ? (
           <p className="text-sm text-muted">Nothing is scheduled on this truck.</p>

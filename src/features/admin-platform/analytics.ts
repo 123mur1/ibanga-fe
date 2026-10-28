@@ -3,7 +3,7 @@
  * operations dataset; nothing here reads a service, so the same functions can run on API results.
  * All figures are derived from demonstration data.
  */
-import { effectiveDocumentStatus, expiryState } from "@/config/business-rules";
+import { effectiveDocumentStatus, expiryState, truckVerification } from "@/config/business-rules";
 import type { Booking, RefundRequest, Truck, User } from "@/lib/types";
 import type { OpsData, ShipmentStatus } from "@/types/ops";
 
@@ -84,7 +84,7 @@ export function computeKpis(input: AnalyticsInput, filters: AnalyticsFilters): K
     pendingVerifications: ops.verificationRequests.filter((item) => item.status === "PENDING").length,
     activeTrucks: trucks.filter((truck) => {
       const profile = ops.truckProfiles.find((item) => item.truckId === truck.id);
-      return profile?.verification === "APPROVED" && profile.opsStatus !== "INACTIVE" && profile.opsStatus !== "MAINTENANCE";
+      return truckVerification(truck.id, ops.documents, now) === "APPROVED" && profile?.opsStatus !== "INACTIVE" && profile?.opsStatus !== "MAINTENANCE";
     }).length,
     activeShipments: data.shipments.filter((item) => IN_PROGRESS.includes(item.status)).length,
     completedShipments: data.shipments.filter((item) => FINISHED.includes(item.status)).length,

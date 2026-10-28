@@ -47,3 +47,55 @@ export function positionAt(from: string, to: string, km: number) {
     travelled,
   };
 }
+
+const GEOCODE_CACHE_KEY = "ibanga-geocode-v1";
+const pendingLookups = new Map<string, Promise<[number, number] | null>>();
+
+function readGeocodeCache(): Record<string, [number, number]> {
+  try {
+    return JSON.parse(window.localStorage.getItem(GEOCODE_CACHE_KEY) ?? "{}") as Record<string, [number, number]>;
+  } catch {
+    return {};
+  }
+}
+
+function writeGeocodeCache(key: string, point: [number, number]) {
+  try {
+    window.localStorage.setItem(GEOCODE_CACHE_KEY, JSON.stringify({ ...readGeocodeCache(), [key]: point }));
+  } catch {
+    /* storage full or blocked: the lookup simply repeats next time */
+  }
+}
+
+/** Whether `locate` knows the place, as opposed to inventing a stand-in point for it. */
+export function isKnownPlace(name: string): boolean {
+  const key = name.toLowerCase();
+  return Object.keys(PLACES).some((place) => key.includes(place));
+}
+
+/**
+ * Real coordinates for a place name, looked up on OpenStreetMap (Nominatim) within East Africa
+ * and cached in the browser. Falls back to `locate` when the lookup fails or finds nothing.
+ */
+export async function geocode(name: string): Promise<[number, number]> {
+  const key = name.trim().toLowerCase();
+  if (!key || isKnownPlace(key) || typeof window === "undefined") return locate(name);
+  const cached = readGeocodeCache()[key];
+  if (cached) return cached;
+  let lookup = pendingLookups.get(key);
+  if (!lookup) {
+    const query = new URLSearchParams({ q: name, format: "json", limit: "1", countrycodes: "rw,ug,ke,tz,bi,cd,ss" });
+    lookup = fetch(`https://nominatim.openstreetmap.org/search?${query.toString()}`, { headers: { Accept: "application/json" } })
+      .then((response) => (response.ok ? (response.json() as Promise<{ lat: string; lon: string }[]>) : []))
+      .then((results) => {
+        const first = results[0];
+        if (!first) return null;
+        const point: [number, number] = [Number(first.lat), Number(first.lon)];
+        writeGeocodeCache(key, point);
+        return point;
+      })
+      .catch(() => null);
+    pendingLookups.set(key, lookup);
+  }
+  return (await lookup) ?? locate(name);
+}

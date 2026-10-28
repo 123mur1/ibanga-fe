@@ -47,7 +47,11 @@ export type Truck = {
   preferredRoute: string;
   description: string;
   status: TruckStatus;
+  /** In lists only the cover photo is included; `photoCount` is the full gallery size. */
   photos: string[];
+  photoCount?: number;
+  /** Whether an administrator has approved the truck's documents. */
+  verification?: "NOT_SUBMITTED" | "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED";
   owner?: TruckOwnerContact;
 };
 

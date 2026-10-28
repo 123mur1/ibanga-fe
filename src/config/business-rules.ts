@@ -181,6 +181,28 @@ export function effectiveDocumentStatus(doc: OpsDocument, now: Date = new Date()
   return doc.status;
 }
 
+/** Documents a truck needs approved before it counts as verified. */
+export const REQUIRED_TRUCK_DOCUMENTS = ["VEHICLE_REGISTRATION", "VEHICLE_INSPECTION", "INSURANCE_POLICY"] as const;
+
+/**
+ * A truck's verification, worked out from its documents every time so it always matches what the
+ * administrator decided: verified once all required documents are approved and in date. The API
+ * applies the same rule (backend `truck-verification.ts`) for the marketplace badge.
+ */
+export function truckVerification(truckId: string, documents: OpsDocument[], now: Date = new Date()): VerificationStatus {
+  const statuses = REQUIRED_TRUCK_DOCUMENTS.map((type): VerificationStatus => {
+    const latest = documents
+      .filter((doc) => doc.subjectKind === "TRUCK" && doc.subjectId === truckId && doc.type === type)
+      .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))[0];
+    return latest ? effectiveDocumentStatus(latest, now) : "NOT_SUBMITTED";
+  });
+  if (statuses.includes("EXPIRED")) return "EXPIRED";
+  if (statuses.includes("REJECTED")) return "REJECTED";
+  if (statuses.every((status) => status === "APPROVED")) return "APPROVED";
+  if (statuses.includes("PENDING")) return "PENDING";
+  return "NOT_SUBMITTED";
+}
+
 export type Eligibility = { eligible: boolean; reasons: string[] };
 
 /** Whether a truck may take new work. The backend must enforce this restriction for real. */
@@ -191,7 +213,7 @@ export function truckEligibility(
 ): Eligibility {
   const reasons: string[] = [];
   if (!profile) return { eligible: false, reasons: ["Truck profile is incomplete."] };
-  if (profile.verification !== "APPROVED") reasons.push("The truck is not verified.");
+  if (truckVerification(profile.truckId, documents, now) !== "APPROVED") reasons.push("The truck is not verified.");
   if (profile.opsStatus === "MAINTENANCE" || profile.opsStatus === "INACTIVE") reasons.push("The truck is not in service.");
   const required = ["VEHICLE_REGISTRATION", "VEHICLE_INSPECTION", "INSURANCE_POLICY"] as const;
   for (const type of required) {

@@ -31,6 +31,10 @@ export type OperationsDomain =
 
 type RecordData = Record<string, unknown> & { id: string };
 type ApiActor = Actor & { adminUserIds?: string[] };
+type SnapshotActor = Actor & {
+  /** May still be loading; the snapshot requests start without waiting for it. */
+  adminUserIds?: string[] | Promise<string[]>;
+};
 type ApiPage<T> = Paged<T>;
 
 const ADMIN_ONLY_DOMAINS: readonly OperationsDomain[] = [
@@ -88,6 +92,12 @@ export async function getOperationsRecord<T extends RecordData>(
   return call<T>(`/operations/${domain}/${encodeURIComponent(id)}`);
 }
 
+/** The stored file of one document; list responses leave it out to stay small. */
+export async function getDocumentFile(id: string): Promise<string> {
+  const record = await getOperationsRecord<RecordData>("documents", id);
+  return typeof record.fileUrl === "string" ? record.fileUrl : "";
+}
+
 export async function createOperationsRecord<T extends RecordData>(
   domain: OperationsDomain,
   data: T,
@@ -118,6 +128,16 @@ export async function removeOperationsRecord(
   await call(`/operations/${domain}/${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
+}
+
+/** Every readable record of the given domains (all of them when omitted), in one request. */
+function loadSnapshot(
+  domains?: readonly OperationsDomain[],
+): Promise<Partial<Record<OperationsDomain, RecordData[]>>> {
+  const query = domains?.length
+    ? `?domains=${encodeURIComponent(domains.join(","))}`
+    : "";
+  return call(`/operations/snapshot${query}`);
 }
 
 const DATASET_DOMAINS = [
@@ -179,7 +199,7 @@ function defaultSettings(): OpsData["settings"] {
   };
 }
 
-export async function loadOperationsSnapshot(actor: ApiActor): Promise<OpsData> {
+export async function loadOperationsSnapshot(actor: SnapshotActor): Promise<OpsData> {
   const data: OpsData = {
     cargoRequests: [],
     quotations: [],
@@ -210,36 +230,32 @@ export async function loadOperationsSnapshot(actor: ApiActor): Promise<OpsData> 
       actor.role === "ADMIN" ||
       !ADMIN_ONLY_DOMAINS.includes(domain),
   );
-  const pages = await Promise.all(
-    readableDomains.map(([, domain]) => listOperationsRecords(domain)),
-  );
+  // One request for every domain; the API reads them with a couple of queries.
+  const snapshot = await loadSnapshot();
+  const records = (domain: OperationsDomain) => snapshot[domain] ?? [];
 
-  readableDomains.forEach(([key], index) => {
-    const records = pages[index].items;
-    Object.assign(data, { [key]: records });
+  readableDomains.forEach(([key, domain]) => {
+    Object.assign(data, { [key]: records(domain) });
   });
 
-  const preferencePage = await listOperationsRecords<RecordData>(
-    "notification-preferences",
-  );
   data.notificationPrefs = Object.fromEntries(
-    preferencePage.items.map((record) => [
+    records("notification-preferences").map((record) => [
       record.userId ?? record.id,
       record.preferences ?? {},
     ]),
   ) as OpsData["notificationPrefs"];
 
   if (actor.role === "ADMIN") {
-    const settingsPage = await listOperationsRecords<RecordData>("settings");
-    const settings = settingsPage.items[0];
+    const settings = records("settings")[0];
     hasStoredSettings = Boolean(settings);
     if (settings) {
       const { id: _id, ...values } = settings;
       data.settings = values as OpsData["settings"];
     }
+    const adminUserIds = (await actor.adminUserIds) ?? [actor.id];
     data.adminProfiles = [
       ...data.adminProfiles,
-      ...(actor.adminUserIds ?? [actor.id])
+      ...adminUserIds
         .filter(
           (userId) =>
             !data.adminProfiles.some((profile) => profile.userId === userId),
@@ -366,29 +382,23 @@ export async function refreshOperationsDomains(
   const dataDomains = uniqueDomains.filter(
     (domain) => DATASET_KEYS[domain] !== undefined,
   );
-  const pages = await Promise.all(
-    dataDomains.map((domain) => listOperationsRecords(domain)),
-  );
+  const snapshot = await loadSnapshot(uniqueDomains);
   const changes: Partial<OpsData> = {};
-  dataDomains.forEach((domain, index) => {
+  dataDomains.forEach((domain) => {
     const key = DATASET_KEYS[domain];
-    if (key) Object.assign(changes, { [key]: pages[index].items });
+    if (key) Object.assign(changes, { [key]: snapshot[domain] ?? [] });
   });
 
   if (uniqueDomains.includes("notification-preferences")) {
-    const page = await listOperationsRecords<RecordData>(
-      "notification-preferences",
-    );
     changes.notificationPrefs = Object.fromEntries(
-      page.items.map((record) => [
+      (snapshot["notification-preferences"] ?? []).map((record) => [
         record.userId ?? record.id,
         record.preferences ?? {},
       ]),
     ) as OpsData["notificationPrefs"];
   }
   if (uniqueDomains.includes("settings")) {
-    const page = await listOperationsRecords<RecordData>("settings");
-    const settings = page.items[0];
+    const settings = snapshot.settings?.[0];
     hasStoredSettings = Boolean(settings);
     if (settings) {
       const { id: _id, ...values } = settings;

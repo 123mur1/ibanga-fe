@@ -46,10 +46,20 @@ export function clearAuthToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+function apiBaseUrl() {
+  return (process.env.NEXT_PUBLIC_API_URL?.trim() || DEFAULT_API_URL).replace(
+    /\/+$/,
+    "",
+  );
+}
+
+/** Absolute URL for an API path such as a truck photo (`/trucks/:id/photos/0`). */
+export function apiUrl(path: string) {
+  return `${apiBaseUrl()}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const baseUrl = (
-    process.env.NEXT_PUBLIC_API_URL?.trim() || DEFAULT_API_URL
-  ).replace(/\/+$/, "");
+  const baseUrl = apiBaseUrl();
 
   const headers = new Headers(init.headers);
   if (init.body !== undefined && !headers.has("Content-Type")) {

@@ -12,6 +12,7 @@ import type {
 } from "../contracts";
 import type { Actor } from "../types";
 import { findTruck, findUser } from "./directory";
+import { emptyTruckProfile } from "./truck-profile";
 import {
   audit,
   commit,
@@ -480,19 +481,7 @@ export const truckOpsService: TruckOpsService = {
     const existing = db().truckProfiles.find(
       (profile) => profile.truckId === truckId,
     );
-    const base: TruckProfile = existing ?? {
-      truckId,
-      opsStatus: truck.status === "AVAILABLE" ? "AVAILABLE" : "RESERVED",
-      lengthM: 0,
-      widthM: 0,
-      heightM: 0,
-      volumeM3: 0,
-      suitability: [],
-      verification: "NOT_SUBMITTED",
-      tripsCompleted: 0,
-      onTimeRate: 0,
-      utilizationPct: 0,
-    };
+    const base: TruckProfile = existing ?? emptyTruckProfile(truckId, truck.status);
     const next = { ...base, ...patch, truckId };
     commit(
       (current) => ({

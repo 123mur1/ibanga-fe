@@ -5,8 +5,12 @@ import { mockDb } from "../mock-db";
 import { ServiceError, type Actor, type ListQuery, type Paged } from "../types";
 import { recomputeSettlements } from "./sync";
 
-/** Simulated network latency so loading states are visible. */
+/**
+ * Simulated network latency so loading states are visible in demonstration mode. With the API
+ * the real request already takes time, so adding more would only slow every screen down.
+ */
 export function delay(ms: number = env.mockLatencyMs): Promise<void> {
+  if (env.dataSource === "api") return Promise.resolve();
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 

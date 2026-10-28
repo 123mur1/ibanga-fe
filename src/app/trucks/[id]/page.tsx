@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { PublicNavbar } from "@/components/public-navbar";
-import { TruckBadge } from "@/components/status-badge";
+import { TruckBadge, TruckVerifiedBadge } from "@/components/status-badge";
 import { Avatar, TruckGallery } from "@/components/photos";
 import { inputClass, PrimaryButton, formatDate } from "@/components/ui";
 import { withNext } from "@/lib/redirect";
@@ -38,7 +38,7 @@ const iconProps = { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", 
 function TruckDetailsContent() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { currentUser, fetchTruck, reviews, addReview, ready } = useIbanga();
+  const { currentUser, fetchTruck, reviews, addReview, ready, bookings } = useIbanga();
   const [truck, setTruck] = useState<Truck | null>(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState("1");
@@ -93,6 +93,11 @@ function TruckDetailsContent() {
     ? truckReviews.reduce((sum, review) => sum + review.rating, 0) / truckReviews.length
     : 0;
   const alreadyReviewed = Boolean(currentUser && truckReviews.some((review) => review.authorId === currentUser.id));
+  // Reviews come from importers this truck has delivered for; the API enforces the same rule.
+  const hasShipped = Boolean(
+    currentUser &&
+      bookings.some((booking) => booking.truckId === truck.id && booking.importerId === currentUser.id && (booking.status === "DELIVERED" || booking.status === "COMPLETED")),
+  );
   const tons = Number(quantity);
   const loadShare = Number.isFinite(tons) && tons > 0 ? Math.min(100, Math.round((tons / truck.capacity) * 100)) : 0;
   const canBook =
@@ -159,7 +164,10 @@ function TruckDetailsContent() {
             )}
           </div>
         </div>
-        <TruckBadge status={truck.status} />
+        <div className="flex flex-wrap items-center gap-2">
+          <TruckVerifiedBadge verification={truck.verification} />
+          <TruckBadge status={truck.status} />
+        </div>
       </header>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
@@ -389,6 +397,8 @@ function TruckDetailsContent() {
                   <p className="text-sm text-muted">Only importers can review a truck.</p>
                 ) : alreadyReviewed ? (
                   <p className="text-sm text-muted">Thanks, you have already reviewed this truck.</p>
+                ) : !hasShipped ? (
+                  <p className="text-sm leading-6 text-muted">You can rate this truck once it has delivered your cargo. Book it, and after delivery come back here to share your experience.</p>
                 ) : (
                   <>
                     <fieldset>

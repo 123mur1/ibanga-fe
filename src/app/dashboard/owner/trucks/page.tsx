@@ -4,10 +4,12 @@ import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { TruckBadge } from "@/components/status-badge";
+import { StatusBadge } from "@/components/common/status-badge";
 import { TruckThumb } from "@/components/photos";
 import { DataTable, PageHeader, StatCard, ViewLink } from "@/components/ui";
 import { formatRwf } from "@/lib/payments";
 import { useIbanga } from "@/lib/store";
+import { truckVerification } from "@/config/business-rules";
 import { useOps } from "@/hooks/use-ops";
 import { ACTIVE_BOOKING_STATUSES } from "@/lib/types";
 
@@ -21,7 +23,7 @@ const truckIcon = (
 
 export default function OwnerTrucksPage() {
   const { currentUser, trucks, bookings, trucksLoading } = useIbanga();
-  const { drivers, driverAssignments } = useOps();
+  const { drivers, driverAssignments, documents } = useOps();
   const mine = trucks.filter((truck) => truck.ownerId === currentUser?.id);
   const available = mine.filter((truck) => truck.status === "AVAILABLE").length;
   const onTrip = new Set(
@@ -70,6 +72,7 @@ export default function OwnerTrucksPage() {
                 { label: "Route" },
                 { label: "Price" },
                 { label: "Availability" },
+                { label: "Documents" },
                 { label: "Details", className: "text-right" },
               ]}
               emptyMessage="You have not added any trucks yet."
@@ -78,6 +81,7 @@ export default function OwnerTrucksPage() {
               rows={mine.map((truck) => {
                 const assignment = driverAssignments.find((item) => item.truckId === truck.id && item.status === "ACTIVE") ?? driverAssignments.find((item) => item.truckId === truck.id && item.status === "UPCOMING");
                 const driver = drivers.find((item) => item.id === assignment?.driverId) ?? drivers.find((item) => item.assignedTruckId === truck.id);
+                const verification = truckVerification(truck.id, documents);
                 return {
                   id: truck.id,
                   searchText: `${truck.plateNumber} ${truck.truckType} ${truck.currentLocation} ${truck.preferredRoute} ${driver?.name ?? ""}`,
@@ -91,6 +95,7 @@ export default function OwnerTrucksPage() {
                     truck.preferredRoute,
                     truck.priceRwf == null ? "" : formatRwf(truck.priceRwf),
                     truck.status,
+                    verification,
                     "",
                   ],
                   cells: [
@@ -107,6 +112,9 @@ export default function OwnerTrucksPage() {
                   truck.preferredRoute,
                   truck.priceRwf == null ? "Price not set" : formatRwf(truck.priceRwf),
                   <span key={`${truck.id}-status`}><TruckBadge status={truck.status} /></span>,
+                  <Link key={`${truck.id}-documents`} href={`/dashboard/owner/trucks/${truck.id}#truck-documents`} aria-label={`Documents for ${truck.plateNumber}`}>
+                    <StatusBadge family="verification" status={verification} />
+                  </Link>,
                   <div key={`${truck.id}-actions`} className="flex justify-end">
                     <ViewLink href={`/dashboard/owner/trucks/${truck.id}`} label={`View truck ${truck.plateNumber}`} />
                   </div>,

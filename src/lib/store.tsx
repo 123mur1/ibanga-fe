@@ -11,6 +11,7 @@ import {
 } from "react";
 import {
   api,
+  apiUrl,
   ApiError,
   clearAuthToken,
   readAuthToken,
@@ -273,7 +274,8 @@ function mapUser(
     phone: user.phone ?? "",
     location: user.location ?? "",
     company: user.company ?? undefined,
-    photo: user.photo ?? undefined,
+    // The admin user list points photos at the API (`/users/:id/photo`) instead of embedding them.
+    photo: user.photo?.startsWith("/users/") ? apiUrl(user.photo) : (user.photo ?? undefined),
     role,
     active: user.active ?? true,
   };
@@ -285,7 +287,10 @@ function mapTruck(truck: ApiTruck): Truck {
     currentLocation: truck.currentLocation ?? "",
     preferredRoute: truck.preferredRoute ?? "",
     description: truck.description ?? "",
-    photos: truck.photos ?? [],
+    // Lists point photos at the API (`/trucks/:id/photos/0`) instead of embedding them.
+    photos: (truck.photos ?? []).map((photo) =>
+      photo.startsWith("/trucks/") ? apiUrl(photo) : photo,
+    ),
     owner: truck.owner
       ? {
           id: truck.owner.id,
@@ -338,6 +343,15 @@ function mapDispute(dispute: ApiDispute): Dispute {
   return {
     ...dispute,
     resolutionNotes: dispute.resolutionNotes ?? "",
+  };
+}
+
+function mapReview(review: Review): Review {
+  return {
+    ...review,
+    authorPhoto: review.authorPhoto?.startsWith("/users/")
+      ? apiUrl(review.authorPhoto)
+      : review.authorPhoto,
   };
 }
 
@@ -409,7 +423,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         api<Review[]>("/reviews").catch(() => [] as Review[]),
       ]);
       setTrucks(records.map(mapTruck));
-      setReviews(reviewRecords);
+      setReviews(reviewRecords.map(mapReview));
       setConnectionError(null);
     } catch (error) {
       const message = errorMessage(error, "Could not load available trucks.");
@@ -421,11 +435,36 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const loadMarketplace = useCallback(
-    async (user: User) => {
+    /**
+     * `withOperations` also reloads the operations dataset (about twenty more requests). Only
+     * sign-in and an explicit refresh need it: operations services refresh the domains they
+     * change, and marketplace actions do not touch operations records.
+     */
+    async (user: User, { withOperations = true }: { withOperations?: boolean } = {}) => {
       setTrucksLoading(true);
       try {
         const truckPath =
           user.role === "TRUCK_OWNER" ? "/trucks?mine=true" : "/trucks";
+        const adminUsersRequest =
+          user.role === "ADMIN"
+            ? api<ApiUser[]>("/users")
+            : Promise.resolve([] as ApiUser[]);
+        const operationsRequest = withOperations
+          ? loadOperationsSnapshot({
+              id: user.id,
+              name: user.name,
+              role: user.role,
+              adminUserIds: adminUsersRequest
+                .then((records) =>
+                  records
+                    .filter((record) => record.role === "ADMIN")
+                    .map((record) => record.id),
+                )
+                .catch(() => [user.id]),
+            })
+          : null;
+        // Handled below; this keeps a failure from surfacing as an unhandled rejection meanwhile.
+        operationsRequest?.catch(() => undefined);
         const [
           truckRecords,
           bookingRecords,
@@ -441,9 +480,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
           api<ApiBooking[]>("/bookings"),
           api<ApiDispute[]>("/disputes"),
           api<ApiWallet>("/wallet"),
-          user.role === "ADMIN"
-            ? api<ApiUser[]>("/users")
-            : Promise.resolve([]),
+          adminUsersRequest,
           user.role === "ADMIN"
             ? api<ApiAdminWalletAccount[]>("/wallet/admin/accounts")
             : Promise.resolve([]),
@@ -459,7 +496,8 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         const nestedTrucks = bookingRecords.map((booking) =>
           mapTruck(booking.truck),
         );
-        const allTrucks = uniqueById([...mappedTrucks, ...nestedTrucks]);
+        // Later entries win: the truck list is the complete record, booking copies only fill gaps.
+        const allTrucks = uniqueById([...nestedTrucks, ...mappedTrucks]);
         const mappedDisputes = disputeRecords.map(mapDispute);
         const mappedUsers = adminUsers.map((user) => mapUser(user));
         const relatedUsers = [
@@ -480,7 +518,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         setBookings(mappedBookings);
         setDisputes(mappedDisputes);
         setRefunds(refundRecords);
-        setReviews(reviewRecords);
+        setReviews(reviewRecords.map(mapReview));
         setTrucks(allTrucks);
         setWalletBalance(wallet.balanceRwf);
         setTransactions(
@@ -504,23 +542,17 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         );
         setAdminCommission(commissionSummary);
         setConnectionError(null);
-        try {
-          const operationsData = await loadOperationsSnapshot({
-            id: user.id,
-            name: user.name,
-            role: user.role,
-            adminUserIds: mappedUsers
-              .filter((admin) => admin.role === "ADMIN")
-              .map((admin) => admin.id),
-          });
-          mockDb.replaceFromApi(operationsData);
-        } catch (error) {
-          const message = errorMessage(
-            error,
-            "Could not load operations data.",
-          );
-          setConnectionError(message);
-          console.error("Could not load operations data.", error);
+        if (operationsRequest) {
+          try {
+            mockDb.replaceFromApi(await operationsRequest);
+          } catch (error) {
+            const message = errorMessage(
+              error,
+              "Could not load operations data.",
+            );
+            setConnectionError(message);
+            console.error("Could not load operations data.", error);
+          }
         }
       } catch (error) {
         if (error instanceof ApiError && error.status === 401) {
@@ -551,7 +583,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
 
   const refreshAfterMutation = useCallback(async () => {
     if (currentUser) {
-      await loadMarketplace(currentUser);
+      await loadMarketplace(currentUser, { withOperations: false });
     } else {
       await loadPublicTrucks();
     }
@@ -778,7 +810,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
             body: JSON.stringify(patch),
           }),
         );
-        await loadMarketplace(user);
+        await loadMarketplace(user, { withOperations: false });
         return null;
       } catch (error) {
         return errorMessage(error, "Could not update your profile.");

@@ -1,8 +1,9 @@
-import { effectiveDocumentStatus } from "@/config/business-rules";
+import { effectiveDocumentStatus, truckVerification } from "@/config/business-rules";
 import type { DocumentSubjectKind, DocumentType, OpsData, OpsDocument, VerificationKind, VerificationRequest, VerificationStatus } from "@/types/ops";
 import type { DocumentService } from "../contracts";
 import type { Actor } from "../types";
 import { findTruck } from "./directory";
+import { emptyTruckProfile } from "./truck-profile";
 import { audit, commit, conflict, db, delay, forbid, invalid, newId, nextRef, notFound, notification, nowIso, queryList, replaceById, requirePermission } from "./util";
 
 const KIND_BY_TYPE: Partial<Record<DocumentType, VerificationKind>> = {
@@ -14,25 +15,15 @@ const KIND_BY_TYPE: Partial<Record<DocumentType, VerificationKind>> = {
   INSURANCE_POLICY: "INSURANCE",
 };
 
-const TRUCK_REQUIRED: DocumentType[] = ["VEHICLE_REGISTRATION", "VEHICLE_INSPECTION", "INSURANCE_POLICY"];
-
 /** Recompute truck/driver verification from the documents they currently have. */
 export function recomputeSubject(data: OpsData, kind: DocumentSubjectKind, subjectId: string): OpsData {
   if (kind === "TRUCK") {
-    const docs = data.documents.filter((doc) => doc.subjectKind === "TRUCK" && doc.subjectId === subjectId);
-    const statuses = TRUCK_REQUIRED.map((type) => {
-      const doc = docs.find((item) => item.type === type);
-      return doc ? effectiveDocumentStatus(doc) : ("NOT_SUBMITTED" as VerificationStatus);
-    });
-    const verification: VerificationStatus = statuses.includes("EXPIRED")
-      ? "EXPIRED"
-      : statuses.includes("REJECTED")
-        ? "REJECTED"
-        : statuses.every((status) => status === "APPROVED")
-          ? "APPROVED"
-          : statuses.includes("PENDING")
-            ? "PENDING"
-            : "NOT_SUBMITTED";
+    const verification = truckVerification(subjectId, data.documents);
+    if (!data.truckProfiles.some((profile) => profile.truckId === subjectId)) {
+      // Owners often submit documents before filling in dimensions. Without a profile the truck's
+      // verification would have nowhere to live, so start one.
+      return { ...data, truckProfiles: [...data.truckProfiles, { ...emptyTruckProfile(subjectId, findTruck(subjectId)?.status), verification }] };
+    }
     return { ...data, truckProfiles: data.truckProfiles.map((profile) => (profile.truckId === subjectId ? { ...profile, verification } : profile)) };
   }
   if (kind === "DRIVER") {
@@ -77,10 +68,36 @@ function withPendingRequest(data: OpsData, actor: Actor, doc: OpsDocument): { re
   return { requests: [created, ...data.verificationRequests], created };
 }
 
+/**
+ * When documents are reviewed one at a time, close any pending request whose documents have all
+ * been decided, so it does not linger in the verification queue.
+ */
+function settleRequests(requests: VerificationRequest[], documents: OpsDocument[], actor: Actor, reviewedId: string): VerificationRequest[] {
+  return requests.map((request) => {
+    if (request.status !== "PENDING" || !request.documentIds.includes(reviewedId)) return request;
+    const statuses = request.documentIds.map((docId) => documents.find((doc) => doc.id === docId)?.status);
+    if (statuses.some((status) => status === "PENDING")) return request;
+    const rejected = documents.find((doc) => request.documentIds.includes(doc.id) && doc.status === "REJECTED");
+    return {
+      ...request,
+      status: rejected ? "REJECTED" : "APPROVED",
+      reviewedAt: nowIso(),
+      reviewedBy: actor.id,
+      rejectionReason: rejected?.rejectionReason,
+    };
+  });
+}
+
 export const documentService: DocumentService = {
   async list(actor, query) {
     await delay(200);
     return queryList(scoped(actor, db().documents), { sort: { field: "submittedAt", direction: "desc" }, pageSize: 100, ...query }, (doc) => `${doc.ref} ${doc.title} ${doc.type} ${doc.fileName}`);
+  },
+
+  async getFile(actor, id) {
+    const doc = scoped(actor, db().documents).find((item) => item.id === id);
+    if (!doc) notFound("Document");
+    return doc.fileUrl;
   },
 
   async upload(actor, input) {
@@ -132,7 +149,10 @@ export const documentService: DocumentService = {
       ...doc, status: input.approve ? "APPROVED" : "REJECTED", rejectionReason: input.approve ? undefined : input.reason?.trim(), reviewedAt: nowIso(), reviewedBy: actor.id,
     };
     commit(
-      (current) => recomputeSubject({ ...current, documents: replaceById(current.documents, id, () => updated) }, doc.subjectKind, doc.subjectId),
+      (current) => {
+        const documents = replaceById(current.documents, id, () => updated);
+        return recomputeSubject({ ...current, documents, verificationRequests: settleRequests(current.verificationRequests, documents, actor, id) }, doc.subjectKind, doc.subjectId);
+      },
       {
         audit: [audit(actor, input.approve ? "Approved document" : "Rejected document", "Document", doc.ref, input.reason?.trim() ?? "")],
         notifications: [notification(doc.ownerId, "DOCUMENT", input.approve ? "Document approved" : "Document rejected", input.approve ? `${doc.title} was approved.` : `${doc.title} was rejected: ${input.reason?.trim()}`, "/dashboard/owner/documents")],

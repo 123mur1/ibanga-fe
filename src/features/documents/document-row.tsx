@@ -15,24 +15,32 @@ import { applyFieldErrors, useZodForm, type PickedFile } from "@/lib/forms";
 import { services } from "@/services";
 import type { OpsDocument } from "@/types/ops";
 import { DOCUMENT_TYPE_LABELS, renewSchema } from "./schemas";
+import { useDocumentFile } from "./use-document-file";
 
 function PreviewDialog({ doc, onClose }: { doc: OpsDocument; onClose: () => void }) {
+  const file = useDocumentFile(doc);
   const isImage = doc.mimeType.startsWith("image/");
   const isPdf = doc.mimeType === "application/pdf";
   return (
     <Modal title={doc.title} description={`${doc.ref} · version ${doc.version}`} onClose={onClose} wide footer={<GhostButton type="button" onClick={onClose}>Close</GhostButton>}>
       <div className="space-y-4">
-        {isImage ? (
+        {file.loading ? (
+          <p className="text-sm text-muted">Loading the file…</p>
+        ) : !file.url ? (
+          <Notice title="File not available">{file.failed ? "The file could not be loaded. Try again." : "No file is attached to this document."}</Notice>
+        ) : isImage ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={doc.fileUrl} alt={`Preview of ${doc.fileName}`} className="max-h-96 w-full rounded-lg border border-line object-contain" />
+          <img src={file.url} alt={`Preview of ${doc.fileName}`} className="max-h-96 w-full rounded-lg border border-line object-contain" />
         ) : isPdf ? (
-          <iframe src={doc.fileUrl} title={`Preview of ${doc.fileName}`} className="h-96 w-full rounded-lg border border-line" />
+          <iframe src={file.url} title={`Preview of ${doc.fileName}`} className="h-96 w-full rounded-lg border border-line" />
         ) : (
           <Notice title="No preview available">This file type cannot be previewed here.</Notice>
         )}
-        <a href={doc.fileUrl} target="_blank" rel="noreferrer" className="inline-block text-sm font-semibold text-brand hover:text-brand-dark">
-          Open {doc.fileName} in a new tab
-        </a>
+        {file.url ? (
+          <a href={file.url} target="_blank" rel="noreferrer" className="inline-block text-sm font-semibold text-brand hover:text-brand-dark">
+            Open {doc.fileName} in a new tab
+          </a>
+        ) : null}
         <DetailList
           items={[
             { label: "Type", value: DOCUMENT_TYPE_LABELS[doc.type] },

@@ -3,9 +3,11 @@
 import "leaflet/dist/leaflet.css";
 import { useEffect, useRef } from "react";
 import type { Map as LeafletMap, Marker, Polyline } from "leaflet";
-import { locate } from "@/lib/geo";
+import { geocode } from "@/lib/geo";
 
 type LatLng = [number, number];
+
+export type MapPosition = { lat: number; lng: number };
 
 function straightLine(from: LatLng, to: LatLng, steps = 80): LatLng[] {
   return Array.from({ length: steps + 1 }, (_, index) => {
@@ -43,18 +45,43 @@ function walk(path: LatLng[], fraction: number): { point: LatLng; done: LatLng[]
   return { point: path[path.length - 1], done };
 }
 
+/** The route walked up to a GPS fix: the path to its nearest vertex, then the fix itself. */
+function walkTo(path: LatLng[], fix: LatLng): LatLng[] {
+  let nearest = 0;
+  let best = Infinity;
+  path.forEach((point, index) => {
+    const distance = haversine(point, fix);
+    if (distance < best) {
+      best = distance;
+      nearest = index;
+    }
+  });
+  return [...path.slice(0, nearest + 1), fix];
+}
+
+/**
+ * Real OpenStreetMap map of a trip. Place names are geocoded and the route follows the roads when
+ * the routing service answers. The truck sits at `position` (a GPS fix) when one is given;
+ * otherwise at `progress` along the route, which is an estimate.
+ */
 export function TruckMap({
   pickup,
   destination,
   progress,
   moving,
+  position,
+  onRouteKm,
 }: {
   pickup: string;
   destination: string;
-  /** Fraction of the route covered, 0–1. */
+  /** Fraction of the route covered, 0–1. Used when there is no GPS position. */
   progress: number;
   /** Shows the pulsing "live" marker while the truck is on the road. */
   moving: boolean;
+  /** Latest GPS fix for the truck, if one has been shared. */
+  position?: MapPosition | null;
+  /** Receives the road distance in km once the route is known. */
+  onRouteKm?: (km: number) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
@@ -64,19 +91,26 @@ export function TruckMap({
   const shownRef = useRef(0);
   const frameRef = useRef<number | null>(null);
   const progressRef = useRef(progress);
+  const positionRef = useRef(position);
+  const onRouteKmRef = useRef(onRouteKm);
   const animateRef = useRef<((target: number) => void) | null>(null);
+  const placeRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     progressRef.current = progress;
-  }, [progress]);
+    positionRef.current = position;
+    onRouteKmRef.current = onRouteKm;
+  });
 
   useEffect(() => {
     let cancelled = false;
-    const start = locate(pickup);
-    const end = locate(destination);
 
     async function setup() {
-      const L = (await import("leaflet")).default;
+      const [L, start, end] = await Promise.all([
+        import("leaflet").then((module) => module.default),
+        geocode(pickup),
+        geocode(destination),
+      ]);
       if (cancelled || !containerRef.current) return;
 
       const map = L.map(containerRef.current, { zoomControl: true, scrollWheelZoom: false, attributionControl: true });
@@ -107,7 +141,7 @@ export function TruckMap({
       const remainingLine = L.polyline(pathRef.current, { color: "#00628b", weight: 4, opacity: 0.35, dashArray: "8 10" }).addTo(map);
       const doneLine = L.polyline([start], { color: "#00628b", weight: 6, opacity: 0.95, lineCap: "round" }).addTo(map);
       doneLineRef.current = doneLine;
-      const truck = L.marker(start, { icon: truckIcon, zIndexOffset: 1000 }).addTo(map).bindTooltip("Current truck position");
+      const truck = L.marker(start, { icon: truckIcon, zIndexOffset: 1000 }).addTo(map).bindTooltip("Estimated truck position");
       truckRef.current = truck;
 
       map.fitBounds(L.latLngBounds([start, end]), { padding: [48, 48] });
@@ -132,8 +166,24 @@ export function TruckMap({
         };
         frameRef.current = requestAnimationFrame(tick);
       };
+
+      /** Puts the truck at the GPS fix when there is one, otherwise at the estimated progress. */
+      const place = () => {
+        const fix = positionRef.current;
+        if (fix) {
+          if (frameRef.current) cancelAnimationFrame(frameRef.current);
+          const point: LatLng = [fix.lat, fix.lng];
+          truck.setLatLng(point);
+          truck.setTooltipContent("Last shared GPS position");
+          doneLine.setLatLngs(walkTo(pathRef.current, point));
+        } else {
+          truck.setTooltipContent("Estimated truck position");
+          animateTo(progressRef.current);
+        }
+      };
       animateRef.current = animateTo;
-      animateTo(progressRef.current);
+      placeRef.current = place;
+      place();
 
       // Follow the real roads when the routing service answers; keep the straight line otherwise.
       try {
@@ -141,13 +191,16 @@ export function TruckMap({
           `https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`,
         );
         if (!response.ok) throw new Error("routing unavailable");
-        const data = (await response.json()) as { routes?: { geometry: { coordinates: [number, number][] } }[] };
-        const coordinates = data.routes?.[0]?.geometry.coordinates;
-        if (cancelled || !coordinates || coordinates.length < 2) return;
+        const data = (await response.json()) as { routes?: { distance: number; geometry: { coordinates: [number, number][] } }[] };
+        const route = data.routes?.[0];
+        const coordinates = route?.geometry.coordinates;
+        if (cancelled || !route || !coordinates || coordinates.length < 2) return;
         pathRef.current = coordinates.map(([lng, lat]) => [lat, lng] as LatLng);
         remainingLine.setLatLngs(pathRef.current);
-        redraw(shownRef.current);
+        if (positionRef.current) place();
+        else redraw(shownRef.current);
         map.fitBounds(L.latLngBounds(pathRef.current), { padding: [48, 48] });
+        onRouteKmRef.current?.(Math.round(route.distance / 1000));
       } catch {
         /* straight-line route stays */
       }
@@ -163,12 +216,13 @@ export function TruckMap({
       truckRef.current = null;
       doneLineRef.current = null;
       animateRef.current = null;
+      placeRef.current = null;
     };
   }, [pickup, destination, moving]);
 
   useEffect(() => {
-    animateRef.current?.(progress);
-  }, [progress]);
+    placeRef.current?.();
+  }, [progress, position?.lat, position?.lng]);
 
   return (
     <div

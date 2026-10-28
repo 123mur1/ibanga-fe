@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { useToast } from "@/components/toast";
@@ -13,14 +13,29 @@ import { formatRwf } from "@/lib/payments";
 import { useIbanga } from "@/lib/store";
 import { ACTIVE_BOOKING_STATUSES } from "@/lib/types";
 import { TruckOperations } from "@/features/owner-fleet/truck-operations";
+import { TRUCK_DOCUMENT_TYPES } from "@/features/owner-fleet/schemas";
+import { effectiveDocumentStatus } from "@/config/business-rules";
+import { useOps } from "@/hooks/use-ops";
 
 export default function OwnerTruckDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const toast = useToast();
-  const { currentUser, trucks, bookings, setAvailability, deleteTruck } = useIbanga();
+  const { currentUser, trucks, bookings, setAvailability, deleteTruck, fetchTruck } = useIbanga();
   const [busy, setBusy] = useState(false);
   const [removing, setRemoving] = useState(false);
+  // The fleet list carries only each truck's cover photo; load the whole gallery here.
+  const [gallery, setGallery] = useState<{ id: string; photos: string[] } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetchTruck(id)
+      .then((full) => active && setGallery({ id, photos: full.photos }))
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [id, fetchTruck]);
 
   const found = trucks.find((item) => item.id === id);
   const truck = found && found.ownerId === currentUser?.id ? found : undefined;
@@ -100,7 +115,7 @@ export default function OwnerTruckDetailPage() {
                     <h2 className="font-display text-lg text-navy">Photos</h2>
                   </div>
                   <div className="p-5">
-                    <TruckGallery photos={truck.photos} alt={truck.plateNumber} />
+                    <TruckGallery photos={gallery?.id === truck.id ? gallery.photos : truck.photos} alt={truck.plateNumber} />
                   </div>
                 </section>
 
@@ -183,6 +198,8 @@ export default function OwnerTruckDetailPage() {
                   </div>
                 </section>
 
+                <DocumentsSummary truckId={truck.id} />
+
                 {activeBooking ? (
                   <section className="rounded-2xl border border-line bg-brand-soft/60 p-5">
                     <h3 className="font-display text-lg text-navy">Current booking</h3>
@@ -222,6 +239,34 @@ export default function OwnerTruckDetailPage() {
         )}
       </DashboardShell>
     </RequireAuth>
+  );
+}
+
+/** How far the truck's required documents are through admin review, with a link to submit them. */
+function DocumentsSummary({ truckId }: { truckId: string }) {
+  const { documents } = useOps();
+  const statuses = TRUCK_DOCUMENT_TYPES.map(({ value }) => {
+    const doc = documents.find((item) => item.subjectKind === "TRUCK" && item.subjectId === truckId && item.type === value);
+    return doc ? effectiveDocumentStatus(doc) : "NOT_SUBMITTED";
+  });
+  const approved = statuses.filter((status) => status === "APPROVED").length;
+  const pending = statuses.filter((status) => status === "PENDING").length;
+  const toDo = statuses.length - approved - pending;
+  return (
+    <section className="rounded-2xl border border-line bg-card p-5 shadow-soft">
+      <h3 className="font-display text-lg text-navy">Documents</h3>
+      <p className="mt-1 text-sm text-muted">
+        {approved} of {statuses.length} approved
+        {pending ? ` · ${pending} with the administrator` : ""}
+        {toDo ? ` · ${toDo} to submit or fix` : ""}
+      </p>
+      <a
+        href="#truck-documents"
+        className={`mt-3 inline-flex w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold transition ${toDo ? "bg-brand text-white hover:bg-brand-dark" : "border border-line text-navy hover:bg-background"}`}
+      >
+        {toDo ? "Submit documents" : "View documents"}
+      </a>
+    </section>
   );
 }
 

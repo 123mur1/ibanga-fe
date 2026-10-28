@@ -11,6 +11,7 @@ import { env } from "@/config/env";
 import type { Services } from "./contracts";
 import { apiCargoRequestService, apiQuotationService } from "./api/cargo";
 import { apiDriverService } from "./api/drivers";
+import { getDocumentFile } from "./api/operations-records";
 import { createPersistedServices } from "./api/persisted-services";
 import { cargoRequestService, quotationService } from "./mock/cargo";
 import {
@@ -47,6 +48,7 @@ function createServices(): Services {
       cargoRequests: apiCargoRequestService,
       quotations: apiQuotationService,
       drivers: { ...driverService, ...apiDriverService },
+      documents: { ...documentService, getFile: (_actor, id) => getDocumentFile(id) },
     });
   }
   return mockServices;

@@ -8,6 +8,7 @@ import { TruckBadge } from "@/components/status-badge";
 import { useToast } from "@/components/toast";
 import { StatusBadge } from "@/components/common/status-badge";
 import { ConfirmDialog, DataTable, PageHeader, StatCard, ViewLink } from "@/components/ui";
+import { truckVerification } from "@/config/business-rules";
 import { useOps } from "@/hooks/use-ops";
 import { useIbanga } from "@/lib/store";
 import { ACTIVE_BOOKING_STATUSES } from "@/lib/types";
@@ -18,7 +19,13 @@ function AdminTrucksContent() {
   const searchParams = useSearchParams();
   const { trucks, bookings, setAvailability, deleteTruck } = useIbanga();
   const toast = useToast();
-  const { truckProfiles, drivers, driverAssignments } = useOps();
+  const { drivers, driverAssignments, documents } = useOps();
+  const pendingByTruck = new Map<string, number>();
+  for (const doc of documents) {
+    if (doc.subjectKind === "TRUCK" && doc.status === "PENDING") {
+      pendingByTruck.set(doc.subjectId, (pendingByTruck.get(doc.subjectId) ?? 0) + 1);
+    }
+  }
   const [busyTruckId, setBusyTruckId] = useState<string | null>(null);
   const [removing, setRemoving] = useState<{ id: string; plateNumber: string } | null>(null);
 
@@ -62,10 +69,11 @@ function AdminTrucksContent() {
           }
         />
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard label="Fleet size" value={trucks.length} hint="Registered vehicles" href="/dashboard/admin/trucks" />
           <StatCard label="Available" value={available} hint="Ready for bookings" accent="good" href="/dashboard/admin/trucks?status=AVAILABLE" />
           <StatCard label="Owners" value={new Set(trucks.map((truck) => truck.ownerId)).size} hint="Active fleet partners" accent="accent" href="/dashboard/admin/trucks" />
+          <StatCard label="Awaiting review" value={pendingByTruck.size} hint="Trucks with documents to check" accent="warn" href="/dashboard/admin/verifications" />
         </div>
         <div className="mt-5">
           <DataTable
@@ -79,7 +87,7 @@ function AdminTrucksContent() {
                 id: truck.id,
                 searchText: `${truck.plateNumber} ${truck.truckType} ${truck.owner?.name ?? ""} ${truck.currentLocation} ${truck.preferredRoute} ${driver?.name ?? ""}`,
                 filterValue: truck.status,
-                exportValues: [truck.plateNumber, driver?.name ?? "Unassigned", truck.owner?.name ?? "", `${truck.capacity} tons`, truck.currentLocation, truck.preferredRoute, truck.status, truckProfiles.find((profile) => profile.truckId === truck.id)?.verification ?? "NOT_SUBMITTED", ""],
+                exportValues: [truck.plateNumber, driver?.name ?? "Unassigned", truck.owner?.name ?? "", `${truck.capacity} tons`, truck.currentLocation, truck.preferredRoute, truck.status, truckVerification(truck.id, documents), ""],
                 cells: [
                   <span key={`${truck.id}-vehicle`}><strong className="block">{truck.plateNumber}</strong><span className="text-xs text-muted">{truck.truckType}</span></span>,
                   driver ? <Link key={`${truck.id}-driver`} href={`/dashboard/admin/drivers/${driver.id}`} className="font-semibold text-brand hover:text-brand-dark">{driver.name}</Link> : <span key={`${truck.id}-driver`} className="text-muted">Unassigned</span>,
@@ -88,7 +96,14 @@ function AdminTrucksContent() {
                   truck.currentLocation,
                   truck.preferredRoute,
                   <span key={`${truck.id}-status`}><TruckBadge status={truck.status} /></span>,
-                  <StatusBadge key={`${truck.id}-verification`} family="verification" status={truckProfiles.find((profile) => profile.truckId === truck.id)?.verification ?? "NOT_SUBMITTED"} />,
+                  <span key={`${truck.id}-verification`} className="flex flex-col items-start gap-1">
+                    <StatusBadge family="verification" status={truckVerification(truck.id, documents)} />
+                    {pendingByTruck.get(truck.id) ? (
+                      <Link href={`/dashboard/admin/trucks/${truck.id}`} className="text-xs font-semibold text-brand hover:text-brand-dark">
+                        {pendingByTruck.get(truck.id)} to review
+                      </Link>
+                    ) : null}
+                  </span>,
                   <div key={`${truck.id}-actions`} className="flex min-w-44 items-center justify-end gap-2">
                   <ViewLink href={`/dashboard/admin/trucks/${truck.id}`} label={`View truck ${truck.plateNumber}`} />
                   <button

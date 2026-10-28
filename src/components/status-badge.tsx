@@ -1,5 +1,5 @@
 import { statusOf } from "@/config/status";
-import type { BookingStatus, DisputeStatus, PaymentStatus, RefundStatus, Role, TruckStatus } from "@/lib/types";
+import type { BookingStatus, DisputeStatus, PaymentStatus, RefundStatus, Role, Truck, TruckStatus } from "@/lib/types";
 
 const bookingStyles: Record<BookingStatus, { wrap: string; dot: string }> = {
   PENDING: { wrap: "bg-brand-soft text-brand-dark ring-1 ring-brand/10", dot: "bg-brand/40" },
@@ -36,6 +36,26 @@ export function TruckBadge({ status }: { status: TruckStatus }) {
     >
       <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
       {status === "AVAILABLE" ? "Available" : "Unavailable"}
+    </span>
+  );
+}
+
+/** For importers: whether an administrator has approved the truck's registration, inspection and insurance. */
+export function TruckVerifiedBadge({ verification }: { verification?: Truck["verification"] }) {
+  const verified = verification === "APPROVED";
+  return (
+    <span
+      title={verified ? "An administrator approved this truck's registration, inspection and insurance." : "This truck's documents have not been approved yet."}
+      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold tracking-wide ${verified ? "bg-good-soft text-good ring-1 ring-good/20" : "bg-white/90 text-muted ring-1 ring-navy/10"}`}
+    >
+      {verified ? (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="m5 12 5 5L20 7" />
+        </svg>
+      ) : (
+        <span className="h-1.5 w-1.5 rounded-full bg-muted" />
+      )}
+      {verified ? "Verified" : "Not verified"}
     </span>
   );
 }

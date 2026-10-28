@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { TruckBadge } from "./status-badge";
+import { TruckBadge, TruckVerifiedBadge } from "./status-badge";
 import { TruckThumb } from "./photos";
 import type { Truck } from "@/lib/types";
 
@@ -16,10 +16,11 @@ export function TruckCard({ truck }: { truck: Truck }) {
           alt={`${truck.truckType} ${truck.plateNumber}`}
           className="aspect-[16/10] rounded-none border-0 transition duration-500 group-hover:scale-[1.025]"
         />
-        <div className="absolute left-4 top-4">
+        <div className="absolute left-4 top-4 flex flex-wrap gap-2">
           <TruckBadge status={truck.status} />
+          <TruckVerifiedBadge verification={truck.verification} />
         </div>
-        {truck.photos?.length > 1 ? null : (
+        {(truck.photoCount ?? truck.photos?.length) > 1 ? null : (
           <span className="absolute bottom-3 right-3 rounded-lg bg-navy/75 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white backdrop-blur-sm">
             {truck.truckType}
           </span>
