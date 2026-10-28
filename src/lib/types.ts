@@ -197,7 +197,15 @@ export type RefundRequest = {
   /** Where the importer wants the money returned, e.g. "MTN MoMo · 078 ••• 220". */
   refundTo: string;
   status: RefundStatus;
+  /** The truck owner's side of the story. The owner responds; an administrator decides. */
   ownerNote: string;
+  ownerRespondedAt?: string;
+  truckOwnerId?: string;
+  /** The administrator's reason for the decision, shown to both parties. */
+  decisionNote?: string;
+  /** What was actually refunded when approved (can be less than requested). */
+  approvedAmountRwf?: number;
+  decidedBy?: string;
   createdAt: string;
   resolvedAt?: string;
   /** Optional ops fields: reference, origin of the refund and the (simulated) payout result. */

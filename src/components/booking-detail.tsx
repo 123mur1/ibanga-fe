@@ -12,6 +12,8 @@ import { Avatar } from "@/components/photos";
 import { TripActions } from "@/components/trip-actions";
 import { BookingBadge, DisputeBadge, PaymentBadge, TruckBadge } from "@/components/status-badge";
 import { Field, GhostButton, inputClass, Modal, PageHeader, PrimaryButton, formatDate, formatDateTime } from "@/components/ui";
+import { hasHeldPayment, SettlePaymentPanel } from "@/features/admin-cases/settle-payment";
+import { canRequestRefund } from "@/lib/refunds";
 import { useIbanga } from "@/lib/store";
 import { formatRwf, maskAccount, validatePaymentAccount } from "@/lib/payments";
 import type { Booking, BookingStatus, PaymentMethod, Review, Role } from "@/lib/types";
@@ -199,11 +201,11 @@ export function BookingDetail({
                     </div>
                     <div className="px-5 py-5">
                       <p className="text-sm leading-6 text-navy">{dispute.reason}</p>
-                      {role === "ADMIN" ? (
-                        <Link href={`/dashboard/admin/disputes/${dispute.id}`} className="mt-3 inline-block text-sm font-semibold text-brand hover:text-brand-dark">
-                          Open dispute case
-                        </Link>
+                      <p className="mt-2 text-xs text-muted">Reported {formatDateTime(dispute.createdAt)}</p>
+                      {role === "ADMIN" && dispute.status === "OPEN" ? (
+                        <p className="mt-3 text-sm text-navy">Decide this dispute in the <span className="font-semibold">Settle dispute</span> panel.</p>
                       ) : null}
+                      {dispute.resolutionNotes ? <p className="mt-3 text-sm text-navy"><span className="font-semibold">Decision:</span> {dispute.resolutionNotes}</p> : null}
                     </div>
                   </section>
                 ) : null}
@@ -334,6 +336,14 @@ function AdminActions({ booking }: { booking: Booking }) {
     else toast("Booking status updated.", "good");
   }
 
+  if (booking.status === "DISPUTED" && hasHeldPayment(booking)) {
+    return (
+      <CardShell title="Settle dispute" subtitle="Refund the importer if the truck owner is at fault, or release the payment to the owner.">
+        <SettlePaymentPanel booking={booking} />
+      </CardShell>
+    );
+  }
+
   return (
     <CardShell title="Manage booking" subtitle="Override the status when a trip needs intervention.">
       <Field label="Booking status">
@@ -368,7 +378,9 @@ function OwnerActions({ booking }: { booking: Booking }) {
 }
 
 function ImporterActions({ booking }: { booking: Booking }) {
-  const { setBookingStatus, reportProblem, payBooking, currentUser, reviews } = useIbanga();
+  const { setBookingStatus, reportProblem, payBooking, currentUser, reviews, refunds } = useIbanga();
+  const refundRequest = refunds.find((item) => item.bookingId === booking.id);
+  const refundable = canRequestRefund(booking, refunds);
   const toast = useToast();
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -411,9 +423,11 @@ function ImporterActions({ booking }: { booking: Booking }) {
           ? "Check the cargo, then confirm receipt or report a problem."
           : booking.status === "REJECTED"
             ? "The owner declined this request. The truck is available again."
-            : booking.status === "COMPLETED"
-              ? "This trip is complete."
-              : "Nothing needs your attention right now.";
+            : booking.status === "COMPLETED" && booking.payment?.status === "REFUNDED"
+              ? "An administrator decided this dispute in your favour. Your payment was refunded to your iBanga wallet."
+              : booking.status === "COMPLETED"
+                ? "This trip is complete."
+                : "Nothing needs your attention right now.";
 
   return (
     <CardShell title="Your next step" subtitle={subtitle}>
@@ -498,6 +512,26 @@ function ImporterActions({ booking }: { booking: Booking }) {
       ) : null}
 
       {!canPay && !canConfirm ? <p className="text-sm text-muted">{subtitle}</p> : null}
+
+      {refundable || refundRequest ? (
+        <div className="mt-4 rounded-xl border border-line bg-background/60 p-4">
+          {refundRequest?.status === "REQUESTED" ? (
+            <p className="text-sm text-navy">Your refund request for {formatRwf(refundRequest.amountRwf)} is waiting for an administrator. Your payment stays held until then.</p>
+          ) : refundRequest?.status === "APPROVED" ? (
+            <p className="text-sm text-navy">Refund approved: {formatRwf(refundRequest.approvedAmountRwf ?? refundRequest.amountRwf)} was returned to your iBanga wallet.</p>
+          ) : refundRequest?.status === "REJECTED" ? (
+            <p className="text-sm text-navy">Your refund request was not approved{refundRequest.decisionNote ? `: ${refundRequest.decisionNote}` : "."}</p>
+          ) : null}
+          {refundable ? (
+            <>
+              {!refundRequest ? <p className="text-sm text-navy">Truck did not come, cargo damaged or never delivered? Ask for your money back. An administrator decides.</p> : null}
+              <Link href={`/dashboard/importer/payments/${booking.id}/refund`} className="mt-3 inline-flex rounded-lg border border-line bg-white px-4 py-2 text-sm font-semibold text-navy hover:border-brand/40">
+                Request a refund
+              </Link>
+            </>
+          ) : null}
+        </div>
+      ) : null}
 
       {booking.status === "DELIVERED" || booking.status === "COMPLETED" ? (
         <RateTruckPrompt truckId={booking.truckId} review={reviews.find((item) => item.truckId === booking.truckId && item.authorId === currentUser?.id)} />

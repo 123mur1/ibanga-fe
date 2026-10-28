@@ -26,7 +26,8 @@ export function BrandLink({
 }) {
   return (
     <Link href={href} className="flex items-center gap-2.5">
-      <LogoMark />
+      {/* On a brand-coloured background the mark would blend in, so outline it. */}
+      <LogoMark className={light ? "h-9 w-9 rounded-[9px] ring-1 ring-white/50" : undefined} />
       <span
         className={`font-display text-xl tracking-tight ${
           light ? "text-white" : "text-navy"

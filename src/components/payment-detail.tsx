@@ -12,9 +12,9 @@ import { StatusBadge } from "@/components/common/status-badge";
 import { RefundBadge } from "@/components/status-badge";
 import { PageHeader, formatDate, formatDateTime } from "@/components/ui";
 import { useAdminAllowed } from "@/hooks/use-admin-allowed";
+import { canRequestRefund } from "@/lib/refunds";
 import { useIbanga } from "@/lib/store";
 import { formatRwf } from "@/lib/payments";
-import { REFUNDABLE_STATUSES } from "@/lib/demo";
 import type { Role } from "@/lib/types";
 
 export function PaymentDetail({
@@ -43,9 +43,7 @@ export function PaymentDetail({
   const importer = booking ? users.find((user) => user.id === booking.importerId) : undefined;
   const truck = foundTruck;
   const refund = booking ? refunds.find((item) => item.bookingId === booking.id) : undefined;
-  const canRequestRefund = Boolean(
-    role === "IMPORTER" && payment && REFUNDABLE_STATUSES.includes(payment.status) && refund?.status !== "REQUESTED",
-  );
+  const refundable = role === "IMPORTER" && canRequestRefund(booking, refunds);
   const refundsBase = role === "TRUCK_OWNER" ? "/dashboard/owner/refunds" : "/dashboard/importer/refunds";
   const owner = truck?.owner ?? (truck ? users.find((user) => user.id === truck.ownerId) : undefined);
 
@@ -145,7 +143,7 @@ export function PaymentDetail({
                   </div>
                 </section>
 
-                {role !== "ADMIN" && (refund || canRequestRefund) ? (
+                {role !== "ADMIN" && (refund || refundable) ? (
                   <section className="overflow-hidden rounded-2xl border border-line bg-card shadow-soft">
                     <div className="flex items-center justify-between gap-3 border-b border-line bg-background/60 px-5 py-4">
                       <h2 className="font-display text-lg text-navy">Refund</h2>
@@ -155,15 +153,17 @@ export function PaymentDetail({
                       {refund ? (
                         <>
                           <p className="text-sm text-navy">{refund.reason} · {formatRwf(refund.amountRwf)}</p>
-                          {refund.ownerNote ? <p className="text-sm text-muted">Owner note: {refund.ownerNote}</p> : null}
+                          {refund.ownerNote ? <p className="text-sm text-muted">Owner&apos;s response: {refund.ownerNote}</p> : null}
+                          {refund.decisionNote ? <p className="text-sm text-muted">Administrator&apos;s decision: {refund.decisionNote}</p> : null}
+                          {refund.status === "APPROVED" ? <p className="text-sm font-semibold text-good">{formatRwf(refund.approvedAmountRwf ?? refund.amountRwf)} refunded to the importer&apos;s iBanga wallet.</p> : null}
                           <Link href={role === "TRUCK_OWNER" ? `${refundsBase}/${refund.id}` : refundsBase} className="inline-block text-sm font-semibold text-brand hover:text-brand-dark">
                             {role === "TRUCK_OWNER" ? "Review refund request" : "View my refund requests"}
                           </Link>
                         </>
                       ) : (
-                        <p className="text-sm text-muted">Something went wrong with this booking? Ask the truck owner for your money back.</p>
+                        <p className="text-sm text-muted">Something went wrong with this booking? Ask for your money back. An administrator reviews the case and decides.</p>
                       )}
-                      {canRequestRefund && !refund ? (
+                      {refundable && !refund ? (
                         <Link
                           href={`/dashboard/importer/payments/${booking.id}/refund`}
                           className="inline-flex items-center justify-center rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-dark"
@@ -171,7 +171,7 @@ export function PaymentDetail({
                           Request a refund
                         </Link>
                       ) : null}
-                      {canRequestRefund && refund ? (
+                      {refundable && refund ? (
                         <Link
                           href={`/dashboard/importer/payments/${booking.id}/refund`}
                           className="inline-block text-sm font-semibold text-brand hover:text-brand-dark"

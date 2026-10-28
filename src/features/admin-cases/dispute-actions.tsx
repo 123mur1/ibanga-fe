@@ -13,7 +13,10 @@ import { useOps } from "@/hooks/use-ops";
 import { applyFieldErrors, useZodForm } from "@/lib/forms";
 import { formatRwf } from "@/lib/format";
 import { services } from "@/services";
+import type { Booking } from "@/lib/types";
+import { useIbanga } from "@/lib/store";
 import type { DisputeCase } from "@/types/ops";
+import { hasHeldPayment, settlementSummary } from "./settle-payment";
 import { useUserNames } from "../admin-platform/admin-page";
 import { DECISION_TYPES, optionList } from "./constants";
 import { decisionSchema, infoRequestSchema, noteSchema, proposalSchema, statusNoteSchema } from "./schemas";
@@ -109,17 +112,33 @@ export function ResolutionPanel({ dispute }: { dispute: DisputeCase }) {
 export function DecisionPanel({ dispute }: { dispute: DisputeCase }) {
   const actor = useActor()!;
   const { run, busy } = useAction();
+  const { bookings, settleDispute } = useIbanga();
   const { register, watch, getValues, formState: { errors } } = useZodForm(decisionSchema, { defaultValues: { type: "NO_ACTION", amountRwf: 0, note: "" } });
   const values = watch();
-  const valid = decisionSchema.safeParse(values).success;
-  const needsAmount = !["NO_ACTION", "RELEASE_TO_OWNER"].includes(values.type);
+  const booking = bookings.find((item) => item.id === dispute.bookingId);
+  // While the importer's payment is still held, a refund or release decision also moves the money.
+  const held = hasHeldPayment(booking) ? booking.payment : null;
+  const refundRwf =
+    !held || !MONEY_DECISIONS.includes(values.type)
+      ? null
+      : values.type === "FULL_REFUND"
+        ? held.amountRwf
+        : values.type === "RELEASE_TO_OWNER"
+          ? 0
+          : values.amountRwf;
+  const refundTooLarge = held !== null && refundRwf !== null && refundRwf > held.amountRwf;
+  // With a held payment the full refund amount is filled in, so validate what will actually be paid.
+  const valid = decisionSchema.safeParse({ ...values, amountRwf: refundRwf ?? values.amountRwf }).success && !refundTooLarge;
+  const needsAmount = !["NO_ACTION", "RELEASE_TO_OWNER", ...(held ? ["FULL_REFUND"] : [])].includes(values.type);
 
   if (dispute.decision) {
     return (
       <Section title="Recorded decision">
         <p className="font-semibold text-navy">{DECISION_TYPES[dispute.decision.type]}{dispute.decision.amountRwf ? ` · ${formatRwf(dispute.decision.amountRwf)}` : ""}</p>
         <p className="mt-1 text-sm text-muted">{dispute.decision.note}</p>
-        <div className="mt-4"><MoneyNotice /></div>
+        {booking?.payment?.status === "REFUNDED" ? (
+          <div className="mt-4"><Notice tone="success" title="Refunded">{formatRwf(booking.payment.amountRwf)} was returned to the importer&apos;s iBanga wallet.</Notice></div>
+        ) : null}
       </Section>
     );
   }
@@ -127,14 +146,19 @@ export function DecisionPanel({ dispute }: { dispute: DisputeCase }) {
 
   return (
     <Section title="Record a decision" description="Closes the case as resolved and notifies both parties.">
-      <MoneyNotice />
+      <MoneyNotice held={held} refundRwf={refundRwf} />
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <FormField label="Decision" required error={errors.type?.message}>
           <select className={controlClass} {...register("type")}>
             {optionList(DECISION_TYPES).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </FormField>
-        <FormField label="Decided amount (RWF)" required={needsAmount} error={errors.amountRwf?.message} hint={needsAmount ? "A record only: no money is moved." : "Not needed for this decision."}>
+        <FormField
+          label={values.type === "PARTIAL_REFUND" && held ? "Amount refunded to the importer (RWF)" : "Decided amount (RWF)"}
+          required={needsAmount}
+          error={refundTooLarge ? `The importer paid ${formatRwf(held!.amountRwf)}; the refund cannot be larger.` : errors.amountRwf?.message}
+          hint={values.type === "FULL_REFUND" && held ? `The full ${formatRwf(held.amountRwf)} is refunded.` : needsAmount ? (held && refundRwf !== null ? "Paid from the held payment." : "A record only: no money is moved.") : "Not needed for this decision."}
+        >
           <input type="number" min={0} className={controlClass} disabled={!needsAmount} aria-invalid={Boolean(errors.amountRwf)} {...register("amountRwf", { valueAsNumber: true })} />
         </FormField>
         <FormField label="Reasoning" required error={errors.note?.message} className="sm:col-span-2">
@@ -147,12 +171,23 @@ export function DecisionPanel({ dispute }: { dispute: DisputeCase }) {
           title="Record this decision?"
           message="The case will be marked resolved and both parties will be notified."
           summary={[
-            `Decision: ${DECISION_TYPES[values.type]}${needsAmount && Number.isFinite(values.amountRwf) ? ` (${formatRwf(values.amountRwf)})` : ""}`,
-            "No payment, refund or payout is processed by this action.",
-            "The settlement hold is released once the case is resolved.",
+            `Decision: ${DECISION_TYPES[values.type]}${refundRwf ? ` (${formatRwf(refundRwf)})` : needsAmount && Number.isFinite(values.amountRwf) ? ` (${formatRwf(values.amountRwf)})` : ""}`,
+            ...(held && refundRwf !== null ? settlementSummary(held, refundRwf) : ["No payment, refund or payout is processed by this action."]),
           ]}
           disabled={!valid || busy}
-          onConfirm={() => run(() => services.disputes.decide(actor, dispute.id, { ...getValues(), amountRwf: needsAmount ? getValues().amountRwf : 0 }), { success: "Decision recorded. Handle any refund or settlement separately." })}
+          onConfirm={() =>
+            run(
+              async () => {
+                const { type, note } = getValues();
+                if (held && refundRwf !== null) {
+                  const error = await settleDispute(dispute.bookingId, { refundRwf, resolutionNotes: note.trim() });
+                  if (error) throw new Error(error);
+                }
+                return services.disputes.decide(actor, dispute.id, { type, note, amountRwf: refundRwf ?? (needsAmount ? getValues().amountRwf : 0) });
+              },
+              { success: held && refundRwf !== null ? (refundRwf ? "Refund issued and the case is resolved." : "Payment released to the owner and the case is resolved.") : "Decision recorded." },
+            )
+          }
         />
         {!valid ? <p className="mt-2 text-xs text-muted">Complete the decision, amount (when needed) and reasoning to enable this button.</p> : null}
       </div>
@@ -160,10 +195,23 @@ export function DecisionPanel({ dispute }: { dispute: DisputeCase }) {
   );
 }
 
-function MoneyNotice() {
+const MONEY_DECISIONS: string[] = ["FULL_REFUND", "PARTIAL_REFUND", "RELEASE_TO_OWNER"];
+
+function MoneyNotice({ held, refundRwf }: { held: NonNullable<Booking["payment"]> | null; refundRwf: number | null }) {
+  if (held) {
+    return (
+      <Notice tone="info" title={`${formatRwf(held.amountRwf)} is held in escrow for this booking`}>
+        {refundRwf === null
+          ? "Choose a full or partial refund, or release to the owner, and the money moves when you record the decision. Other decisions are only a record."
+          : refundRwf
+            ? `Recording this decision returns ${formatRwf(refundRwf)} to the importer's iBanga wallet straight away.`
+            : "Recording this decision releases the payment to the truck owner straight away."}
+      </Notice>
+    );
+  }
   return (
-    <Notice tone="warning" title="This does not process payments or refunds">
-      A decision is only a record. To move money, use{" "}
+    <Notice tone="warning" title="No payment is held for this booking">
+      The decision is only a record. To move money, use{" "}
       <Link href="/dashboard/admin/refunds" className="font-semibold underline">Refund management</Link> or{" "}
       <Link href="/dashboard/admin/settlements" className="font-semibold underline">Settlements &amp; payouts</Link>.
     </Notice>

@@ -11,7 +11,7 @@ export default function ImporterRefundsPage() {
   const { refunds, bookings, currentUser } = useIbanga();
   const mine = refunds.filter((refund) => refund.importerId === currentUser?.id);
   const count = (status: string) => mine.filter((refund) => refund.status === status).length;
-  const refunded = mine.filter((refund) => refund.status === "APPROVED").reduce((sum, refund) => sum + refund.amountRwf, 0);
+  const refunded = mine.filter((refund) => refund.status === "APPROVED").reduce((sum, refund) => sum + (refund.approvedAmountRwf ?? refund.amountRwf), 0);
 
   return (
     <RequireAuth role="IMPORTER">
@@ -19,7 +19,7 @@ export default function ImporterRefundsPage() {
         <PageHeader
           eyebrow="Money"
           title="Refunds"
-          subtitle="Refund requests you sent to truck owners. Start a new one from the payment you want back."
+          subtitle="Your refund requests. An administrator decides each one; approved refunds go to your iBanga wallet."
           icon={
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M3 12a9 9 0 1 0 3-6.7" />
@@ -31,7 +31,7 @@ export default function ImporterRefundsPage() {
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard label="Requests" value={mine.length} hint="All refund requests" />
-          <StatCard label="Pending review" value={count("REQUESTED")} hint="Waiting for the owner" accent="warn" />
+          <StatCard label="Pending review" value={count("REQUESTED")} hint="Waiting for an administrator" accent="warn" />
           <StatCard label="Approved" value={count("APPROVED")} hint="Money returned" accent="good" />
           <StatCard label="Refunded" value={formatRwf(refunded)} hint="Total approved amount" accent="accent" />
         </div>
@@ -65,6 +65,7 @@ export default function ImporterRefundsPage() {
                   <span key={`${refund.id}-reason`} className="block max-w-xs whitespace-normal">
                     {refund.reason}
                     {refund.ownerNote ? <span className="block text-xs text-muted">Owner: {refund.ownerNote}</span> : null}
+                    {refund.decisionNote ? <span className="block text-xs text-muted">Decision: {refund.decisionNote}</span> : null}
                   </span>,
                   <strong key={`${refund.id}-amount`}>{formatRwf(refund.amountRwf)}</strong>,
                   formatDate(refund.createdAt),

@@ -7,6 +7,9 @@ import { BackLink, DetailList, Section, Timeline, type TimelineEntry } from "@/c
 import { Notice, SimulationNotice } from "@/components/common/notices";
 import { StatusBadge } from "@/components/common/status-badge";
 import { EmptyState } from "@/components/ui";
+import { useState } from "react";
+import { controlClass, FormField } from "@/components/common/form-fields";
+import { settlementSummary } from "@/features/admin-cases/settle-payment";
 import { useAction } from "@/hooks/use-action";
 import { formatDateTime, formatRwf } from "@/lib/format";
 import { useIbanga } from "@/lib/store";
@@ -38,11 +41,17 @@ function RefundBody({ refund }: { refund: RefundRequest }) {
   const pending = refund.status === "REQUESTED";
   const state = refund.payoutState;
 
+  const heldRwf = payment && ["FUNDED", "HELD"].includes(payment.status) ? payment.amountRwf : 0;
+  const [amount, setAmount] = useState(String(Math.min(refund.amountRwf, heldRwf || refund.amountRwf)));
+  const [approveNote, setApproveNote] = useState("");
+  const approveRwf = Number(amount);
+  const amountValid = Number.isInteger(approveRwf) && approveRwf >= 1 && approveRwf <= heldRwf;
+
   // processRefund reports problems as a returned message; throw it so useAction shows the toast.
-  const decide = (decision: "APPROVED" | "REJECTED", note: string, success: string) =>
+  const decide = (decision: "APPROVED" | "REJECTED", note: string, success: string, amountRwf?: number) =>
     run(
       async () => {
-        const problem = await processRefund(refund.id, decision, note);
+        const problem = await processRefund(refund.id, decision, note, amountRwf);
         if (problem) throw new Error(problem);
         return true;
       },
@@ -52,11 +61,14 @@ function RefundBody({ refund }: { refund: RefundRequest }) {
   const history: TimelineEntry[] = [
     { id: "req", title: `Requested by ${nameOf(refund.importerId)}`, detail: refund.reason, at: formatDateTime(refund.createdAt), tone: "brand" },
   ];
+  if (refund.ownerRespondedAt) {
+    history.push({ id: "own", title: "Truck owner responded", detail: refund.ownerNote, at: formatDateTime(refund.ownerRespondedAt), tone: "brand" });
+  }
   if (refund.resolvedAt) {
     history.push({
       id: "dec",
-      title: refund.status === "APPROVED" ? "Approved" : "Rejected",
-      detail: refund.ownerNote || undefined,
+      title: refund.status === "APPROVED" ? `Approved: ${formatRwf(refund.approvedAmountRwf ?? refund.amountRwf)} refunded` : "Rejected",
+      detail: refund.decisionNote || undefined,
       at: formatDateTime(refund.resolvedAt),
       tone: refund.status === "APPROVED" ? "success" : "danger",
     });
@@ -111,6 +123,14 @@ function RefundBody({ refund }: { refund: RefundRequest }) {
             />
           </Section>
 
+          <Section title="Truck owner's side" description="The owner can respond but cannot decide.">
+            {refund.ownerNote ? (
+              <p className="whitespace-pre-line text-sm leading-6 text-navy">{refund.ownerNote}</p>
+            ) : (
+              <p className="text-sm text-muted">The truck owner has not responded yet.</p>
+            )}
+          </Section>
+
           <Section title="Booking and payment">
             {booking ? (
               <div className="space-y-4">
@@ -159,24 +179,33 @@ function RefundBody({ refund }: { refund: RefundRequest }) {
           </Section>
         </div>
 
-        <Section title="Decision" description={pending ? "Approving marks the payment as refunded." : "This request has been decided."}>
+        <Section title="Decision" description={pending ? "Approving refunds the money held in escrow straight to the importer's iBanga wallet." : "This request has been decided."}>
           {!pending ? (
-            <Notice tone={refund.status === "APPROVED" ? "success" : "info"} title={refund.status === "APPROVED" ? "Approved" : "Rejected"}>
-              {refund.ownerNote || "No note was recorded."}
+            <Notice tone={refund.status === "APPROVED" ? "success" : "info"} title={refund.status === "APPROVED" ? `Approved: ${formatRwf(refund.approvedAmountRwf ?? refund.amountRwf)} refunded` : "Rejected"}>
+              {refund.decisionNote || "No reason was recorded."}
+            </Notice>
+          ) : canAct && !heldRwf ? (
+            <Notice tone="warning" title="No payment is held for this booking">
+              The money has already left escrow, so it cannot be refunded from here. Reject the request with an explanation.
             </Notice>
           ) : canAct ? (
             <div className="space-y-6">
-              <ConfirmButton
-                label="Approve refund"
-                title="Approve this refund?"
-                message="The importer's payment will be marked as refunded."
-                summary={[
-                  `Refund ${formatRwf(refund.amountRwf)} to ${refund.refundTo}`,
-                  "A booking that has not started is cancelled and its truck becomes available again.",
-                ]}
-                disabled={busy}
-                onConfirm={() => decide("APPROVED", "Approved by an administrator.", "Refund approved.")}
-              />
+              <div className="space-y-3">
+                <FormField label="Amount to refund (RWF)" required hint={`Requested ${formatRwf(refund.amountRwf)}. Held in escrow: ${formatRwf(heldRwf)}. Anything not refunded is paid to the truck owner.`} error={amount && !amountValid ? `Enter a whole amount from 1 to ${heldRwf}.` : undefined}>
+                  <input type="number" min={1} max={heldRwf} className={controlClass} value={amount} onChange={(event) => setAmount(event.target.value)} />
+                </FormField>
+                <FormField label="Reason for approving" required hint="Shown to the importer and the truck owner.">
+                  <textarea className={`${controlClass} min-h-20 resize-y`} value={approveNote} onChange={(event) => setApproveNote(event.target.value)} placeholder="For example: the owner did not deliver the cargo." />
+                </FormField>
+                <ConfirmButton
+                  label="Approve and refund"
+                  title="Approve this refund?"
+                  message="Money moves from escrow straight away. This cannot be undone."
+                  summary={payment && amountValid ? settlementSummary(payment, approveRwf) : undefined}
+                  disabled={busy || !amountValid || approveNote.trim().length < 5}
+                  onConfirm={() => decide("APPROVED", approveNote.trim(), "Refund approved and sent to the importer's wallet.", approveRwf)}
+                />
+              </div>
               <div className="border-t border-line pt-5">
                 <NoteAction
                   fieldLabel="Reason for rejecting"
@@ -184,7 +213,7 @@ function RefundBody({ refund }: { refund: RefundRequest }) {
                   errorMessage="Give the reason for rejecting (at least 5 characters)."
                   label="Reject refund"
                   title="Reject this refund request?"
-                  message="The importer sees your reason and no refund is made."
+                  message="The importer sees your reason. No refund is made, and the dispute stays open so you can still decide the payment from the booking."
                   variant="ghost"
                   tone="danger"
                   disabled={busy}

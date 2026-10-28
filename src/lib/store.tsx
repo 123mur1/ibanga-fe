@@ -220,6 +220,14 @@ type Store = {
   ) => Promise<string | null>;
   reportProblem: (bookingId: string, reason: string) => Promise<string | null>;
   resolveDispute: (disputeId: string, notes: string) => Promise<string | null>;
+  /**
+   * Administrator decision on a disputed booking: `refundRwf` of the held payment goes back to the
+   * importer's wallet and the rest is released to the owner. Closes the booking.
+   */
+  settleDispute: (
+    bookingId: string,
+    input: { refundRwf: number; resolutionNotes: string },
+  ) => Promise<string | null>;
   setUserActive: (userId: string, active: boolean) => Promise<string | null>;
   deleteUser: (userId: string) => Promise<string | null>;
   depositFunds: (amount: number, phoneNumber: string) => Promise<string | null>;
@@ -256,11 +264,15 @@ type Store = {
       refundTo: string;
     },
   ) => Promise<string | null>;
+  /** Administrator decision. Approving refunds `amountRwf` (default: the amount asked) from escrow. */
   processRefund: (
     refundId: string,
     decision: "APPROVED" | "REJECTED",
     note: string,
+    amountRwf?: number,
   ) => Promise<string | null>;
+  /** The truck owner gives their side of a refund request. */
+  respondToRefund: (refundId: string, response: string) => Promise<string | null>;
 };
 
 const StoreContext = createContext<Store | null>(null);
@@ -1109,6 +1121,25 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     [currentUser, publishDemo, refreshAfterMutation],
   );
 
+  const settleDispute = useCallback<Store["settleDispute"]>(
+    async (bookingId, input) => {
+      if (demoEnabled) {
+        return "Settling a dispute moves real money, so it needs the API. Switch off demo mode.";
+      }
+      try {
+        await api(`/bookings/${encodeURIComponent(bookingId)}/settle-dispute`, {
+          method: "POST",
+          body: JSON.stringify(input),
+        });
+        await refreshAfterMutation();
+        return null;
+      } catch (error) {
+        return errorMessage(error, "Could not settle the dispute.");
+      }
+    },
+    [refreshAfterMutation],
+  );
+
   const setUserActive = useCallback<Store["setUserActive"]>(
     async (userId, active) => {
       if (demoEnabled && demoSession.current && currentUser) {
@@ -1370,7 +1401,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
   );
 
   const processRefund = useCallback<Store["processRefund"]>(
-    async (refundId, decision, note) => {
+    async (refundId, decision, note, amountRwf) => {
       if (demoEnabled && demoSession.current && currentUser) {
         const result = demoProcessRefund(
           demoSession.current,
@@ -1385,7 +1416,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
       try {
         await api(`/refunds/${encodeURIComponent(refundId)}`, {
           method: "PATCH",
-          body: JSON.stringify({ status: decision, ownerNote: note }),
+          body: JSON.stringify({ status: decision, note, ...(amountRwf ? { amountRwf } : {}) }),
         });
         await refreshAfterMutation();
         return null;
@@ -1394,6 +1425,23 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
       }
     },
     [currentUser, publishDemo, refreshAfterMutation],
+  );
+
+  const respondToRefund = useCallback<Store["respondToRefund"]>(
+    async (refundId, response) => {
+      if (demoEnabled) return "Responding to a refund request needs the API.";
+      try {
+        await api(`/refunds/${encodeURIComponent(refundId)}/respond`, {
+          method: "PATCH",
+          body: JSON.stringify({ response }),
+        });
+        await refreshAfterMutation();
+        return null;
+      } catch (error) {
+        return errorMessage(error, "Could not send your response.");
+      }
+    },
+    [refreshAfterMutation],
   );
 
   const value = useMemo<Store>(
@@ -1429,6 +1477,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
       setBookingStatus,
       reportProblem,
       resolveDispute,
+      settleDispute,
       setUserActive,
       deleteUser,
       depositFunds,
@@ -1439,6 +1488,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
       addReview,
       requestRefund,
       processRefund,
+      respondToRefund,
     }),
     [
       ready,
@@ -1472,6 +1522,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
       setBookingStatus,
       reportProblem,
       resolveDispute,
+      settleDispute,
       setUserActive,
       deleteUser,
       depositFunds,
@@ -1482,6 +1533,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
       addReview,
       requestRefund,
       processRefund,
+      respondToRefund,
     ],
   );
 

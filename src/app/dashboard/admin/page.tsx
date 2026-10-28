@@ -504,7 +504,7 @@ export default function AdminHome() {
                 const booking = bookings.find((item) => item.id === dispute.bookingId);
                 return (
                   <li key={dispute.id}>
-                    <Link href={`/dashboard/admin/disputes/${dispute.id}`} className="font-semibold text-navy hover:text-brand">
+                    <Link href={`/dashboard/admin/bookings/${dispute.bookingId}`} className="font-semibold text-navy hover:text-brand">
                       {booking ? `${booking.pickupLocation} to ${booking.destination}` : dispute.bookingId}
                     </Link>
                     <p className="truncate text-sm text-muted">{dispute.reason}</p>

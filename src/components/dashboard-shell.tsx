@@ -307,9 +307,9 @@ function NavList({
       {groups.map((group, index) => (
         <div key={group.label ?? `group-${index}`} className={index === 0 ? "" : "mt-3"}>
           {group.label && !collapsed ? (
-            <p className="px-3 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted/70">{group.label}</p>
+            <p className="px-3 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/60">{group.label}</p>
           ) : group.label && collapsed ? (
-            <span className="mx-3 mb-1.5 block h-px bg-line" aria-hidden="true" />
+            <span className="mx-3 mb-1.5 block h-px bg-white/20" aria-hidden="true" />
           ) : null}
           <div className="flex flex-col gap-0.5">
             {group.items.map((item) => {
@@ -322,21 +322,21 @@ function NavList({
                   onClick={onNavigate}
                   title={collapsed ? item.label : undefined}
                   aria-current={active ? "page" : undefined}
-                  className={`group relative flex items-center rounded-lg py-2 text-[14.5px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+                  className={`group relative flex items-center rounded-lg py-2 text-[14.5px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${
                     collapsed ? "justify-center px-2" : "gap-3 px-3"
-                  } ${active ? "bg-brand-soft font-semibold text-brand-dark" : "font-medium text-muted hover:bg-background hover:text-navy"}`}
+                  } ${active ? "bg-white/15 font-semibold text-white" : "font-medium text-white/85 hover:bg-white/10 hover:text-white"}`}
                 >
-                  <NavIcon name={item.icon} className={active ? "text-brand" : "text-muted/70 group-hover:text-navy"} />
+                  <NavIcon name={item.icon} className={active ? "text-white" : "text-white/75 group-hover:text-white"} />
                   {!collapsed ? <span className="min-w-0 flex-1 truncate">{item.label}</span> : null}
                   {count > 0 ? (
                     <span
-                      className={`${collapsed ? "absolute right-1 top-1" : ""} flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-white`}
+                      className={`${collapsed ? "absolute right-1 top-1" : ""} flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1.5 text-[11px] font-bold text-brand-dark`}
                       aria-label={`${count} unread`}
                     >
                       {count > 99 ? "99+" : count}
                     </span>
                   ) : null}
-                  {active ? <span className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-brand" /> : null}
+                  {active ? <span className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-white" /> : null}
                 </Link>
               );
             })}
@@ -399,15 +399,15 @@ export function DashboardShell({
   return (
     <div className="min-h-screen bg-background">
       <div className="flex">
-        <aside className={`sticky top-0 hidden h-screen min-h-0 shrink-0 self-start flex-col overflow-y-auto border-r border-line bg-card transition-[width] duration-200 lg:flex ${collapsed ? "w-[76px]" : "w-[240px]"}`}>
+        <aside className={`sticky top-0 hidden h-screen min-h-0 shrink-0 self-start flex-col overflow-y-auto border-r border-brand-dark bg-brand transition-[width] duration-200 lg:flex ${collapsed ? "w-[76px]" : "w-[240px]"}`}>
           <div className={`flex items-center ${collapsed ? "justify-center px-2" : "justify-between px-5"} pb-5 pt-6`}>
-            {collapsed ? <Link href="/" aria-label="iBanga home"><LogoMark /></Link> : <BrandLink href="/" />}
+            {collapsed ? <Link href="/" aria-label="iBanga home"><LogoMark className="h-9 w-9 rounded-[9px] ring-1 ring-white/50" /></Link> : <BrandLink href="/" light />}
             {!collapsed ? (
               <button
                 type="button"
                 onClick={() => setCollapsed(true)}
                 aria-label="Collapse sidebar"
-                className="rounded-lg p-2 text-muted transition hover:bg-background hover:text-brand"
+                className="rounded-lg p-2 text-white/75 transition hover:bg-white/10 hover:text-white"
               >
                 <NavIcon name="collapse" />
               </button>
@@ -494,13 +494,13 @@ export function DashboardShell({
                 className="absolute inset-0 bg-navy/40 backdrop-blur-sm"
                 onClick={() => setOpen(false)}
               />
-              <div className="absolute inset-y-0 left-0 flex w-72 flex-col bg-card shadow-card">
+              <div className="absolute inset-y-0 left-0 flex w-72 flex-col bg-brand shadow-card">
                 <div className="flex items-center justify-between px-5 py-5">
-                  <BrandLink />
+                  <BrandLink light />
                   <button
                     type="button"
                     aria-label="Close menu"
-                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-white text-navy"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/30 bg-white/10 text-white"
                     onClick={() => setOpen(false)}
                   >
                     <svg

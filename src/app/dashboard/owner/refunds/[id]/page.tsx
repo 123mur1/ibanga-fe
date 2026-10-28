@@ -8,17 +8,16 @@ import { RequireAuth } from "@/components/require-auth";
 import { useToast } from "@/components/toast";
 import { Avatar } from "@/components/photos";
 import { PaymentBadge, RefundBadge } from "@/components/status-badge";
-import { ConfirmDialog, Field, GhostButton, inputClass, PageHeader, PrimaryButton, formatDate, formatDateTime } from "@/components/ui";
+import { Field, inputClass, PageHeader, PrimaryButton, formatDate, formatDateTime } from "@/components/ui";
 import { formatRwf } from "@/lib/payments";
 import { useIbanga } from "@/lib/store";
 
 export default function OwnerRefundDetailPage() {
   const { id } = useParams<{ id: string }>();
   const toast = useToast();
-  const { refunds, bookings, trucks, users, currentUser, processRefund } = useIbanga();
+  const { refunds, bookings, trucks, users, currentUser, respondToRefund } = useIbanga();
   const [note, setNote] = useState("");
   const [noteError, setNoteError] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState<"APPROVED" | "REJECTED" | null>(null);
   const [busy, setBusy] = useState(false);
 
   const found = refunds.find((item) => item.id === id);
@@ -28,23 +27,21 @@ export default function OwnerRefundDetailPage() {
   const importer = refund ? users.find((item) => item.id === refund.importerId) : undefined;
   const payment = booking?.payment;
 
-  function ask(decision: "APPROVED" | "REJECTED") {
-    if (decision === "REJECTED" && note.trim().length < 5) {
-      setNoteError("Tell the importer why the request is rejected.");
+  async function respond() {
+    if (!refund) return;
+    if (note.trim().length < 5) {
+      setNoteError("Write your side of what happened (at least 5 characters).");
       return;
     }
     setNoteError(null);
-    setConfirming(decision);
-  }
-
-  async function decide() {
-    if (!refund || !confirming) return;
     setBusy(true);
-    const error = await processRefund(refund.id, confirming, note.trim());
+    const error = await respondToRefund(refund.id, note.trim());
     setBusy(false);
-    setConfirming(null);
     if (error) toast(error, "bad");
-    else toast(confirming === "APPROVED" ? "Refund approved. The money goes back to the importer." : "Refund request rejected.", "good");
+    else {
+      setNote("");
+      toast("Your response was sent to the administrators.", "good");
+    }
   }
 
   return (
@@ -122,34 +119,47 @@ export default function OwnerRefundDetailPage() {
               <aside className="space-y-5">
                 <section className="overflow-hidden rounded-2xl border border-line bg-card shadow-soft">
                   <div className="border-b border-line bg-brand px-5 py-4 text-white">
-                    <h2 className="font-display text-lg">Your decision</h2>
+                    <h2 className="font-display text-lg">Your response</h2>
                     <p className="mt-1 text-sm text-white/80">
-                      {refund.status === "REQUESTED" ? "Approve to return the money, or reject with a reason." : "This request has been processed."}
+                      {refund.status === "REQUESTED"
+                        ? "An administrator decides this request. Give your side of what happened before they do."
+                        : "An administrator has decided this request."}
                     </p>
                   </div>
-                  {refund.status === "REQUESTED" ? (
-                    <div className="space-y-4 px-5 py-5">
-                      <Field label="Note to the importer">
-                        <textarea
-                          className={`${inputClass} min-h-28 resize-y`}
-                          value={note}
-                          onChange={(event) => setNote(event.target.value)}
-                          placeholder="Optional when approving. Required when rejecting."
-                        />
-                      </Field>
-                      {noteError ? <p role="alert" className="text-sm font-medium text-bad">{noteError}</p> : null}
-                      <div className="flex flex-col gap-2">
-                        <PrimaryButton type="button" onClick={() => ask("APPROVED")}>Approve refund</PrimaryButton>
-                        <GhostButton type="button" className="hover:border-bad/30 hover:text-bad" onClick={() => ask("REJECTED")}>Reject request</GhostButton>
+                  <div className="space-y-4 px-5 py-5">
+                    {refund.ownerNote ? (
+                      <div>
+                        <p className="text-sm font-medium text-muted">You said{refund.ownerRespondedAt ? ` on ${formatDateTime(refund.ownerRespondedAt)}` : ""}</p>
+                        <p className="mt-1 text-sm leading-6 text-navy">{refund.ownerNote}</p>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-2 px-5 py-5">
-                      <RefundBadge status={refund.status} />
-                      <p className="text-sm leading-6 text-navy">{refund.ownerNote || "No note was left."}</p>
-                      {refund.resolvedAt ? <p className="text-xs font-medium text-muted">Processed {formatDateTime(refund.resolvedAt)}</p> : null}
-                    </div>
-                  )}
+                    ) : null}
+                    {refund.status === "REQUESTED" ? (
+                      <>
+                        <Field label={refund.ownerNote ? "Update your response" : "What happened, from your side"}>
+                          <textarea
+                            className={`${inputClass} min-h-28 resize-y`}
+                            value={note}
+                            onChange={(event) => setNote(event.target.value)}
+                            placeholder="For example: the cargo was already damaged at pickup, with photos in the evidence."
+                          />
+                        </Field>
+                        {noteError ? <p role="alert" className="text-sm font-medium text-bad">{noteError}</p> : null}
+                        <PrimaryButton type="button" disabled={busy} onClick={() => void respond()}>{busy ? "Sending…" : "Send to administrator"}</PrimaryButton>
+                        <p className="text-xs text-muted">The payment stays held in escrow until the administrator decides.</p>
+                      </>
+                    ) : (
+                      <div className="space-y-2 border-t border-line pt-4">
+                        <RefundBadge status={refund.status} />
+                        <p className="text-sm leading-6 text-navy">
+                          {refund.status === "APPROVED"
+                            ? `${formatRwf(refund.approvedAmountRwf ?? refund.amountRwf)} was refunded to the importer.`
+                            : "No refund was made."}{" "}
+                          {refund.decisionNote ? `Reason: ${refund.decisionNote}` : ""}
+                        </p>
+                        {refund.resolvedAt ? <p className="text-xs font-medium text-muted">Decided {formatDateTime(refund.resolvedAt)}</p> : null}
+                      </div>
+                    )}
+                  </div>
                 </section>
 
                 <section className="overflow-hidden rounded-2xl border border-line bg-card shadow-soft">
@@ -167,21 +177,6 @@ export default function OwnerRefundDetailPage() {
               </aside>
             </div>
 
-            {confirming ? (
-              <ConfirmDialog
-                title={confirming === "APPROVED" ? "Approve this refund?" : "Reject this request?"}
-                message={
-                  confirming === "APPROVED"
-                    ? `${formatRwf(refund.amountRwf)} goes back to ${importer?.name ?? "the importer"}. ${booking.status === "ACCEPTED" ? "The booking is cancelled and your truck becomes available again." : "This cannot be undone."}`
-                    : `${importer?.name ?? "The importer"} will see your note and the payment stays as it is.`
-                }
-                confirmLabel={confirming === "APPROVED" ? "Approve refund" : "Reject request"}
-                tone={confirming === "APPROVED" ? "brand" : "danger"}
-                busy={busy}
-                onConfirm={() => void decide()}
-                onCancel={() => !busy && setConfirming(null)}
-              />
-            ) : null}
           </>
         )}
       </DashboardShell>

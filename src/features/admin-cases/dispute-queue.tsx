@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { QueryBoundary } from "@/components/common/async-state";
@@ -10,6 +11,9 @@ import { DataTable, PageHeader, StatCard, ViewLink } from "@/components/ui";
 import { useActor } from "@/hooks/use-actor";
 import { useOps } from "@/hooks/use-ops";
 import { useServiceQuery } from "@/hooks/use-service-query";
+import { DisputeBadge } from "@/components/status-badge";
+import { useIbanga } from "@/lib/store";
+import { formatRwf } from "@/lib/payments";
 import { formatDate } from "@/lib/format";
 import { services } from "@/services";
 import type { DisputeCase } from "@/types/ops";
@@ -42,8 +46,9 @@ export function DisputeQueue() {
       <PageHeader
         eyebrow="Fairness"
         title="Disputes & claims"
-        subtitle="Review cases raised by importers and truck owners. Recording a decision here never moves money; refunds and settlements are separate workflows."
+        subtitle="Review problems importers reported on bookings and cases raised by importers and truck owners. Settling a dispute can refund the importer or release the payment to the owner."
       />
+      <ReportedProblems />
       <div className="mt-6">
         <Notice tone="info" title="Settlement hold">
           Opening a dispute places a hold on the owner&apos;s settlement for that shipment. The hold stays until the case is resolved or rejected.
@@ -135,5 +140,63 @@ function Results({ items, now, name }: { items: DisputeCase[]; now: number; name
         })}
       />
     </>
+  );
+}
+
+/**
+ * Problems importers reported with "Report problem" on a delivered booking. They are settled from
+ * the booking page, where the administrator can refund the importer or pay the owner.
+ */
+function ReportedProblems() {
+  const { disputes, bookings, refunds } = useIbanga();
+  const name = useUserNames();
+  const open = disputes.filter((dispute) => dispute.status === "OPEN");
+  const recent = [...open, ...disputes.filter((dispute) => dispute.status !== "OPEN")].slice(0, 20);
+  return (
+    <section className="mt-6 overflow-hidden rounded-2xl border border-line bg-card shadow-soft">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-background/60 px-5 py-4">
+        <div>
+          <h2 className="font-display text-lg text-navy">Problems reported on bookings</h2>
+          <p className="text-sm text-muted">
+            {open.length ? `${open.length} waiting for your decision.` : "Nothing waiting for a decision."} The payment stays in escrow until you settle it.
+          </p>
+        </div>
+      </div>
+      {recent.length === 0 ? (
+        <p className="px-5 py-6 text-sm text-muted">No importer has reported a problem yet.</p>
+      ) : (
+        <ul className="divide-y divide-line">
+          {recent.map((dispute) => {
+            const booking = bookings.find((item) => item.id === dispute.bookingId);
+            const held = booking?.payment && ["FUNDED", "HELD"].includes(booking.payment.status);
+            const refundRequest = refunds.find((item) => item.bookingId === dispute.bookingId && item.status === "REQUESTED");
+            return (
+              <li key={dispute.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                <div className="min-w-0">
+                  <p className="font-semibold text-navy">{booking ? `${booking.pickupLocation} to ${booking.destination}` : `Booking ${dispute.bookingId}`}</p>
+                  <p className="mt-0.5 text-sm text-navy">&ldquo;{dispute.reason}&rdquo;</p>
+                  <p className="mt-0.5 text-xs text-muted">
+                    Reported by {name(dispute.raisedBy)} on {formatDate(dispute.createdAt)}
+                    {held && booking?.payment ? ` · ${formatRwf(booking.payment.amountRwf)} held in escrow` : ""}
+                    {booking?.payment?.status === "REFUNDED" ? " · refunded to the importer" : ""}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  {refundRequest ? (
+                    <Link href={`/dashboard/admin/refunds/${refundRequest.id}`} className="text-sm font-semibold text-brand hover:text-brand-dark">
+                      Refund requested: {formatRwf(refundRequest.amountRwf)}
+                    </Link>
+                  ) : null}
+                  <DisputeBadge status={dispute.status} />
+                  <Link href={`/dashboard/admin/bookings/${dispute.bookingId}`} className="rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-dark">
+                    {dispute.status === "OPEN" ? "Open and settle" : "View"}
+                  </Link>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }
