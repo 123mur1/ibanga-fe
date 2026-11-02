@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { QueryBoundary } from "@/components/common/async-state";
-import { controlClass } from "@/components/common/form-fields";
+import { controlClass, OptionSelect } from "@/components/common/form-fields";
 import { Notice } from "@/components/common/notices";
 import { StatusBadge } from "@/components/common/status-badge";
 import { Tabs } from "@/components/common/tabs";
@@ -10,7 +10,7 @@ import { DataTable, StatCard, ViewLink } from "@/components/ui";
 import { useActor } from "@/hooks/use-actor";
 import { useServiceQuery } from "@/hooks/use-service-query";
 import { formatDate, formatRwf, formatTons } from "@/lib/format";
-import { TRUCK_TYPES } from "@/lib/types";
+import { LOCATIONS, TRUCK_TYPES } from "@/lib/types";
 import { services } from "@/services";
 import type { CargoRequest, HandlingFlag } from "@/types/ops";
 import { CATEGORY_LABEL, FLAG_LABEL, FlagChips } from "./labels";
@@ -69,8 +69,8 @@ export function OpportunitiesList() {
           <fieldset className="grid gap-3 rounded-2xl border border-line bg-card p-4 shadow-soft sm:grid-cols-2 lg:grid-cols-4">
             <legend className="sr-only">Filter opportunities</legend>
             <label className="block text-sm font-medium text-navy">
-              Route or place
-              <input className={`${controlClass} mt-1.5`} value={route} onChange={(event) => setRoute(event.target.value)} placeholder="e.g. Kigali, Mombasa" />
+              Pickup or destination
+              <OptionSelect className={`${controlClass} mt-1.5`} options={LOCATIONS} placeholder="Any place" value={route} onChange={(event) => setRoute(event.target.value)} />
             </label>
             <label className="block text-sm font-medium text-navy">
               Truck type

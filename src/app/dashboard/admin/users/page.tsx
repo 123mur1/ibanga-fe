@@ -8,6 +8,7 @@ import { RoleBadge } from "@/components/status-badge";
 import { useToast } from "@/components/toast";
 import { DataTable, Field, GhostButton, inputClass, Modal, PageHeader, PrimaryButton, RowActions, StatCard, ViewLink } from "@/components/ui";
 import { Avatar } from "@/components/photos";
+import { OptionSelect } from "@/components/common/form-fields";
 import Link from "next/link";
 import { useIbanga } from "@/lib/store";
 import { useOps } from "@/hooks/use-ops";
@@ -257,18 +258,14 @@ export default function AdminUsersPage() {
                   />
                 </Field>
                 <Field label="Location">
-                  <input
+                  <OptionSelect
                     className={inputClass}
                     required
-                    list="ibanga-locations"
+                    options={LOCATIONS}
+                    placeholder="Choose a location"
                     value={form.location}
                     onChange={(event) => updateField({ location: event.target.value })}
-                    placeholder="Kigali"
-                    autoComplete="off"
                   />
-                  <datalist id="ibanga-locations">
-                    {LOCATIONS.map((location) => <option key={location} value={location} />)}
-                  </datalist>
                 </Field>
                 <Field label="Company (optional)">
                   <input

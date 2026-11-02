@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { controlClass, FormField } from "@/components/common/form-fields";
+import { controlClass, FormField, OptionSelect } from "@/components/common/form-fields";
 import { Notice } from "@/components/common/notices";
 import { Section } from "@/components/common/layout-blocks";
 import { GhostButton, PrimaryButton } from "@/components/ui";
@@ -9,6 +9,7 @@ import { useAction } from "@/hooks/use-action";
 import { useActor } from "@/hooks/use-actor";
 import { applyFieldErrors, useZodForm } from "@/lib/forms";
 import { useIbanga } from "@/lib/store";
+import { LOCATIONS } from "@/lib/types";
 import { services } from "@/services";
 import type { MilestoneKind, Shipment } from "@/types/ops";
 import { delaySchema } from "./schemas";
@@ -83,8 +84,8 @@ export function MilestonePanel({ shipment }: { shipment: Shipment }) {
           <Notice tone="info" title="Next: submit delivery evidence">Delivery is recorded only by submitting proof of delivery, not by a status button.</Notice>
         ) : null}
         <div className="grid gap-3 sm:grid-cols-2">
-          <FormField label="Where is the truck?" hint="Leave empty to use a default place for the step.">
-            <input className={controlClass} value={place} onChange={(event) => setPlace(event.target.value)} placeholder="e.g. Rusumo border" />
+          <FormField label="Where is the truck?" hint="Leave on the default to use the usual place for the step.">
+            <OptionSelect options={LOCATIONS} placeholder="Default place for the step" value={place} onChange={(event) => setPlace(event.target.value)} />
           </FormField>
           <FormField label="Note (optional)">
             <input className={controlClass} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Anything the importer should know" />

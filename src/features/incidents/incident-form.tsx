@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { QueryBoundary } from "@/components/common/async-state";
-import { controlClass, FilePicker, FormField } from "@/components/common/form-fields";
+import { controlClass, FilePicker, FormField, OptionSelect } from "@/components/common/form-fields";
 import { Section } from "@/components/common/layout-blocks";
 import { Notice } from "@/components/common/notices";
 import { PrimaryButton } from "@/components/ui";
@@ -13,6 +13,7 @@ import { useServiceQuery } from "@/hooks/use-service-query";
 import { applyFieldErrors, useZodForm, type PickedFile } from "@/lib/forms";
 import { formatDate, titleCase } from "@/lib/format";
 import { useIbanga } from "@/lib/store";
+import { LOCATIONS } from "@/lib/types";
 import { services } from "@/services";
 import { CONDITIONS, INCIDENT_TYPES, incidentSchema, SEVERITIES } from "./schemas";
 
@@ -102,8 +103,8 @@ function Form({ shipments, initialShipmentId }: { shipments: ShipmentItem[]; ini
           <FormField label="Date and time" required error={errors.occurredAt?.message}>
             <input type="datetime-local" className={controlClass} aria-invalid={Boolean(errors.occurredAt)} {...register("occurredAt")} />
           </FormField>
-          <FormField label="Location" required error={errors.location?.message}>
-            <input className={controlClass} aria-invalid={Boolean(errors.location)} {...register("location")} />
+          <FormField label="Nearest town or border" required error={errors.location?.message}>
+            <OptionSelect options={LOCATIONS} placeholder="Choose a place" aria-invalid={Boolean(errors.location)} {...register("location")} />
           </FormField>
           <FormField label="Description" required error={errors.description?.message} className="sm:col-span-2">
             <textarea className={`${controlClass} min-h-28`} aria-invalid={Boolean(errors.description)} {...register("description")} />

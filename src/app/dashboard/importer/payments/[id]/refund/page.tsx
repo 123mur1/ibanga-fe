@@ -11,9 +11,7 @@ import { Field, GhostButton, inputClass, PageHeader, PrimaryButton, formatDate }
 import { canRequestRefund } from "@/lib/refunds";
 import { formatRwf } from "@/lib/payments";
 import { useIbanga } from "@/lib/store";
-import { REFUND_REASONS } from "@/lib/types";
-
-const methodLabel: Record<string, string> = { VISA: "Visa card", AIRTEL: "Airtel Money", MTN: "MTN MoMo" };
+import { PAYMENT_METHOD_LABEL as methodLabel, REFUND_REASONS } from "@/lib/types";
 
 export default function RequestRefundPage() {
   const { id } = useParams<{ id: string }>();

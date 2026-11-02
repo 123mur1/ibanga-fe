@@ -54,6 +54,11 @@ export type NavItem = {
   external?: boolean;
   /** Shows a live unread count next to the label. */
   badge?: "unreadNotifications";
+  /**
+   * Related pages grouped under this one sidebar entry. The entry stays highlighted on any of
+   * them and the dashboard shows these as tabs above the page.
+   */
+  tabs?: { href: string; label: string }[];
 };
 
 export type NavGroup = { label?: string; items: NavItem[] };
@@ -79,13 +84,34 @@ export const NAVIGATION: Record<Role, NavGroup[]> = {
     {
       items: [
         { href: owner, label: "Dashboard", icon: "grid" },
-        { href: `${owner}/trucks`, label: "My trucks", icon: "truck" },
-        { href: `${owner}/drivers`, label: "Drivers", icon: "steering" },
-        { href: `${owner}/bookings`, label: "Bookings", icon: "calendar" },
-        { href: `${owner}/history`, label: "History", icon: "history" },
+        {
+          href: `${owner}/trucks`,
+          label: "Trucks & drivers",
+          icon: "truck",
+          tabs: [
+            { href: `${owner}/trucks`, label: "My trucks" },
+            { href: `${owner}/drivers`, label: "Drivers" },
+          ],
+        },
+        {
+          href: `${owner}/bookings`,
+          label: "Bookings & history",
+          icon: "calendar",
+          tabs: [
+            { href: `${owner}/bookings`, label: "Bookings" },
+            { href: `${owner}/history`, label: "History" },
+          ],
+        },
         { href: "/dashboard/tracking", label: "Live cargo", icon: "pin" },
-        { href: `${owner}/payments`, label: "Payments", icon: "card" },
-        { href: `${owner}/refunds`, label: "Refunds", icon: "refund" },
+        {
+          href: `${owner}/payments`,
+          label: "Payments & refunds",
+          icon: "card",
+          tabs: [
+            { href: `${owner}/payments`, label: "Payments" },
+            { href: `${owner}/refunds`, label: "Refunds" },
+          ],
+        },
       ],
     },
   ],

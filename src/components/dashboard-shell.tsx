@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { NotificationsBell } from "./notifications-bell";
 import { BrandLink, LogoMark } from "./brand";
 import { LogoutConfirmationDialog } from "./logout-confirmation-dialog";
@@ -279,13 +279,54 @@ function NavIcon({ name, className = "h-4 w-4" }: { name: string; className?: st
   );
 }
 
-function isActive(pathname: string, href: string, items: NavItem[]) {
-  if (href.includes("#")) return false;
-  if (pathname === href) return true;
-  if (href === items[0]?.href) return false;
-  if (!pathname.startsWith(`${href}/`)) return false;
-  // Prefer the most specific matching item so "/x/trucks" does not light up "/x".
-  return !items.some((other) => other.href !== href && !other.href.includes("#") && other.href.length > href.length && (pathname === other.href || pathname.startsWith(`${other.href}/`)));
+/** How closely `href` matches the page: -1 for no match, longer prefixes win. The home link only matches itself. */
+function matchScore(pathname: string, href: string, home: boolean) {
+  if (href.includes("#")) return -1;
+  if (pathname === href) return Number.MAX_SAFE_INTEGER;
+  return !home && pathname.startsWith(`${href}/`) ? href.length : -1;
+}
+
+function itemScore(pathname: string, item: NavItem, home: boolean) {
+  return Math.max(...[item.href, ...(item.tabs ?? []).map((tab) => tab.href)].map((href) => matchScore(pathname, href, home)));
+}
+
+/** The one sidebar entry for this page; the most specific match wins so "/x/trucks" does not light up "/x". */
+function activeItem(pathname: string, items: NavItem[]) {
+  let best: NavItem | undefined;
+  let bestScore = -1;
+  items.forEach((item, index) => {
+    const score = itemScore(pathname, item, index === 0);
+    if (score > bestScore) [best, bestScore] = [item, score];
+  });
+  return best;
+}
+
+/** Tabs for sidebar entries that group several pages, e.g. "Trucks & drivers". */
+function SectionTabs({ item, pathname }: { item: NavItem; pathname: string }) {
+  const tabs = item.tabs ?? [];
+  const current = tabs.reduce<{ href: string; score: number } | null>((best, tab) => {
+    const score = matchScore(pathname, tab.href, false);
+    return score > (best?.score ?? -1) ? { href: tab.href, score } : best;
+  }, null)?.href;
+  return (
+    <nav aria-label={item.label} className="mb-6 flex gap-1 overflow-x-auto border-b border-line">
+      {tabs.map((tab) => {
+        const active = tab.href === current;
+        return (
+          <Link
+            key={tab.href}
+            href={tab.href}
+            aria-current={active ? "page" : undefined}
+            className={`-mb-px whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
+              active ? "border-brand text-brand" : "border-transparent text-muted hover:border-line hover:text-navy"
+            }`}
+          >
+            {tab.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
 }
 
 function NavList({
@@ -301,7 +342,7 @@ function NavList({
   unread: number;
   onNavigate?: () => void;
 }) {
-  const flat = flattenNav(groups);
+  const current = activeItem(pathname, flattenNav(groups));
   return (
     <>
       {groups.map((group, index) => (
@@ -313,7 +354,7 @@ function NavList({
           ) : null}
           <div className="flex flex-col gap-0.5">
             {group.items.map((item) => {
-              const active = isActive(pathname, item.href, flat);
+              const active = item === current;
               const count = item.badge === "unreadNotifications" ? unread : 0;
               return (
                 <Link
@@ -380,6 +421,12 @@ export function DashboardShell({
   const ops = useOps();
   const permissions = ops.adminProfiles.find((profile) => profile.userId === currentUser?.id)?.permissions;
   const groups = useMemo(() => visibleGroups(role, permissions), [role, permissions]);
+  const sectionItem = activeItem(pathname, flattenNav(groups));
+  // Only the content area scrolls, so start each page at its top like a normal page load.
+  const content = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    content.current?.scrollTo(0, 0);
+  }, [pathname]);
   const unread = useUnreadCount();
   const firstName = (currentUser?.name ?? "").split(" ")[0] || "there";
   const profilePath = profilePathFor(role);
@@ -397,9 +444,13 @@ export function DashboardShell({
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="flex">
-        <aside className={`sticky top-0 hidden h-screen min-h-0 shrink-0 self-start flex-col overflow-y-auto border-r border-brand-dark bg-brand transition-[width] duration-200 lg:flex ${collapsed ? "w-[76px]" : "w-[240px]"}`}>
+    // Fixed app frame pinned to the screen: the sidebar and header never move; only the content area
+    // below the header scrolls. `overflow-clip` (unlike `overflow-hidden`) cannot be scrolled even by
+    // the browser bringing a focused element into view. `relative` on the content area keeps absolutely
+    // positioned children (e.g. `sr-only` checkboxes in wide tables) inside it.
+    <div className="fixed inset-0 overflow-clip bg-background">
+      <div className="flex h-full">
+        <aside className={`relative hidden h-full min-h-0 shrink-0 flex-col overflow-y-auto overflow-x-hidden border-r border-brand-dark bg-brand transition-[width] duration-200 lg:flex ${collapsed ? "w-19" : "w-60"}`}>
           <div className={`flex items-center ${collapsed ? "justify-center px-2" : "justify-between px-5"} pb-5 pt-6`}>
             {collapsed ? <Link href="/" aria-label="iBanga home"><LogoMark className="h-9 w-9 rounded-[9px] ring-1 ring-white/50" /></Link> : <BrandLink href="/" light />}
             {!collapsed ? (
@@ -416,7 +467,7 @@ export function DashboardShell({
                 type="button"
                 onClick={() => setCollapsed(false)}
                 aria-label="Expand sidebar"
-                className="absolute left-[54px] top-6 z-10 rounded-lg border border-line bg-white p-1.5 text-muted shadow-soft transition hover:text-brand"
+                className="absolute left-13.5 top-6 z-10 rounded-lg border border-line bg-white p-1.5 text-muted shadow-soft transition hover:text-brand"
               >
                 <NavIcon name="expand" />
               </button>
@@ -427,13 +478,13 @@ export function DashboardShell({
           </nav>
         </aside>
 
-        <div className="min-w-0 flex-1">
-          <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-line bg-card px-4 py-3 lg:px-6">
-            <div className="flex items-center gap-3 lg:hidden">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="relative z-20 flex shrink-0 items-center justify-between gap-3 border-b border-line bg-card px-4 py-3 lg:px-6">
+            <div className="flex min-w-0 items-center gap-3 lg:hidden">
               <button
                 type="button"
                 aria-label="Open menu"
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-white text-navy shadow-soft"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line bg-white text-navy shadow-soft"
                 onClick={() => setOpen((v) => !v)}
               >
                 <svg
@@ -456,16 +507,17 @@ export function DashboardShell({
               <span className="font-medium text-navy">Good {morning()}, {firstName}.</span>
             </div>
 
-            <div className="relative flex items-center gap-2">
+            <div className="relative flex shrink-0 items-center gap-2">
               <NotificationsBell />
               <button
                 type="button"
                 aria-expanded={profileOpen}
                 onClick={() => setProfileOpen((value) => !value)}
-                className="flex items-center gap-3 rounded-xl border border-line bg-white px-2.5 py-2 text-left shadow-soft transition hover:border-brand/30"
+                aria-label="Account menu"
+                className="flex items-center gap-2 rounded-xl border border-line bg-white px-2 py-1.5 text-left shadow-soft transition hover:border-brand/30 sm:gap-3 sm:px-2.5 sm:py-2"
               >
                 <Avatar src={currentUser?.photo} name={currentUser?.name ?? "User"} size="sm" />
-                <span className="block min-w-0 max-w-[112px] sm:max-w-40">
+                <span className="hidden min-w-0 max-w-40 sm:block">
                   <span className="block max-w-40 truncate text-sm font-semibold leading-5 text-navy">{currentUser?.name}</span>
                   <span className="block text-xs text-muted">{roleLabel(role)}</span>
                 </span>
@@ -523,7 +575,12 @@ export function DashboardShell({
             </div>
           ) : null}
 
-          <main className="mx-auto w-full max-w-[1240px] px-4 py-6 sm:px-6 lg:py-8">{children}</main>
+          <div ref={content} className="relative min-h-0 flex-1 overflow-auto">
+            <main className="mx-auto w-full max-w-310 px-4 py-6 sm:px-6 lg:py-8">
+              {sectionItem?.tabs ? <SectionTabs item={sectionItem} pathname={pathname} /> : null}
+              {children}
+            </main>
+          </div>
         </div>
       </div>
       {logoutConfirmationOpen ? (

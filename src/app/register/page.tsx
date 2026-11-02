@@ -5,10 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useState } from "react";
 import { AuthShell } from "@/components/auth-shell";
 import { useToast } from "@/components/toast";
+import { OptionSelect } from "@/components/common/form-fields";
 import { Field, inputClass, PrimaryButton } from "@/components/ui";
 import { postAuthPath, withNext } from "@/lib/redirect";
 import { useIbanga } from "@/lib/store";
-import type { Role } from "@/lib/types";
+import { LOCATIONS, type Role } from "@/lib/types";
 
 function RegisterForm() {
   const { register } = useIbanga();
@@ -279,12 +280,13 @@ function RegisterForm() {
                       <circle cx="12" cy="10" r="3" />
                     </svg>
                   </span>
-                  <input
+                  <OptionSelect
                     className={`${inputClass} pl-11`}
                     required
+                    options={LOCATIONS}
+                    placeholder="Choose your location"
                     value={form.location}
                     onChange={(e) => setForm({ ...form, location: e.target.value })}
-                    placeholder="Kigali"
                   />
                 </div>
               </Field>

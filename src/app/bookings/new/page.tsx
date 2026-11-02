@@ -7,10 +7,12 @@ import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { TruckThumb } from "@/components/photos";
 import { useToast } from "@/components/toast";
+import { OptionSelect } from "@/components/common/form-fields";
 import { Field, inputClass, PrimaryButton } from "@/components/ui";
 import { formatRwf } from "@/lib/payments";
+import { UNVERIFIED_TRUCK_MESSAGE, useTruckVerification } from "@/hooks/use-truck-verification";
 import { useIbanga } from "@/lib/store";
-import type { Truck } from "@/lib/types";
+import { CARGO_TYPES, LOCATIONS, PAYMENT_METHODS, type Truck } from "@/lib/types";
 
 function BookingForm() {
   const params = useSearchParams();
@@ -45,9 +47,10 @@ function BookingForm() {
     expectedDeliveryDate: "",
     additionalInstructions: "",
   });
+  const verification = useTruckVerification(truck);
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!currentUser || !truck || submitting) return;
+    if (!currentUser || !truck || submitting || verification !== "APPROVED") return;
     const amount = truck.priceRwf ?? 0;
     if (amount < 1000) {
       setError("This truck does not have a price yet.");
@@ -86,6 +89,20 @@ function BookingForm() {
         <Link href="/" className="mt-4 inline-flex text-sm font-semibold text-brand hover:text-brand-dark">
           Browse available trucks
         </Link>
+      </div>
+    );
+  }
+
+  // Someone can still open this page with a direct link; unverified trucks are never bookable.
+  if (verification !== "APPROVED") {
+    return (
+      <div className="rounded-xl border border-line bg-background p-5 text-center">
+        <p className="font-semibold text-navy">This truck cannot be booked yet</p>
+        <p className="mx-auto mt-1 max-w-lg text-sm text-muted">{UNVERIFIED_TRUCK_MESSAGE}</p>
+        <div className="mt-4 flex flex-wrap justify-center gap-4">
+          <Link href={`/trucks/${truck.id}`} className="text-sm font-semibold text-brand hover:text-brand-dark">View truck details</Link>
+          <Link href="/" className="text-sm font-semibold text-brand hover:text-brand-dark">Browse verified trucks</Link>
+        </div>
       </div>
     );
   }
@@ -141,7 +158,7 @@ function BookingForm() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Cargo type">
-                <input className={inputClass} required value={form.cargoType} onChange={(e) => setForm({ ...form, cargoType: e.target.value })} placeholder="e.g. Coffee beans" />
+                <OptionSelect className={inputClass} required options={CARGO_TYPES} placeholder="Choose a cargo type" value={form.cargoType} onChange={(e) => setForm({ ...form, cargoType: e.target.value })} />
               </Field>
               <Field label="Weight">
                 <div className="relative">
@@ -172,10 +189,10 @@ function BookingForm() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Pickup location">
-                <input className={inputClass} required value={form.pickupLocation} onChange={(e) => setForm({ ...form, pickupLocation: e.target.value })} placeholder="City or address" />
+                <OptionSelect className={inputClass} required options={LOCATIONS} placeholder="Choose a pickup location" value={form.pickupLocation} onChange={(e) => setForm({ ...form, pickupLocation: e.target.value })} />
               </Field>
               <Field label="Destination">
-                <input className={inputClass} required value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} placeholder="City or address" />
+                <OptionSelect className={inputClass} required options={LOCATIONS} placeholder="Choose a destination" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} />
               </Field>
               <Field label="Pickup date">
                 <input className={inputClass} type="date" required value={form.pickupDate} onChange={(e) => setForm({ ...form, pickupDate: e.target.value })} />
@@ -185,7 +202,7 @@ function BookingForm() {
               </Field>
               <div className="sm:col-span-2">
                 <Field label="Instructions for the driver (optional)">
-                  <textarea className={`${inputClass} min-h-20 resize-y`} value={form.additionalInstructions} onChange={(e) => setForm({ ...form, additionalInstructions: e.target.value })} placeholder="Access notes, contact person, or delivery instructions." />
+                  <textarea className={`${inputClass} min-h-20 resize-y`} value={form.additionalInstructions} onChange={(e) => setForm({ ...form, additionalInstructions: e.target.value })} placeholder="Street address, access notes, contact person, or delivery instructions." />
                 </Field>
               </div>
             </div>
@@ -203,7 +220,7 @@ function BookingForm() {
               <p className="text-2xl font-semibold tabular-nums text-navy">{truck.priceRwf ? formatRwf(truck.priceRwf) : "Price unavailable"}</p>
             </div>
             <ul className="mt-4 grid gap-2 sm:grid-cols-3">
-              {["Visa card", "Airtel Money", "MTN MoMo"].map((label) => (
+              {PAYMENT_METHODS.map(({ label }) => (
                 <li key={label} className="rounded-lg border border-line bg-background px-3 py-2.5 text-sm font-semibold text-navy">
                   {label}
                 </li>

@@ -232,13 +232,77 @@ export const ACTIVE_BOOKING_STATUSES: BookingStatus[] = [
   "DISPUTED",
 ];
 
+/**
+ * Places offered in every location dropdown, so the same town is always spelled the same way
+ * and administrators can filter and report on it. Add new places here (and in `geo.ts` for the map).
+ */
 export const LOCATIONS = [
   "Kigali",
-  "Mombasa",
-  "Nairobi",
-  "Kampala",
-  "Dar es Salaam",
-  "Rusumo",
-  "Gisenyi",
   "Musanze",
+  "Huye",
+  "Gisenyi",
+  "Rusizi",
+  "Nyagatare",
+  "Muhanga",
+  "Rwamagana",
+  "Rusumo",
+  "Gatuna",
+  "Kagitumba",
+  "Goma",
+  "Bujumbura",
+  "Kampala",
+  "Nairobi",
+  "Mombasa",
+  "Isaka",
+  "Dar es Salaam",
 ];
+
+/** Common trucking corridors, written "From — To" like the stored truck routes. */
+export const ROUTES = [
+  "Kigali — Mombasa",
+  "Mombasa — Kigali",
+  "Kigali — Dar es Salaam",
+  "Dar es Salaam — Kigali",
+  "Kigali — Kampala",
+  "Kampala — Kigali",
+  "Kigali — Nairobi",
+  "Nairobi — Kigali",
+  "Kigali — Rusumo",
+  "Kigali — Gatuna",
+  "Kigali — Goma",
+  "Kigali — Bujumbura",
+  "Kigali — Isaka",
+  "Within Rwanda",
+];
+
+export const CARGO_TYPES = [
+  "Coffee",
+  "Tea",
+  "Food and grains",
+  "Fresh produce",
+  "Beverages",
+  "Building materials",
+  "Cement",
+  "Steel and metal",
+  "Fuel and oil",
+  "Chemicals",
+  "Machinery and equipment",
+  "Vehicles and spare parts",
+  "Electronics",
+  "Textiles and clothing",
+  "Furniture",
+  "Household goods",
+  "Medical supplies",
+  "General goods",
+  "Other",
+];
+
+export const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
+  { value: "MTN", label: "MTN MoMo" },
+  { value: "AIRTEL", label: "Airtel Money" },
+  { value: "VISA", label: "Visa card" },
+];
+
+export const PAYMENT_METHOD_LABEL: Record<string, string> = Object.fromEntries(
+  PAYMENT_METHODS.map((method) => [method.value, method.label]),
+);

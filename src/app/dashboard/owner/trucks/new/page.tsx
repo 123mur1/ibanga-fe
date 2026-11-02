@@ -5,10 +5,11 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
+import { OptionSelect } from "@/components/common/form-fields";
 import { Field, inputClass, PrimaryButton } from "@/components/ui";
 import { PhotoUploader } from "@/components/photos";
 import { useIbanga } from "@/lib/store";
-import { TRUCK_TYPES } from "@/lib/types";
+import { LOCATIONS, ROUTES, TRUCK_TYPES } from "@/lib/types";
 
 function FieldIcon({ children }: { children: React.ReactNode }) {
   return (
@@ -194,10 +195,11 @@ export default function NewTruckPage() {
                       <circle cx="12" cy="10" r="3" />
                     </svg>
                   </FieldIcon>
-                  <input
+                  <OptionSelect
                     className={`${inputClass} pl-11`}
                     required
-                    placeholder="Kigali"
+                    options={LOCATIONS}
+                    placeholder="Choose a location"
                     value={form.currentLocation}
                     onChange={(e) =>
                       setForm({ ...form, currentLocation: e.target.value })
@@ -214,10 +216,11 @@ export default function NewTruckPage() {
                       <path d="M8.5 19H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.5" />
                     </svg>
                   </FieldIcon>
-                  <input
+                  <OptionSelect
                     className={`${inputClass} pl-11`}
                     required
-                    placeholder="Kigali — Mombasa"
+                    options={ROUTES}
+                    placeholder="Choose a route"
                     value={form.preferredRoute}
                     onChange={(e) =>
                       setForm({ ...form, preferredRoute: e.target.value })

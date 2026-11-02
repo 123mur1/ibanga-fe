@@ -7,14 +7,8 @@ import { PaymentBadge } from "@/components/status-badge";
 import { DataTable, PageHeader, StatCard, ViewLink, formatDate } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
 import { formatRwf } from "@/lib/payments";
-import type { PaymentStatus } from "@/lib/types";
+import { PAYMENT_METHOD_LABEL as methodLabel, type PaymentStatus } from "@/lib/types";
 import { useSearchParams } from "next/navigation";
-
-const methodLabel: Record<string, string> = {
-  VISA: "Visa card",
-  AIRTEL: "Airtel Money",
-  MTN: "MTN MoMo",
-};
 
 const heldStatuses: PaymentStatus[] = ["HELD", "FUNDED", "AUTHORIZED"];
 

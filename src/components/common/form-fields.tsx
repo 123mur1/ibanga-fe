@@ -39,6 +39,29 @@ export function FormField({
 export const controlClass =
   "w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-base text-ink outline-none transition placeholder:text-muted/70 hover:border-brand/30 focus:border-brand focus:ring-2 focus:ring-brand/15 disabled:cursor-not-allowed disabled:bg-background disabled:text-muted aria-[invalid=true]:border-bad";
 
+export type Option = string | { value: string; label: string };
+
+/**
+ * Dropdown for shared reference data (places, routes, cargo types...). `keep` is a value saved
+ * before the list existed: it stays selectable so editing an old record never loses it.
+ */
+export function OptionSelect({
+  options,
+  placeholder,
+  keep,
+  className = controlClass,
+  ...props
+}: React.ComponentProps<"select"> & { options: readonly Option[]; placeholder?: string; keep?: string }) {
+  const items = options.map((option) => (typeof option === "string" ? { value: option, label: option } : option));
+  if (keep && !items.some((item) => item.value === keep)) items.push({ value: keep, label: keep });
+  return (
+    <select className={className} {...props}>
+      {placeholder !== undefined ? <option value="">{placeholder}</option> : null}
+      {items.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+    </select>
+  );
+}
+
 /** Checkbox row with a title and an optional description. */
 export function CheckRow({
   title,

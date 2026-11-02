@@ -1,12 +1,12 @@
 "use client";
 
-import { controlClass, FormField } from "@/components/common/form-fields";
+import { controlClass, FormField, OptionSelect } from "@/components/common/form-fields";
 import { Section } from "@/components/common/layout-blocks";
 import { PrimaryButton } from "@/components/ui";
 import { useAction } from "@/hooks/use-action";
 import { useZodForm } from "@/lib/forms";
 import { useIbanga } from "@/lib/store";
-import type { User } from "@/lib/types";
+import { LOCATIONS, type User } from "@/lib/types";
 import { companyProfileSchema } from "./schemas";
 
 function Form({ user }: { user: User }) {
@@ -36,7 +36,7 @@ function Form({ user }: { user: User }) {
           <input className={controlClass} type="tel" aria-invalid={Boolean(errors.phone)} autoComplete="tel" {...register("phone")} />
         </FormField>
         <FormField label="Location" required error={errors.location?.message}>
-          <input className={controlClass} aria-invalid={Boolean(errors.location)} {...register("location")} />
+          <OptionSelect options={LOCATIONS} placeholder="Choose a location" keep={user.location} aria-invalid={Boolean(errors.location)} {...register("location")} />
         </FormField>
       </div>
       <PrimaryButton type="submit" disabled={busy}>{busy ? "Saving…" : "Save company profile"}</PrimaryButton>

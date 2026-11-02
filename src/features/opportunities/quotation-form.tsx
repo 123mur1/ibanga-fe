@@ -69,7 +69,9 @@ export function QuotationForm({
 
   const truckCheck = truck
     ? env.dataSource === "api"
-      ? { eligible: true, reasons: [] }
+      ? truck.verification === "APPROVED"
+        ? { eligible: true, reasons: [] }
+        : { eligible: false, reasons: ["The truck is not verified."] }
       : truckEligibility(
           ops.truckProfiles.find((profile) => profile.truckId === truck.id),
           ops.documents,

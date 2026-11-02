@@ -16,7 +16,7 @@ import { hasHeldPayment, SettlePaymentPanel } from "@/features/admin-cases/settl
 import { canRequestRefund, refundBlockedReason } from "@/lib/refunds";
 import { useIbanga } from "@/lib/store";
 import { formatRwf, maskAccount, validatePaymentAccount } from "@/lib/payments";
-import type { Booking, BookingStatus, PaymentMethod, Review, Role } from "@/lib/types";
+import { PAYMENT_METHODS, type Booking, type BookingStatus, type PaymentMethod, type Review, type Role } from "@/lib/types";
 
 const statuses: BookingStatus[] = ["PENDING", "ACCEPTED", "IN_PROGRESS", "DELIVERED", "COMPLETED", "DISPUTED", "REJECTED"];
 
@@ -458,7 +458,7 @@ function ImporterActions({ booking }: { booking: Booking }) {
             <fieldset>
               <legend className="text-sm font-medium text-navy">Payment method</legend>
               <div className="mt-2 grid gap-2 sm:grid-cols-3">
-                {([["MTN", "MTN MoMo"], ["AIRTEL", "Airtel Money"], ["VISA", "Visa card"]] as const).map(([value, label]) => (
+                {PAYMENT_METHODS.map(({ value, label }) => (
                   <label
                     key={value}
                     className={`cursor-pointer rounded-xl border px-3.5 py-3 text-center text-sm font-semibold transition ${

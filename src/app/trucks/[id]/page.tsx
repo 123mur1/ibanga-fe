@@ -8,6 +8,7 @@ import { TruckBadge, TruckVerifiedBadge } from "@/components/status-badge";
 import { Avatar, TruckGallery } from "@/components/photos";
 import { inputClass, PrimaryButton, formatDate } from "@/components/ui";
 import { withNext } from "@/lib/redirect";
+import { UNVERIFIED_TRUCK_MESSAGE, useTruckVerification } from "@/hooks/use-truck-verification";
 import { useIbanga } from "@/lib/store";
 import type { Truck } from "@/lib/types";
 
@@ -67,6 +68,7 @@ function TruckDetailsContent() {
       cancelled = true;
     };
   }, [id, fetchTruck, ready]);
+  const verification = useTruckVerification(truck);
 
   if (loading) {
     return <div className="mx-auto max-w-7xl px-4 py-16 text-center text-muted sm:px-6 lg:px-8">Loading truck…</div>;
@@ -100,7 +102,9 @@ function TruckDetailsContent() {
   );
   const tons = Number(quantity);
   const loadShare = Number.isFinite(tons) && tons > 0 ? Math.min(100, Math.round((tons / truck.capacity) * 100)) : 0;
+  const verified = verification === "APPROVED";
   const canBook =
+    verified &&
     truck.status === "AVAILABLE" &&
     truck.priceRwf != null &&
     (!currentUser || currentUser.role === "IMPORTER");
@@ -165,7 +169,7 @@ function TruckDetailsContent() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <TruckVerifiedBadge verification={truck.verification} />
+          <TruckVerifiedBadge verification={verification} />
           <TruckBadge status={truck.status} />
         </div>
       </header>
@@ -266,7 +270,9 @@ function TruckDetailsContent() {
                 </>
               ) : (
                 <p className="rounded-xl bg-background px-4 py-3 text-sm leading-6 text-muted">
-                  {truck.status !== "AVAILABLE"
+                  {!verified
+                    ? UNVERIFIED_TRUCK_MESSAGE
+                    : truck.status !== "AVAILABLE"
                     ? "This truck is already held by a booking and cannot be booked right now."
                     : truck.priceRwf == null
                       ? "This truck needs an RWF price before importers can book it."

@@ -1,7 +1,7 @@
 "use client";
 
 import { QueryBoundary } from "@/components/common/async-state";
-import { controlClass, FormField } from "@/components/common/form-fields";
+import { controlClass, FormField, OptionSelect } from "@/components/common/form-fields";
 import { Notice, SimulationNotice } from "@/components/common/notices";
 import { Section, StatGrid } from "@/components/common/layout-blocks";
 import { StatusBadge } from "@/components/common/status-badge";
@@ -13,6 +13,7 @@ import { useActor } from "@/hooks/use-actor";
 import { useOps } from "@/hooks/use-ops";
 import { useServiceQuery } from "@/hooks/use-service-query";
 import { applyFieldErrors, useZodForm } from "@/lib/forms";
+import { LOCATIONS } from "@/lib/types";
 import { formatDate, titleCase } from "@/lib/format";
 import { useIbanga } from "@/lib/store";
 import { services } from "@/services";
@@ -164,7 +165,7 @@ function MilestoneCorrection({ shipment }: { shipment: Shipment }) {
           </select>
         </FormField>
         <FormField label="Place" required error={formState.errors.place?.message}>
-          <input className={controlClass} {...register("place")} disabled={busy} aria-invalid={Boolean(formState.errors.place)} />
+          <OptionSelect options={LOCATIONS} placeholder="Choose a place" {...register("place")} disabled={busy} aria-invalid={Boolean(formState.errors.place)} />
         </FormField>
         <FormField label="Note" error={formState.errors.note?.message}>
           <input className={controlClass} {...register("note")} disabled={busy} aria-invalid={Boolean(formState.errors.note)} />

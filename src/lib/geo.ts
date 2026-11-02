@@ -9,6 +9,15 @@ const PLACES: Record<string, [number, number]> = {
   rubavu: [-1.7028, 29.2564],
   musanze: [-1.4998, 29.6348],
   huye: [-2.5967, 29.7394],
+  rusizi: [-2.4846, 28.9075],
+  nyagatare: [-1.2938, 30.3275],
+  muhanga: [-2.0845, 29.7564],
+  rwamagana: [-1.9487, 30.4347],
+  gatuna: [-1.4333, 30.0],
+  kagitumba: [-1.0567, 30.4597],
+  goma: [-1.6585, 29.2203],
+  bujumbura: [-3.3614, 29.3599],
+  isaka: [-3.8833, 32.9333],
 };
 
 export function locate(name: string): [number, number] {
