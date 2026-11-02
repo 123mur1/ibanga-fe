@@ -6,6 +6,7 @@ import { DetailList, Section, StatGrid } from "@/components/common/layout-blocks
 import { Notice } from "@/components/common/notices";
 import { StatusBadge } from "@/components/common/status-badge";
 import { driverEligibility } from "@/config/business-rules";
+import { PersonName } from "@/components/photos";
 import { DataTable, StatCard, ViewLink } from "@/components/ui";
 import Link from "next/link";
 import { useAction } from "@/hooks/use-action";
@@ -22,7 +23,7 @@ import { TextLink, useAdminLookups } from "./use-admin";
 export function DriverList() {
   const actor = useActor();
   const ops = useOps();
-  const { userName } = useAdminLookups();
+  const { userName, userPerson } = useAdminLookups();
   const query = useServiceQuery(() => services.drivers.list(actor!, { pageSize: 500 }), [actor?.id]);
 
   return (
@@ -56,8 +57,8 @@ export function DriverList() {
                       extraFilterValue: driver.verification,
                       exportValues: [driver.name, userName(driver.ownerId), driver.status, driver.verification, formatDate(driver.licenceExpiry), result.eligible ? "Yes" : "No", ""],
                       cells: [
-                        <span key="d"><strong className="block">{driver.name}</strong><span className="text-xs text-muted">{driver.ref} · {driver.phone}</span></span>,
-                        userName(driver.ownerId),
+                        <PersonName key="d" name={driver.name} photo={driver.photo} detail={`${driver.ref} · ${driver.phone}`} />,
+                        userPerson(driver.ownerId),
                         <StatusBadge key="s" family="driver" status={driver.status} />,
                         <StatusBadge key="v" family="verification" status={driver.verification} />,
                         <span key="l" className="block min-w-40"><span className="mb-1 block text-xs text-muted">{formatDate(driver.licenceExpiry)}</span><ExpiryBadge expiryDate={driver.licenceExpiry} /></span>,

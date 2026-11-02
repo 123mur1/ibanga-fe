@@ -12,7 +12,7 @@ import { useServiceQuery } from "@/hooks/use-service-query";
 import { formatDate, formatRwf } from "@/lib/format";
 import { services } from "@/services";
 import type { Payout, Settlement } from "@/types/ops";
-import { useUserName } from "./finance-parts";
+import { UserPerson, useUserName } from "./finance-parts";
 
 const BASE = "/dashboard/admin/settlements";
 
@@ -21,7 +21,7 @@ function settlementRows(items: Settlement[], nameOf: (id: string) => string): Da
     id: item.id,
     cells: [
       <span key="ref" className="font-semibold">{item.ref}</span>,
-      nameOf(item.ownerId),
+      <UserPerson key="o" id={item.ownerId} />,
       <span key="b" className="font-mono text-xs">{item.bookingId}</span>,
       formatRwf(item.agreedAmountRwf),
       <span key="n" className="font-semibold tabular-nums">{formatRwf(item.netAmountRwf)}</span>,
@@ -41,7 +41,7 @@ function payoutRows(items: Payout[], nameOf: (id: string) => string): DataTableR
     id: item.id,
     cells: [
       <span key="ref" className="font-semibold">{item.ref}</span>,
-      nameOf(item.ownerId),
+      <UserPerson key="o" id={item.ownerId} />,
       formatRwf(item.amountRwf),
       item.method === "BANK" ? "Bank" : "Mobile money",
       <span key="d" className="text-sm">{item.destination}</span>,

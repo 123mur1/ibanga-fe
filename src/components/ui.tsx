@@ -277,7 +277,7 @@ export function RowActions({ actions, label = "More actions" }: { actions: RowAc
           ref={menuRef}
           role="menu"
           style={{ top: coords.top, right: coords.right }}
-          className="fixed z-[60] w-44 overflow-hidden rounded-xl border border-line bg-white p-1.5 shadow-card"
+          className="fixed z-60 w-44 overflow-hidden rounded-xl border border-line bg-white p-1.5 shadow-card"
         >
           {actions.map((action) => (
             <button
@@ -364,9 +364,10 @@ function DataTableContents({
   );
   const visibleRows = useMemo(() => rows.filter((row) =>
     row.searchText.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())
-    && (!filter || filter.split(",").includes(row.filterValue ?? ""))
+    // A page that filters its rows itself sends none of them with a filterValue: skip the status filter.
+    && (!filter || !filterOptions.length || filter.split(",").includes(row.filterValue ?? ""))
     && (!extraFilter || row.extraFilterValue === extraFilter),
-  ), [extraFilter, filter, rows, search]);
+  ), [extraFilter, filter, filterOptions.length, rows, search]);
   const pageCount = Math.max(1, Math.ceil(visibleRows.length / pageSize));
   const currentPage = Math.min(page, pageCount);
   const pageRows = visibleRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -412,7 +413,7 @@ function DataTableContents({
         </div>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+        <table className="w-full min-w-180 border-collapse text-left text-sm">
           <thead className="border-b border-line bg-background text-sm text-muted">
             <tr>
               <th scope="col" className="w-12 px-4 py-3.5">
@@ -559,7 +560,7 @@ export function StatCard({
       ) : null}
     </>
   );
-  const className = `group flex min-h-[132px] flex-col rounded-xl border border-line bg-card p-4 shadow-soft transition-all duration-200 motion-reduce:transition-none ${href ? "cursor-pointer hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" : "hover:border-brand/25 hover:shadow-md"}`;
+  const className = `group flex min-h-33 flex-col rounded-xl border border-line bg-card p-4 shadow-soft transition-all duration-200 motion-reduce:transition-none ${href ? "cursor-pointer hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" : "hover:border-brand/25 hover:shadow-md"}`;
   return href ? <Link href={href} aria-label={`${label}: ${value}. ${hint ?? "View details"}`} className={className}>{content}</Link> : <article className={className}>{content}</article>;
 }
 

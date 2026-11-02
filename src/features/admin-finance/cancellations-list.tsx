@@ -10,7 +10,7 @@ import { useActor } from "@/hooks/use-actor";
 import { useServiceQuery } from "@/hooks/use-service-query";
 import { formatDate, formatRwf } from "@/lib/format";
 import { services } from "@/services";
-import { useUserName } from "./finance-parts";
+import { UserPerson, useUserName } from "./finance-parts";
 
 export const stageLabel = (stage: string) => CANCELLATION_POLICY.find((row) => row.stage === stage)?.label ?? stage;
 
@@ -48,7 +48,7 @@ export function CancellationsOverview() {
                   id: item.id,
                   cells: [
                     <span key="r" className="font-semibold">{item.ref}</span>,
-                    nameOf(item.requestedBy),
+                    <UserPerson key="p" id={item.requestedBy} />,
                     <span key="b" className="font-mono text-xs">{item.bookingId}</span>,
                     stageLabel(item.stage),
                     formatRwf(item.feeRwf),

@@ -74,7 +74,12 @@ function TruckDetailsContent() {
     return <div className="mx-auto max-w-7xl px-4 py-16 text-center text-muted sm:px-6 lg:px-8">Loading truck…</div>;
   }
 
-  if (!truck) {
+  // Unverified trucks are hidden from importers and visitors (the API returns 404 for them too);
+  // only the owner and administrators can open them.
+  const hiddenFromViewer =
+    truck != null && verification !== "APPROVED" && currentUser?.role !== "ADMIN" && currentUser?.id !== truck.ownerId;
+
+  if (!truck || hiddenFromViewer) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 lg:px-8">
         <p className="font-display text-2xl text-navy">Truck not found</p>

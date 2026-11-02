@@ -36,7 +36,8 @@ export function BookingDetail({
   const found = bookings.find((item) => item.id === id);
   const truck = found ? trucks.find((item) => item.id === found.truckId) : undefined;
   const importer = found ? users.find((item) => item.id === found.importerId) : undefined;
-  const owner = truck?.owner ?? (truck ? users.find((item) => item.id === truck.ownerId) : undefined);
+  // The user list carries the profile photo; the truck's owner summary may not.
+  const owner = (truck ? users.find((item) => item.id === truck.ownerId) : undefined) ?? truck?.owner;
   const allowed = Boolean(
     found && currentUser && (
       role === "ADMIN"

@@ -11,6 +11,7 @@ export function Avatar({
   name: string;
   size?: "sm" | "md" | "lg";
 }) {
+  const [failed, setFailed] = useState<string | null>(null);
   const px = size === "sm" ? "h-9 w-9 text-xs" : size === "lg" ? "h-20 w-20 text-xl" : "h-12 w-12 text-sm";
   const initials = name
     .split(" ")
@@ -19,22 +20,37 @@ export function Avatar({
     .join("")
     .toUpperCase();
 
-  if (src) {
+  // A photo that fails to load (deleted, or the API is down) falls back to the initials.
+  if (src && failed !== src) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={src}
         alt={name}
-        className={`${px} rounded-full object-cover ring-2 ring-white`}
+        onError={() => setFailed(src)}
+        className={`${px} shrink-0 rounded-full object-cover ring-2 ring-white`}
       />
     );
   }
 
   return (
     <span
-      className={`${px} inline-flex items-center justify-center rounded-full bg-brand-soft font-semibold text-brand-dark`}
+      className={`${px} inline-flex shrink-0 items-center justify-center rounded-full bg-brand-soft font-semibold text-brand-dark`}
     >
       {initials}
+    </span>
+  );
+}
+
+/** A person's photo (or initials) beside their name, for tables and detail rows. */
+export function PersonName({ name, photo, detail }: { name: string; photo?: string | null; detail?: string }) {
+  return (
+    <span className="flex min-w-40 items-center gap-2.5">
+      <Avatar src={photo ?? undefined} name={name} size="sm" />
+      <span className="min-w-0">
+        <span className="block truncate font-medium text-navy">{name}</span>
+        {detail ? <span className="block truncate text-xs text-muted">{detail}</span> : null}
+      </span>
     </span>
   );
 }

@@ -3,6 +3,7 @@
 import { Notice, SimulationNotice } from "@/components/common/notices";
 import { StatGrid } from "@/components/common/layout-blocks";
 import { StatusBadge } from "@/components/common/status-badge";
+import { PersonName } from "@/components/photos";
 import { DataTable, EmptyState, StatCard, ViewLink } from "@/components/ui";
 import { formatDate, formatRwf } from "@/lib/format";
 import { useIbanga } from "@/lib/store";
@@ -48,7 +49,7 @@ export function RefundsOverview() {
                 id: item.id,
                 cells: [
                   <span key="r" className="font-semibold">{reference}</span>,
-                  nameOf(item.importerId),
+                  <PersonName key="p" name={nameOf(item.importerId)} photo={users.find((user) => user.id === item.importerId)?.photo} />,
                   <span key="b" className="font-mono text-xs">{item.bookingId}{hasBooking ? "" : " (missing)"}</span>,
                   <span key="a" className="font-semibold tabular-nums">{formatRwf(item.amountRwf)}</span>,
                   origin,

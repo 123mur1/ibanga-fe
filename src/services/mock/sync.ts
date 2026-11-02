@@ -65,10 +65,35 @@ const STATUS_FROM_BOOKING: Partial<Record<Booking["status"], ShipmentStatus>> = 
   ACCEPTED: "SCHEDULED",
   IN_PROGRESS: "IN_TRANSIT",
   DELIVERED: "ARRIVED",
+  COMPLETED: "COMPLETED",
 };
+
+/** Shipment steps in trip order; a shipment only ever moves forward along it. */
+const SHIPMENT_ORDER: ShipmentStatus[] = ["SCHEDULED", "PICKUP_CONFIRMED", "LOADED", "DEPARTED", "IN_TRANSIT", "DELAYED", "ARRIVED", "UNLOADING", "DELIVERED", "COMPLETED"];
+
+/**
+ * Move a shipment forward to the step its booking implies (trip started, delivered, receipt
+ * confirmed). Steps the owner recorded in more detail are kept, and nothing moves backwards.
+ */
+function advance(shipment: Shipment, booking: Booking): Shipment {
+  const target = STATUS_FROM_BOOKING[booking.status];
+  if (!target || shipment.status === "CANCELLED" || SHIPMENT_ORDER.indexOf(shipment.status) >= SHIPMENT_ORDER.indexOf(target)) return shipment;
+  if (target !== "COMPLETED") return { ...shipment, status: target };
+  const received: ShipmentMilestone = {
+    id: `${shipment.id}-received`,
+    kind: "DELIVERED",
+    at: booking.payment?.importerConfirmedAt ?? booking.payment?.releasedAt ?? booking.expectedDeliveryDate,
+    place: booking.destination,
+    note: "The importer confirmed receipt of the cargo.",
+    recordedBy: booking.importerId,
+    simulated: false,
+  };
+  return { ...shipment, status: "COMPLETED", milestones: [...shipment.milestones, received] };
+}
 
 function milestonesFor(booking: Booking, status: ShipmentStatus): ShipmentMilestone[] {
   if (status === "SCHEDULED") return [];
+  if (status === "COMPLETED") return milestonesFor(booking, "ARRIVED");
   const start = new Date(booking.pickupDate).getTime();
   const make = (index: number, kind: ShipmentMilestone["kind"], place: string, note: string): ShipmentMilestone => ({
     id: `${booking.id}-auto-${index}`,
@@ -115,7 +140,14 @@ export function ensureRecords(data: OpsData, bookings: Booking[]): OpsData {
       createdAt: booking.createdAt,
     });
   }
-  const shipments = newShipments.length ? [...newShipments, ...data.shipments] : data.shipments;
+  let advanced = false;
+  const existing = data.shipments.map((shipment) => {
+    const booking = bookings.find((item) => item.id === shipment.bookingId);
+    const next = booking ? advance(shipment, booking) : shipment;
+    if (next !== shipment) advanced = true;
+    return next;
+  });
+  const shipments = newShipments.length || advanced ? [...newShipments, ...existing] : data.shipments;
 
   const haveSettlement = new Set(data.settlements.map((item) => item.bookingId));
   const newSettlements: Settlement[] = [];
@@ -141,6 +173,6 @@ export function ensureRecords(data: OpsData, bookings: Booking[]): OpsData {
       createdAt: new Date().toISOString(),
     });
   }
-  if (!newShipments.length && !newSettlements.length) return data;
+  if (!newShipments.length && !newSettlements.length && !advanced) return data;
   return { ...data, shipments, settlements: [...newSettlements, ...data.settlements] };
 }

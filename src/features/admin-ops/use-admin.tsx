@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Notice } from "@/components/common/notices";
+import { PersonName } from "@/components/photos";
 import { useOps } from "@/hooks/use-ops";
 import { useIbanga } from "@/lib/store";
 import type { DocumentSubjectKind, Id, Permission } from "@/types/ops";
@@ -38,6 +39,11 @@ export function useAdminLookups() {
     const user = users.find((item) => item.id === id);
     return user ? user.company ?? user.name : "—";
   };
+  /** The user's photo and name, for tables. */
+  const userPerson = (id: Id | undefined) => {
+    const user = users.find((item) => item.id === id);
+    return user ? <PersonName name={user.company ?? user.name} photo={user.photo} detail={user.company ? user.name : undefined} /> : "—";
+  };
   const truckLabel = (id: Id | undefined) => {
     const truck = trucks.find((item) => item.id === id);
     return truck ? `${truck.plateNumber} · ${truck.truckType}` : "—";
@@ -48,7 +54,7 @@ export function useAdminLookups() {
     if (kind === "DRIVER") return { label: driverName(id), href: `${ADMIN}/drivers/${id}` };
     return { label: userName(id), href: `${ADMIN}/users` };
   };
-  return { userName, truckLabel, driverName, subject };
+  return { userName, userPerson, truckLabel, driverName, subject };
 }
 
 export function TextLink({ href, children }: { href: string; children: React.ReactNode }) {

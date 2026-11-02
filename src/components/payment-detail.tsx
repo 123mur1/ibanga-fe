@@ -45,7 +45,8 @@ export function PaymentDetail({
   const refund = booking ? refunds.find((item) => item.bookingId === booking.id) : undefined;
   const refundable = role === "IMPORTER" && canRequestRefund(booking, refunds);
   const refundsBase = role === "TRUCK_OWNER" ? "/dashboard/owner/refunds" : "/dashboard/importer/refunds";
-  const owner = truck?.owner ?? (truck ? users.find((user) => user.id === truck.ownerId) : undefined);
+  // The user list carries the profile photo; the truck's owner summary may not.
+  const owner = (truck ? users.find((user) => user.id === truck.ownerId) : undefined) ?? truck?.owner;
 
   return (
     <RequireAuth role={role}>

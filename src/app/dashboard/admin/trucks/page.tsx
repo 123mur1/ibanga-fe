@@ -7,6 +7,7 @@ import { AdminPage } from "@/features/admin-platform/admin-page";
 import { TruckBadge } from "@/components/status-badge";
 import { useToast } from "@/components/toast";
 import { StatusBadge } from "@/components/common/status-badge";
+import { PersonName } from "@/components/photos";
 import { ConfirmDialog, DataTable, PageHeader, StatCard, ViewLink } from "@/components/ui";
 import { truckVerification } from "@/config/business-rules";
 import { useOps } from "@/hooks/use-ops";
@@ -17,7 +18,7 @@ import { useSearchParams } from "next/navigation";
 
 function AdminTrucksContent() {
   const searchParams = useSearchParams();
-  const { trucks, bookings, setAvailability, deleteTruck } = useIbanga();
+  const { trucks, bookings, users, setAvailability, deleteTruck } = useIbanga();
   const toast = useToast();
   const { drivers, driverAssignments, documents } = useOps();
   const pendingByTruck = new Map<string, number>();
@@ -91,7 +92,7 @@ function AdminTrucksContent() {
                 cells: [
                   <span key={`${truck.id}-vehicle`}><strong className="block">{truck.plateNumber}</strong><span className="text-xs text-muted">{truck.truckType}</span></span>,
                   driver ? <Link key={`${truck.id}-driver`} href={`/dashboard/admin/drivers/${driver.id}`} className="font-semibold text-brand hover:text-brand-dark">{driver.name}</Link> : <span key={`${truck.id}-driver`} className="text-muted">Unassigned</span>,
-                  truck.owner?.name ?? "—",
+                  truck.owner ? <PersonName key={`${truck.id}-owner`} name={truck.owner.name} photo={users.find((user) => user.id === truck.ownerId)?.photo ?? truck.owner.photo} detail={truck.owner.phone ?? undefined} /> : "—",
                   `${truck.capacity} tons`,
                   truck.currentLocation,
                   truck.preferredRoute,

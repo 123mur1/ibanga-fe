@@ -257,6 +257,16 @@ export const LOCATIONS = [
   "Dar es Salaam",
 ];
 
+/**
+ * The listed place a free-text location refers to ("Mombasa port" → "Mombasa"), so records
+ * typed before the dropdowns existed still group and filter with the rest. Unknown text is kept.
+ */
+export function canonicalPlace(text: string): string {
+  const key = text.trim().toLowerCase();
+  const match = [...LOCATIONS].sort((a, b) => b.length - a.length).find((place) => key.includes(place.toLowerCase()));
+  return match ?? text.trim();
+}
+
 /** Common trucking corridors, written "From — To" like the stored truck routes. */
 export const ROUTES = [
   "Kigali — Mombasa",

@@ -3,22 +3,10 @@
 import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
-import { BarChartCard, DonutCard, LineChartCard, StatusBars, bucketByMonth } from "@/components/charts";
 import { DashboardWelcomeCard, StatCard } from "@/components/ui";
 import { formatRwf } from "@/lib/payments";
 import { useOps } from "@/hooks/use-ops";
 import { useIbanga } from "@/lib/store";
-import type { BookingStatus } from "@/lib/types";
-
-const STATUS_SLICES: { status: BookingStatus; label: string; color: string }[] = [
-  { status: "PENDING", label: "Pending", color: "#cfe6ef" },
-  { status: "ACCEPTED", label: "Accepted", color: "#a3cfe0" },
-  { status: "IN_PROGRESS", label: "In progress", color: "#5aa3c0" },
-  { status: "DELIVERED", label: "Delivered", color: "#00628b" },
-  { status: "COMPLETED", label: "Completed", color: "#0a3d50" },
-  { status: "DISPUTED", label: "Disputed", color: "#122832" },
-  { status: "REJECTED", label: "Rejected", color: "#d5e0e7" },
-];
 
 export default function OwnerDashboard() {
   const { currentUser, trucks, bookings } = useIbanga();
@@ -36,8 +24,6 @@ export default function OwnerDashboard() {
     ["ACCEPTED", "IN_PROGRESS", "DELIVERED"].includes(b.status),
   );
   const heldForMe = myBookings.filter((booking) => booking.payment?.status === "HELD");
-  const earning = myBookings.filter((booking) => booking.payment && booking.payment.status !== "REFUNDED");
-  const totalEarned = earning.reduce((sum, booking) => sum + (booking.payment?.ownerAmountRwf ?? 0), 0);
 
   return (
     <RequireAuth role="TRUCK_OWNER">
@@ -145,17 +131,7 @@ export default function OwnerDashboard() {
           />
         </div>
 
-        <div className="mt-6 grid gap-4 lg:grid-cols-2">
-          <StatusBars
-            title="Fleet workload"
-            caption="Requests, trips on the road, and payments still held."
-            items={[
-              { label: "Requests to confirm", value: requests.length, tone: "warn" },
-              { label: "Trips to track", value: active.length, tone: "accent" },
-              { label: "Payments held", value: heldForMe.length, tone: "brand" },
-              { label: "Trucks available", value: available.length, tone: "good" },
-            ]}
-          />
+        <div className="mt-6">
           <section className="rounded-2xl border border-line bg-card p-5 shadow-soft">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-lg font-semibold text-navy">Held until both sides confirm</h2>
@@ -172,54 +148,6 @@ export default function OwnerDashboard() {
             </ul>
           </section>
         </div>
-
-        <section className="mt-8">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h2 className="font-display text-xl tracking-tight text-navy">Your fleet analytics</h2>
-              <p className="mt-1 text-sm text-muted">Bookings, earnings and how your trucks are being used.</p>
-            </div>
-            <Link href="/dashboard/owner/bookings" className="text-sm font-semibold text-brand hover:text-brand-dark">View all bookings</Link>
-          </div>
-          <div className="mt-4 grid gap-4 xl:grid-cols-2">
-            <LineChartCard
-              title="Booking activity"
-              caption="New bookings on your trucks each month"
-              badge="Last 6 months"
-              points={bucketByMonth(myBookings, (booking) => booking.createdAt)}
-              unit="bookings"
-            />
-            <BarChartCard
-              title="Earnings"
-              caption="Your share of payments by month, after commission"
-              badge={`Total ${formatRwf(totalEarned)}`}
-              points={bucketByMonth(earning, (booking) => booking.payment?.paidAt, (booking) => booking.payment?.ownerAmountRwf ?? 0)}
-              format={formatRwf}
-              empty="No earnings in the last six months."
-            />
-            <DonutCard
-              title="Bookings by status"
-              caption="Where every booking on your fleet sits today"
-              centerLabel="bookings"
-              slices={STATUS_SLICES.map((slice) => ({
-                label: slice.label,
-                color: slice.color,
-                count: myBookings.filter((booking) => booking.status === slice.status).length,
-              }))}
-              empty="No bookings on your trucks yet."
-            />
-            <DonutCard
-              title="Fleet availability"
-              caption="Current status of your trucks"
-              centerLabel="trucks"
-              slices={[
-                { label: "Available", color: "#00628b", count: available.length },
-                { label: "Unavailable", color: "#d5e0e7", count: mine.length - available.length },
-              ]}
-              empty="You have not added any trucks yet."
-            />
-          </div>
-        </section>
       </DashboardShell>
     </RequireAuth>
   );

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { TruckCard } from "./truck-card";
 import { PublicNavbar } from "./public-navbar";
+import { useIsTruckVerified } from "@/hooks/use-truck-verification";
 import { useIbanga } from "@/lib/store";
 import { ACTIVE_BOOKING_STATUSES, LOCATIONS, TRUCK_TYPES } from "@/lib/types";
 
@@ -40,6 +41,7 @@ const heroSlides = [
 
 export function LandingPage() {
   const { trucks, bookings } = useIbanga();
+  const isVerified = useIsTruckVerified();
   const [activeSlide, setActiveSlide] = useState(0);
   const [visibleTruckCount, setVisibleTruckCount] = useState(PAGE_SIZE);
   const [filters, setFilters] = useState(emptyFilters);
@@ -52,7 +54,8 @@ export function LandingPage() {
     return () => window.clearInterval(timer);
   }, []);
 
-  const availableTrucks = trucks.filter((truck) => truck.status === "AVAILABLE");
+  // Importers and visitors only ever see verified trucks; the API applies the same rule.
+  const availableTrucks = trucks.filter((truck) => truck.status === "AVAILABLE" && isVerified(truck));
   const query = filters.search.trim().toLowerCase();
   const minCapacity = Number(filters.minCapacity) || 0;
   const maxPrice = Number(filters.maxPrice) || 0;

@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/common/status-badge";
 import { effectiveDocumentStatus, truckEligibility, truckVerification } from "@/config/business-rules";
 import { STATUS_DEFS } from "@/config/status";
 import { TruckBadge, BookingBadge } from "@/components/status-badge";
+import { PersonName } from "@/components/photos";
 import { EmptyState } from "@/components/ui";
 import { useAction } from "@/hooks/use-action";
 import { useActor } from "@/hooks/use-actor";
@@ -92,7 +93,7 @@ export function AdminTruckDetail({ id }: { id: string }) {
             { label: "Price", value: truck.priceRwf ? formatRwf(truck.priceRwf) : "Quoted per request" },
             { label: "Current location", value: truck.currentLocation },
             { label: "Preferred route", value: truck.preferredRoute },
-            { label: "Owner", value: owner ? owner.company ?? owner.name : "—" },
+            { label: "Owner", value: owner ? <PersonName name={owner.company ?? owner.name} photo={owner.photo} detail={owner.company ? owner.name : owner.email} /> : "—" },
             { label: "Description", value: truck.description || "—", wide: true },
           ]}
         />

@@ -2,7 +2,7 @@ import { evaluateSettlement, netPayable } from "@/config/business-rules";
 import type { Payout, Settlement, Shipment, ShipmentMilestone, ShipmentStatus } from "@/types/ops";
 import type { SettlementService, ShipmentService } from "../contracts";
 import type { Actor } from "../types";
-import { findBooking, findUser } from "./directory";
+import { findBooking, findUser, getDirectory } from "./directory";
 import { ensureRecords, openDisputeFor, openIncidentFor } from "./sync";
 import { audit, commit, conflict, db, delay, forbid, invalid, newId, nextRef, notFound, notification, nowIso, queryList, replaceById, requirePermission } from "./util";
 
@@ -37,8 +37,17 @@ function scoped(actor: Actor, shipments: Shipment[]): Shipment[] {
   return shipments.filter((item) => item.ownerId === actor.id);
 }
 
+/**
+ * Shipments as they stand now: stored records moved forward to what their bookings imply, plus
+ * shipments for moved-on bookings that have none yet. Read-only, so an importer (who may not
+ * save shipments) still sees a completed trip as completed straight away.
+ */
+function current(): Shipment[] {
+  return ensureRecords(db(), getDirectory().bookings).shipments;
+}
+
 function find(actor: Actor, id: string): Shipment {
-  const shipment = db().shipments.find((item) => item.id === id);
+  const shipment = current().find((item) => item.id === id);
   if (!shipment) notFound("Shipment");
   if (!scoped(actor, [shipment]).length) forbid();
   return shipment;
@@ -54,7 +63,7 @@ function operate(actor: Actor, id: string): Shipment {
 export const shipmentService: ShipmentService = {
   async list(actor, query) {
     await delay(200);
-    return queryList(scoped(actor, db().shipments), { sort: { field: "createdAt", direction: "desc" }, ...query }, (item) => {
+    return queryList(scoped(actor, current()), { sort: { field: "createdAt", direction: "desc" }, ...query }, (item) => {
       const booking = findBooking(item.bookingId);
       return `${item.ref} ${item.status} ${booking?.pickupLocation ?? ""} ${booking?.destination ?? ""} ${booking?.cargoType ?? ""}`;
     });
@@ -67,7 +76,7 @@ export const shipmentService: ShipmentService = {
 
   async getByBooking(actor, bookingId) {
     await delay(100);
-    return scoped(actor, db().shipments).find((item) => item.bookingId === bookingId);
+    return scoped(actor, current()).find((item) => item.bookingId === bookingId);
   },
 
   async recordMilestone(actor, id, input) {

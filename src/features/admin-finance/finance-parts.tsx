@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ConfirmButton } from "@/components/common/confirm-button";
 import { controlClass, FormField } from "@/components/common/form-fields";
 import { Notice } from "@/components/common/notices";
+import { PersonName } from "@/components/photos";
 import { useIbanga } from "@/lib/store";
 import { noteSchema } from "./schemas";
 
@@ -13,6 +14,13 @@ export function NoPermissionNotice({ area }: { area: string }) {
       Your administrator role does not include {area}. You can read these records but not act on them.
     </Notice>
   );
+}
+
+/** A user's photo and name for a table cell, looked up by ID. */
+export function UserPerson({ id }: { id: string | undefined }) {
+  const { users } = useIbanga();
+  const user = users.find((item) => item.id === id);
+  return user ? <PersonName name={user.name} photo={user.photo} detail={user.company} /> : <>{id ? "Unknown user" : "—"}</>;
 }
 
 /** Resolves a user ID to a display name (the marketplace store owns users). */

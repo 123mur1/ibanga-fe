@@ -310,7 +310,7 @@ function mapTruck(truck: ApiTruck): Truck {
           email: truck.owner.email,
           phone: truck.owner.phone,
           location: truck.owner.location,
-          photo: truck.owner.photo,
+          photo: truck.owner.photo?.startsWith("/users/") ? apiUrl(truck.owner.photo) : truck.owner.photo,
         }
       : undefined,
   };
@@ -523,7 +523,9 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
             truck.owner ? [mapUser(truck.owner, "TRUCK_OWNER")] : [],
           ),
         ];
-        const allUsers = uniqueById([...mappedUsers, ...relatedUsers, user]);
+        // Later entries win. Booking and truck copies of a person carry no photo, status or join
+        // date, so they only fill gaps: the admin user list and the signed-in user come last.
+        const allUsers = uniqueById([...relatedUsers, ...mappedUsers, user]);
 
         setCurrentUser(user);
         setUsers(allUsers);

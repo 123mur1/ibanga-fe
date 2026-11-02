@@ -4,12 +4,11 @@ import { useState } from "react";
 import { QueryBoundary } from "@/components/common/async-state";
 import { controlClass, FormField } from "@/components/common/form-fields";
 import { StatGrid } from "@/components/common/layout-blocks";
-import { BarChartCard, bucketByMonth } from "@/components/charts";
 import { DataTable, GhostButton, StatCard } from "@/components/ui";
 import { useActor } from "@/hooks/use-actor";
 import { useServiceQuery } from "@/hooks/use-service-query";
 import { downloadExcel } from "@/lib/excel";
-import { formatPercent, formatRwf, formatRwfCompact } from "@/lib/format";
+import { formatPercent, formatRwf } from "@/lib/format";
 import { useIbanga } from "@/lib/store";
 import { services } from "@/services";
 import type { Shipment } from "@/types/ops";
@@ -98,14 +97,6 @@ export function OwnerReports() {
                 <StatCard label="Net earnings" value={formatRwf(earned)} hint="After fees" accent="warn" />
               </StatGrid>
 
-              <BarChartCard
-                title="Earnings by month"
-                caption="Net settlement amounts by month created."
-                points={bucketByMonth(settlements.filter((item) => item.status !== "NOT_ELIGIBLE"), (item) => item.createdAt, (item) => item.netAmountRwf)}
-                format={formatRwfCompact}
-                empty="No earnings in this period yet."
-              />
-
               <section aria-labelledby="drivers">
                 <h2 id="drivers" className="mb-3 font-display text-lg text-navy">Driver performance</h2>
                 <DataTable
@@ -135,12 +126,7 @@ export function OwnerReports() {
                       <strong key="p">{truck.plateNumber}</strong>,
                       truck.truckType,
                       trips,
-                      profile ? (
-                        <span key="u" className="flex min-w-32 items-center gap-2">
-                          <span className="h-2 flex-1 rounded-full bg-line" aria-hidden="true"><span className="block h-2 rounded-full bg-brand" style={{ width: `${Math.min(100, profile.utilizationPct)}%` }} /></span>
-                          <span className="tabular-nums">{formatPercent(profile.utilizationPct)}</span>
-                        </span>
-                      ) : "No data",
+                      profile ? <span key="u" className="tabular-nums">{formatPercent(profile.utilizationPct)}</span> : "No data",
                       profile?.tripsCompleted ?? 0,
                     ],
                   }))}

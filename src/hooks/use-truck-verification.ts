@@ -17,3 +17,10 @@ export function useTruckVerification(truck: Pick<Truck, "id" | "verification"> |
   if (!truck) return undefined;
   return truck.verification ?? truckVerification(truck.id, documents);
 }
+
+/** A check for lists: whether a truck is verified, with the same API/demo rule as above. */
+export function useIsTruckVerified() {
+  const { documents } = useOps();
+  return (truck: Pick<Truck, "id" | "verification">) =>
+    (truck.verification ?? truckVerification(truck.id, documents)) === "APPROVED";
+}

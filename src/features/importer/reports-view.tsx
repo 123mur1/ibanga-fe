@@ -5,7 +5,6 @@ import { QueryBoundary } from "@/components/common/async-state";
 import { StatGrid } from "@/components/common/layout-blocks";
 import { DemoTag } from "@/components/common/notices";
 import { StatusBadge } from "@/components/common/status-badge";
-import { BarChartCard, bucketByMonth } from "@/components/charts";
 import { DataTable, StatCard, ViewLink } from "@/components/ui";
 import { useActor } from "@/hooks/use-actor";
 import { useServiceQuery } from "@/hooks/use-service-query";
@@ -20,7 +19,7 @@ type Row = { id: string; kind: Kind; ref: string; summary: string; date: string;
 
 const field = "rounded-lg border border-line bg-white px-3 py-2 text-sm text-navy outline-none focus:border-brand";
 
-/** Requests, bookings and shipments in one filterable, exportable history, plus spending by month. */
+/** Requests, bookings and shipments in one filterable, exportable history, plus total spending. */
 export function ReportsView() {
   const actor = useActor();
   const { bookings, trucks } = useIbanga();
@@ -95,15 +94,6 @@ export function ReportsView() {
               <StatCard label="Shipments" value={count("Shipment")} accent="good" />
               <StatCard label="Spent in range" value={formatRwf(spent)} hint="Payments recorded" accent="warn" />
             </StatGrid>
-
-            <BarChartCard
-              title="Spending by month"
-              caption="Payments you made, last six months"
-              badge={`Total ${formatRwf(spent)}`}
-              points={bucketByMonth(paid, (booking) => booking.payment?.paidAt, (booking) => booking.payment?.amountRwf ?? 0)}
-              format={formatRwf}
-              empty="No payments in this period."
-            />
 
             <DataTable
               columns={[{ label: "Type" }, { label: "Reference" }, { label: "Details" }, { label: "Date" }, { label: "Amount" }, { label: "Status" }, { label: "Actions", className: "text-right" }]}

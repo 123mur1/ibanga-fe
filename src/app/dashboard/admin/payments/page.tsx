@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { LoadingBlock } from "@/components/common/async-state";
 import { AdminPage } from "@/features/admin-platform/admin-page";
+import { PersonName } from "@/components/photos";
 import { PaymentBadge } from "@/components/status-badge";
 import { DataTable, PageHeader, StatCard, ViewLink, formatDate } from "@/components/ui";
 import { useIbanga } from "@/lib/store";
@@ -90,10 +91,7 @@ function AdminPaymentsContent() {
                     <strong className="block">{route}</strong>
                     <span className="text-xs text-muted">{booking.cargoType}</span>
                   </span>,
-                  <span key={`${booking.id}-payer`}>
-                    <strong className="block">{payment.payerName}</strong>
-                    <span className="text-xs text-muted">{payment.accountMask}</span>
-                  </span>,
+                  <PersonName key={`${booking.id}-payer`} name={payment.payerName} photo={importer?.photo} detail={payment.accountMask} />,
                   methodLabel[payment.method] ?? payment.method,
                   <strong key={`${booking.id}-amount`}>{formatRwf(payment.amountRwf)}</strong>,
                   formatDate(payment.paidAt),
