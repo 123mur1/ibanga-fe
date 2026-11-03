@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { GlobalLoading } from "@/components/global-loading";
 import { ToastProvider } from "@/components/toast";
 import { OpsBridge } from "@/features/ops/ops-bridge";
 import { IbangaProvider } from "@/lib/store";
@@ -21,6 +22,7 @@ export default function RootLayout({
         <IbangaProvider>
           <ToastProvider>
             <OpsBridge />
+            <GlobalLoading />
             {children}
           </ToastProvider>
         </IbangaProvider>

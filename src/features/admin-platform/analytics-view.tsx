@@ -11,21 +11,22 @@ import { downloadExcel } from "@/lib/excel";
 import { formatRwf, formatRwfCompact } from "@/lib/format";
 import { useIbanga } from "@/lib/store";
 import type { ShipmentStatus } from "@/types/ops";
-import { computeKpis, disputeStatusMix, kpiRows, scope, shipmentStatusMix, type AnalyticsFilters, type AnalyticsInput } from "./analytics";
+import { computeKpis, disputeStatusMix, incidentTypeMix, kpiRows, scope, shipmentStatusMix, type AnalyticsFilters, type AnalyticsInput } from "./analytics";
 import { useNow } from "./use-now";
 
 const COLORS = ["#00628b", "#3f86a5", "#8fbdd0", "#cfe6ef", "#0b2a3d", "#6b7f8c"];
 const LABELS: Record<string, string> = {
   OPEN: "Open", UNDER_REVIEW: "Under review", AWAITING_INFO: "Awaiting info", ESCALATED: "Escalated", RESOLVED: "Resolved", REJECTED: "Rejected",
+  ACCIDENT: "Accident", BREAKDOWN: "Breakdown", CARGO_DAMAGE: "Cargo damage", MISSING_CARGO: "Missing cargo", DRIVER_UNAVAILABLE: "Driver unavailable", EMERGENCY_DELAY: "Emergency delay",
   SCHEDULED: "Scheduled", IN_TRANSIT: "In transit", DELAYED: "Delayed", DELIVERED: "Delivered", COMPLETED: "Completed", CANCELLED: "Cancelled",
 };
 
 export function AnalyticsView() {
   const ops = useOps();
-  const { users, trucks, bookings, refunds } = useIbanga();
+  const { users, trucks, bookings, refunds, disputes } = useIbanga();
   const now = useNow();
   const [filters, setFilters] = useState<AnalyticsFilters>({ from: "", to: "", shipmentStatus: "" });
-  const input: AnalyticsInput = { users, trucks, bookings, refunds, ops, now: new Date(now) };
+  const input: AnalyticsInput = { users, trucks, bookings, refunds, disputes, ops, now: new Date(now) };
 
   const kpis = computeKpis(input, filters);
   const data = scope(input, filters);
@@ -86,7 +87,7 @@ export function AnalyticsView() {
         <StatCard label="Pending settlements" value={kpis.pendingSettlementsCount} hint={`${formatRwf(kpis.pendingSettlementsRwf)} net owed`} accent="warn" href="/dashboard/admin/settlements" />
         <StatCard label="Refund volume" value={formatRwf(kpis.refundVolumeRwf)} hint="Approved refunds" href="/dashboard/admin/refunds" />
         <StatCard label="Open disputes" value={kpis.openDisputes} hint="Not yet closed" accent="bad" href="/dashboard/admin/disputes" />
-        <StatCard label="Accidents" value={kpis.accidents} hint={`${kpis.insuranceClaims} insurance claims`} accent="bad" href="/dashboard/admin/incidents" />
+        <StatCard label="Incidents reported" value={kpis.incidents} hint={`${kpis.openIncidents} open · ${kpis.accidents} accident${kpis.accidents === 1 ? "" : "s"}`} accent="bad" href="/dashboard/admin/incidents" />
         <StatCard label="Document alerts" value={kpis.documentAlerts} hint="Expired or expiring" accent="warn" href="/dashboard/admin/document-expiry" />
         <StatCard label="Failed payouts" value={kpis.failedPayouts} hint="Needs attention" accent="bad" href="/dashboard/admin/settlements" />
         <StatCard label="Reconciliation issues" value={kpis.reconciliationDiscrepancies} hint="Discrepancy, unmatched or duplicate" accent="bad" href="/dashboard/admin/reconciliation" />
@@ -134,6 +135,13 @@ export function AnalyticsView() {
           caption="Accidents, breakdowns and damage by month"
           points={bucketByMonth(data.incidents, (incident) => incident.createdAt)}
           format={(value) => String(value)}
+          empty="No incidents in this period."
+        />
+        <DonutCard
+          title="Incidents by type"
+          caption="What went wrong on the road in the selected period"
+          centerLabel="incidents"
+          slices={incidentTypeMix(input, filters).map((item, index) => ({ label: LABELS[item.key] ?? item.key, count: item.count, color: COLORS[index % COLORS.length] }))}
           empty="No incidents in this period."
         />
       </div>

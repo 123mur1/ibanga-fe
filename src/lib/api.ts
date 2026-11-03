@@ -58,7 +58,34 @@ export function apiUrl(path: string) {
   return `${apiBaseUrl()}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+/** How many API requests are running, so the page can show a loading bar while it waits. */
+let pendingRequests = 0;
+const activityListeners = new Set<() => void>();
+function changePending(delta: number) {
+  pendingRequests += delta;
+  activityListeners.forEach((listener) => listener());
+}
+export const requestActivity = {
+  subscribe(listener: () => void) {
+    activityListeners.add(listener);
+    return () => {
+      activityListeners.delete(listener);
+    };
+  },
+  getSnapshot: () => pendingRequests,
+  getServerSnapshot: () => 0,
+};
+
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  changePending(1);
+  try {
+    return await request<T>(path, init);
+  } finally {
+    changePending(-1);
+  }
+}
+
+async function request<T>(path: string, init: RequestInit): Promise<T> {
   const baseUrl = apiBaseUrl();
 
   const headers = new Headers(init.headers);

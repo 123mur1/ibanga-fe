@@ -11,13 +11,16 @@ const BASE = "/dashboard/admin";
 /** Operations KPI row for the administrator overview. Counts come from the demonstration dataset. */
 export function OperationsKpis() {
   const ops = useOps();
-  const { refunds } = useIbanga();
+  const { refunds, disputes } = useIbanga();
   const warningDays = ops.settings.documentWarningDays;
 
   const pendingVerifications = ops.verificationRequests.filter((item) => item.status === "PENDING").length;
   const activeShipments = ops.shipments.filter((item) => !["DELIVERED", "COMPLETED", "CANCELLED"].includes(item.status)).length;
   const pendingSettlements = ops.settlements.filter((item) => ["ELIGIBLE", "AWAITING_VERIFICATION"].includes(item.status)).length;
-  const openDisputes = ops.disputeCases.filter((item) => !["RESOLVED", "REJECTED"].includes(item.status)).length;
+  // Open case files plus open problems reported on bookings that have no case file.
+  const withCase = new Set(ops.disputeCases.map((item) => item.bookingId));
+  const openDisputes = ops.disputeCases.filter((item) => !["RESOLVED", "REJECTED"].includes(item.status)).length
+    + disputes.filter((item) => item.status === "OPEN" && !withCase.has(item.bookingId)).length;
   const openIncidents = ops.incidents.filter((item) => !["RESOLVED", "CLOSED"].includes(item.status)).length;
   const documentAlerts = ops.documents.filter((doc) => effectiveDocumentStatus(doc) === "EXPIRED" || (doc.status === "APPROVED" && expiryState(doc.expiryDate, warningDays) === "EXPIRING")).length;
   const failedPayouts = ops.payouts.filter((item) => item.status === "FAILED").length;

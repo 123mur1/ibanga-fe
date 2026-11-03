@@ -4,7 +4,7 @@
  * All figures are derived from demonstration data.
  */
 import { effectiveDocumentStatus, expiryState, truckVerification } from "@/config/business-rules";
-import type { Booking, RefundRequest, Truck, User } from "@/lib/types";
+import type { Booking, Dispute, RefundRequest, Truck, User } from "@/lib/types";
 import type { OpsData, ShipmentStatus } from "@/types/ops";
 
 export type AnalyticsFilters = {
@@ -20,6 +20,8 @@ export type AnalyticsInput = {
   trucks: Truck[];
   bookings: Booking[];
   refunds: RefundRequest[];
+  /** Problems importers reported on bookings ("Report problem"), stored with the booking. */
+  disputes: Dispute[];
   ops: OpsData;
   /** Reference time for expiry maths. */
   now: Date;
@@ -38,6 +40,9 @@ export type Kpis = {
   pendingSettlementsRwf: number;
   refundVolumeRwf: number;
   openDisputes: number;
+  /** Every incident type: accidents, breakdowns, damage, missing cargo, delays. */
+  incidents: number;
+  openIncidents: number;
   accidents: number;
   insuranceClaims: number;
   documentAlerts: number;
@@ -58,12 +63,19 @@ const UNPAID_SETTLEMENTS = ["AWAITING_DELIVERY", "AWAITING_VERIFICATION", "ON_HO
 /** Records that fall inside the selected range, per dataset. */
 export function scope(input: AnalyticsInput, filters: AnalyticsFilters) {
   const { ops, bookings, refunds, users } = input;
+  // Disputes come two ways: case files, and problems reported on a booking. A booking with a
+  // case file is counted once, by its case.
+  const withCase = new Set(ops.disputeCases.map((item) => item.bookingId));
+  const disputes = [
+    ...ops.disputeCases.map((item) => ({ status: item.status as string, createdAt: item.createdAt })),
+    ...input.disputes.filter((item) => !withCase.has(item.bookingId)).map((item) => ({ status: item.status as string, createdAt: item.createdAt })),
+  ];
   return {
     users: users.filter((user) => user.role !== "ADMIN" && inRange(user.createdAt, filters)),
     paidBookings: bookings.filter((booking) => booking.payment && booking.payment.status !== "PENDING" && inRange(booking.payment.paidAt, filters)),
     shipments: ops.shipments.filter((item) => inRange(item.createdAt, filters) && (!filters.shipmentStatus || item.status === filters.shipmentStatus)),
     refunds: refunds.filter((item) => inRange(item.createdAt, filters)),
-    disputes: ops.disputeCases.filter((item) => inRange(item.createdAt, filters)),
+    disputes: disputes.filter((item) => inRange(item.createdAt, filters)),
     incidents: ops.incidents.filter((item) => inRange(item.createdAt, filters)),
     claims: ops.insuranceClaims.filter((item) => inRange(item.filedAt, filters)),
     settlements: ops.settlements.filter((item) => inRange(item.createdAt, filters)),
@@ -96,6 +108,8 @@ export function computeKpis(input: AnalyticsInput, filters: AnalyticsFilters): K
     pendingSettlementsRwf: sum(pending.map((item) => item.netAmountRwf)),
     refundVolumeRwf: sum(data.refunds.filter((item) => item.status === "APPROVED").map((item) => item.amountRwf)),
     openDisputes: data.disputes.filter((item) => !["RESOLVED", "REJECTED"].includes(item.status)).length,
+    incidents: data.incidents.length,
+    openIncidents: data.incidents.filter((item) => !["RESOLVED", "CLOSED"].includes(item.status)).length,
     accidents: data.incidents.filter((item) => item.type === "ACCIDENT").length,
     insuranceClaims: data.claims.length,
     documentAlerts: documentAlerts.length,
@@ -113,6 +127,10 @@ export function countBy<T>(records: T[], keys: readonly string[], getKey: (recor
 
 export function disputeStatusMix(input: AnalyticsInput, filters: AnalyticsFilters) {
   return countBy(scope(input, filters).disputes, ["OPEN", "UNDER_REVIEW", "AWAITING_INFO", "ESCALATED", "RESOLVED", "REJECTED"], (item) => item.status);
+}
+
+export function incidentTypeMix(input: AnalyticsInput, filters: AnalyticsFilters) {
+  return countBy(scope(input, filters).incidents, ["ACCIDENT", "BREAKDOWN", "CARGO_DAMAGE", "MISSING_CARGO", "DRIVER_UNAVAILABLE", "EMERGENCY_DELAY"], (item) => item.type);
 }
 
 export function shipmentStatusMix(input: AnalyticsInput, filters: AnalyticsFilters) {
@@ -136,6 +154,8 @@ export function kpiRows(kpis: Kpis): (string | number)[][] {
     ["Pending settlements (RWF)", kpis.pendingSettlementsRwf],
     ["Refund volume (RWF)", kpis.refundVolumeRwf],
     ["Open disputes", kpis.openDisputes],
+    ["Incidents reported", kpis.incidents],
+    ["Open incidents", kpis.openIncidents],
     ["Accidents", kpis.accidents],
     ["Insurance claims", kpis.insuranceClaims],
     ["Document expiry alerts", kpis.documentAlerts],
