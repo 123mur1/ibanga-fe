@@ -6,6 +6,7 @@ import { TruckCard } from "./truck-card";
 import { PublicNavbar } from "./public-navbar";
 import { useIsTruckVerified } from "@/hooks/use-truck-verification";
 import { useIbanga } from "@/lib/store";
+import { CONTACT, telHref } from "@/config/contact";
 import { ACTIVE_BOOKING_STATUSES, LOCATIONS, TRUCK_TYPES } from "@/lib/types";
 
 const PAGE_SIZE = 6;
@@ -327,17 +328,18 @@ export function LandingPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <section className="rounded-2xl border border-white/15 bg-white/5 p-5">
               <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-200">Telephones</h3>
-              <a href="tel:+250780000001" className="mt-3 block text-base font-semibold text-white hover:text-sky-200">+250 780 000 001</a>
-              <a href="tel:+250788441220" className="mt-2 block text-base font-semibold text-white hover:text-sky-200">+250 788 441 220</a>
+              {CONTACT.phones.map((phone, index) => (
+                <a key={phone.display} href={telHref(phone.display)} className={`${index === 0 ? "mt-3" : "mt-2"} block text-base font-semibold text-white hover:text-sky-200`}>{phone.display}</a>
+              ))}
             </section>
             <section className="rounded-2xl border border-white/15 bg-white/5 p-5">
               <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-200">Email &amp; reception</h3>
-              <a href="mailto:admin@ibanga.com" className="mt-3 block break-all text-base font-semibold text-white hover:text-sky-200">admin@ibanga.com</a>
+              <a href={`mailto:${CONTACT.email}`} className="mt-3 block break-all text-base font-semibold text-white hover:text-sky-200">{CONTACT.email}</a>
               <p className="mt-2 text-xs leading-5 text-white/60">For general enquiries and reception.</p>
             </section>
             <section className="rounded-2xl border border-white/15 bg-white/5 p-5 sm:col-span-2 lg:col-span-1">
               <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-200">Address</h3>
-              <address className="mt-3 text-base font-semibold not-italic leading-6 text-white">KN 85 Street<br />Nyarugenge, Kigali<br />Rwanda</address>
+              <address className="mt-3 text-base font-semibold not-italic leading-6 text-white">{CONTACT.address.map((line) => <span key={line} className="block">{line}</span>)}</address>
             </section>
           </div>
         </div>

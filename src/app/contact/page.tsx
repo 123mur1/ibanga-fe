@@ -6,6 +6,7 @@ import { PublicPage } from "@/components/public-page";
 import { controlClass, FormField } from "@/components/common/form-fields";
 import { Notice } from "@/components/common/notices";
 import { PrimaryButton } from "@/components/ui";
+import { CONTACT, telHref } from "@/config/contact";
 import { useZodForm } from "@/lib/forms";
 
 const schema = z.object({
@@ -68,17 +69,18 @@ export default function ContactPage() {
         <aside className="space-y-4">
           <section className="rounded-2xl border border-line bg-card p-5 shadow-soft">
             <h2 className="font-display text-lg text-navy">Telephone</h2>
-            <p className="mt-2 text-sm"><a className="font-semibold text-brand hover:text-brand-dark" href="tel:+250780000001">+250 780 000 001</a></p>
-            <p className="text-sm"><a className="font-semibold text-brand hover:text-brand-dark" href="tel:+250788441220">+250 788 441 220</a></p>
-            <p className="mt-2 text-xs text-muted">Monday to Friday, 08:00 to 17:00 (CAT).</p>
+            {CONTACT.phones.map((phone, index) => (
+              <p key={phone.display} className={`${index === 0 ? "mt-2 " : ""}text-sm`}><a className="font-semibold text-brand hover:text-brand-dark" href={telHref(phone.display)}>{phone.display}</a></p>
+            ))}
+            <p className="mt-2 text-xs text-muted">{CONTACT.hours}</p>
           </section>
           <section className="rounded-2xl border border-line bg-card p-5 shadow-soft">
             <h2 className="font-display text-lg text-navy">Email</h2>
-            <p className="mt-2 text-sm"><a className="font-semibold text-brand hover:text-brand-dark" href="mailto:admin@ibanga.com">admin@ibanga.com</a></p>
+            <p className="mt-2 text-sm"><a className="break-all font-semibold text-brand hover:text-brand-dark" href={`mailto:${CONTACT.email}`}>{CONTACT.email}</a></p>
           </section>
           <section className="rounded-2xl border border-line bg-card p-5 shadow-soft">
             <h2 className="font-display text-lg text-navy">Office</h2>
-            <address className="mt-2 text-sm not-italic leading-6 text-navy">KN 85 Street<br />Nyarugenge, Kigali<br />Rwanda</address>
+            <address className="mt-2 text-sm not-italic leading-6 text-navy">{CONTACT.address.map((line) => <span key={line} className="block">{line}</span>)}</address>
           </section>
         </aside>
       </div>
