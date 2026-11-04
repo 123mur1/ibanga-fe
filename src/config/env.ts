@@ -15,7 +15,11 @@ const demoRequested =
 export const env = {
   dataSource: (apiRequested || !demoRequested ? "api" : "mock") as
     "mock" | "api",
-  apiBaseUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001",
+  apiBaseUrl:
+    process.env.NEXT_PUBLIC_API_URL ??
+    (process.env.NODE_ENV === "production"
+      ? "https://ibanga-be.vercel.app"
+      : "http://localhost:3001"),
   /** Simulated network latency (ms) for mock services, so loading states are visible. */
   mockLatencyMs: Number(process.env.NEXT_PUBLIC_MOCK_LATENCY_MS ?? 350),
   /** Bump to discard previously saved demonstration data in browsers. */

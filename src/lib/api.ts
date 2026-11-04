@@ -1,7 +1,7 @@
 const TOKEN_KEY = "ibanga-auth-token";
 const DEFAULT_API_URL =
   process.env.NODE_ENV === "production"
-    ? "https://ibanga-be-1.onrender.com"
+    ? "https://ibanga-be.vercel.app"
     : "http://localhost:3001";
 
 export class ApiError extends Error {

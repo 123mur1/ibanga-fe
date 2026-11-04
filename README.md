@@ -13,8 +13,9 @@ npm run dev          # http://localhost:3000
 
 Set up and run the backend before signing in with database accounts. The
 frontend uses `http://localhost:3001` by default; set `NEXT_PUBLIC_API_URL` in
-`.env.local` to use a different backend. The production build defaults to the
-deployed iBanga API. The API must be available for database sign-in.
+`.env.local` to use a different backend. Production defaults to
+`https://ibanga-be.vercel.app`; set `NEXT_PUBLIC_API_URL` in Vercel to override
+it. The API must be available for database sign-in.
 
 To explicitly use browser-only demo data, set `NEXT_PUBLIC_DATA_SOURCE=demo`.
 Demo accounts (shown on the login page only in demo mode):
