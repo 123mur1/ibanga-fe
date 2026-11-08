@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NotificationsBell } from "./notifications-bell";
+import { GlobalSearch } from "./global-search";
 import { BrandLink, LogoMark } from "./brand";
 import { LogoutConfirmationDialog } from "./logout-confirmation-dialog";
 import { Avatar } from "./photos";
@@ -508,6 +509,7 @@ export function DashboardShell({
             </div>
 
             <div className="relative flex shrink-0 items-center gap-2">
+              <GlobalSearch role={role} groups={groups} />
               <NotificationsBell />
               <button
                 type="button"

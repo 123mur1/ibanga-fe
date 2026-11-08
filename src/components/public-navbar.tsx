@@ -10,7 +10,7 @@ import { dashboardPath, useIbanga } from "@/lib/store";
 
 const links = [
   { href: "/#home", label: "Home" },
-  { href: "/#available-trucks", label: "Available trucks" },
+  { href: "/trucks", label: "Find trucks" },
   { href: "/how-it-works", label: "How it works" },
   { href: "/about", label: "About us" },
   { href: "/help", label: "FAQs" },

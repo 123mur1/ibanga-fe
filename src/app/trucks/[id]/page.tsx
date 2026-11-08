@@ -79,12 +79,15 @@ function TruckDetailsContent() {
   const hiddenFromViewer =
     truck != null && verification !== "APPROVED" && currentUser?.role !== "ADMIN" && currentUser?.id !== truck.ownerId;
 
+  // Importers search from their dashboard; everyone else from the public marketplace.
+  const browsePath = currentUser?.role === "IMPORTER" ? "/dashboard/importer/trucks" : "/trucks";
+
   if (!truck || hiddenFromViewer) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 lg:px-8">
         <p className="font-display text-2xl text-navy">Truck not found</p>
         <p className="mt-2 text-muted">It may have been removed or the link is wrong.</p>
-        <Link href="/#available-trucks" className="mt-5 inline-flex rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white hover:bg-brand-dark">
+        <Link href={browsePath} className="mt-5 inline-flex rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white hover:bg-brand-dark">
           Back to available trucks
         </Link>
       </div>
@@ -147,7 +150,7 @@ function TruckDetailsContent() {
       <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-sm text-muted">
         <Link href="/" className="font-medium hover:text-brand">Home</Link>
         <span aria-hidden="true">/</span>
-        <Link href="/#available-trucks" className="font-medium hover:text-brand">Available trucks</Link>
+        <Link href={browsePath} className="font-medium hover:text-brand">Available trucks</Link>
         <span aria-hidden="true">/</span>
         <span className="font-semibold text-navy">{truck.plateNumber}</span>
       </nav>

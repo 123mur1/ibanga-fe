@@ -72,6 +72,7 @@ export const NAVIGATION: Record<Role, NavGroup[]> = {
     {
       items: [
         { href: importer, label: "Overview", icon: "grid" },
+        { href: `${importer}/trucks`, label: "Find trucks", icon: "search" },
         { href: `${importer}/bookings`, label: "My bookings", icon: "calendar" },
         { href: "/dashboard/tracking", label: "Live cargo", icon: "pin" },
         { href: `${importer}/payments`, label: "Payments", icon: "card" },

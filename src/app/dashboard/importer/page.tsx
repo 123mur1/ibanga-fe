@@ -35,7 +35,7 @@ export default function ImporterHome() {
           actions={
             <>
               <Link
-                href="/"
+                href="/dashboard/importer/trucks"
                 className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-brand-dark transition hover:bg-brand-soft"
               >
                 Find a truck

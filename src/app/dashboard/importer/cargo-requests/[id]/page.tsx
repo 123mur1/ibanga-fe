@@ -63,7 +63,7 @@ export default function CargoRequestDetailPage() {
                   <Section
                     title="Quotations"
                     description="Compare offers, then review one before accepting."
-                    actions={<LinkButton href="/#available-trucks" variant="ghost">Find trucks instead</LinkButton>}
+                    actions={<LinkButton href="/dashboard/importer/trucks" variant="ghost">Find trucks instead</LinkButton>}
                   >
                     <QuotationComparison request={request} quotations={quotations} onBooked={setJustBooked} />
                   </Section>

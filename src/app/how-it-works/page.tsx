@@ -82,7 +82,7 @@ export default function HowItWorksPage() {
           <li>Cancellations show their fees before you confirm, and refunds are reviewed rather than assumed.</li>
         </ul>
         <div className="mt-6 flex flex-wrap gap-3">
-          <Link href="/#available-trucks" className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-brand-dark hover:bg-brand-soft">Browse trucks</Link>
+          <Link href="/trucks" className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-brand-dark hover:bg-brand-soft">Browse trucks</Link>
           <Link href="/register?role=TRUCK_OWNER" className="rounded-full border border-white/40 px-5 py-2.5 text-sm font-semibold text-white hover:bg-white/10">List your truck</Link>
         </div>
       </section>

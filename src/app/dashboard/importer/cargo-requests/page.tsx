@@ -23,7 +23,7 @@ export default function ImporterCargoRequestsPage() {
         subtitle="Describe what you need moved. Truck owners reply with quotations, and you choose one. A quotation is not a booking."
         actions={
           <>
-            <LinkButton href="/#available-trucks" variant="ghost">Find trucks instead</LinkButton>
+            <LinkButton href="/dashboard/importer/trucks" variant="ghost">Find trucks instead</LinkButton>
             {newRequest}
           </>
         }

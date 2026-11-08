@@ -340,8 +340,11 @@ function DataTableContents({
   exportName?: string;
   initialFilter?: string;
 }) {
-  const [search, setSearchValue] = useState("");
   const searchParams = useSearchParams();
+  // `?q=` (from the header search) starts the search box filled in; typing takes over until it changes.
+  const querySearch = searchParams.get("q") ?? "";
+  const [manualSearch, setManualSearch] = useState<{ query: string; value: string } | null>(null);
+  const search = manualSearch?.query === querySearch ? manualSearch.value : querySearch;
   const queryStatus = searchParams.get("status") ?? "";
   const [manualFilter, setManualFilter] = useState<{ query: string; value: string } | null>(null);
   const filter = manualFilter?.query === queryStatus ? manualFilter.value : queryStatus || initialFilter;
@@ -349,7 +352,7 @@ function DataTableContents({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSizeValue] = useState(10);
   // Changing any filter returns to the first page (done in the handlers, not in an effect).
-  const setSearch = (value: string) => { setSearchValue(value); setPage(1); };
+  const setSearch = (value: string) => { setManualSearch({ query: querySearch, value }); setPage(1); };
   const setFilter = (value: string) => { setManualFilter({ query: queryStatus, value }); setPage(1); };
   const setExtraFilter = (value: string) => { setExtraFilterValue(value); setPage(1); };
   const setPageSize = (value: number) => { setPageSizeValue(value); setPage(1); };

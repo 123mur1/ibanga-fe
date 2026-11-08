@@ -12,7 +12,7 @@ const steps = [
     title: "Importer books it",
     description: "Cargo and journey details are sent. The truck becomes unavailable right away.",
     action: "Browse available trucks",
-    href: "/#available-trucks",
+    href: "/trucks",
   },
   {
     title: "Pay the listed price",
@@ -139,7 +139,7 @@ export default function AboutPage() {
 
             <div className="mt-14 text-center">
               <Link
-                href="/#available-trucks"
+                href="/trucks"
                 className="inline-flex items-center gap-2 rounded-full bg-brand px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand/15 transition hover:-translate-y-0.5 hover:bg-brand-dark"
               >
                 See available trucks
