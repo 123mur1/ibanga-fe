@@ -15,7 +15,7 @@ import { useOps } from "@/hooks/use-ops";
 import { CARGO_TYPES, LOCATIONS, PAYMENT_METHODS, TRUCK_TYPES, canonicalPlace, type Booking, type BookingStatus } from "@/lib/types";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-const STATUSES: BookingStatus[] = ["PENDING", "ACCEPTED", "IN_PROGRESS", "DELIVERED", "COMPLETED", "DISPUTED", "REJECTED"];
+const STATUSES: BookingStatus[] = ["PENDING", "ACCEPTED", "IN_PROGRESS", "DELIVERED", "COMPLETED", "DISPUTED", "REJECTED", "CANCELLED"];
 
 const STATUS_SLICES: { status: BookingStatus; label: string; color: string }[] = [
   { status: "PENDING", label: "Pending", color: "#cfe6ef" },
@@ -25,6 +25,7 @@ const STATUS_SLICES: { status: BookingStatus; label: string; color: string }[] =
   { status: "COMPLETED", label: "Completed", color: "#0a3d50" },
   { status: "DISPUTED", label: "Disputed", color: "#122832" },
   { status: "REJECTED", label: "Rejected", color: "#d5e0e7" },
+  { status: "CANCELLED", label: "Cancelled", color: "#e8eef2" },
 ];
 
 /** Every filter lives in the address, so a filtered view can be bookmarked or shared. */

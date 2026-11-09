@@ -7,7 +7,8 @@ export type BookingStatus =
   | "DELIVERED"
   | "COMPLETED"
   | "DISPUTED"
-  | "REJECTED";
+  | "REJECTED"
+  | "CANCELLED";
 export type DisputeStatus = "OPEN" | "RESOLVED";
 
 export type PaymentMethod = "VISA" | "AIRTEL" | "MTN";

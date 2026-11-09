@@ -1012,6 +1012,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
           const notice = {
             ACCEPTED: { userId: booking.importerId, title: "Owner accepted your booking", body: `The truck owner accepted booking ${id}. You can now arrange payment.` },
             REJECTED: { userId: booking.importerId, title: "Booking declined", body: `The truck owner declined booking ${id}.` },
+            CANCELLED: { userId: owner, title: "Booking cancelled by the importer", body: `The importer cancelled booking ${id} before paying. Your truck is available again.` },
             IN_PROGRESS: { userId: booking.importerId, title: "Trip started", body: `Booking ${id} has left pickup and is now in transit.` },
             DELIVERED: { userId: booking.importerId, title: "Cargo delivered", body: `Booking ${id} is marked delivered. Confirm receipt or report a problem.` },
             COMPLETED: { userId: owner, title: "Receipt confirmed", body: `The importer confirmed receipt. Booking ${id} is complete.` },
@@ -1055,7 +1056,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
             booking.id === mappedBooking.id ? mappedBooking : booking,
           ),
         );
-        if (status === "REJECTED" || status === "COMPLETED") {
+        if (status === "REJECTED" || status === "CANCELLED" || status === "COMPLETED") {
           setTrucks((previous) =>
             previous.map((truck) =>
               truck.id === mappedBooking.truckId
@@ -1333,7 +1334,7 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
             item.id === id ? { ...item, ...patch } : item,
           ),
           trucks:
-            patch.status === "REJECTED" || patch.status === "COMPLETED"
+            patch.status === "REJECTED" || patch.status === "CANCELLED" || patch.status === "COMPLETED"
               ? session.trucks.map((truck) =>
                   truck.id === booking.truckId
                     ? { ...truck, status: "AVAILABLE" }

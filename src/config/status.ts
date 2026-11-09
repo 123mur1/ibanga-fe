@@ -39,7 +39,8 @@ export const STATUS_DEFS = {
     DELIVERED: def("Delivered", "success"),
     COMPLETED: def("Completed", "brand"),
     DISPUTED: def("Disputed", "danger"),
-    REJECTED: def("Cancelled", "neutral"),
+    REJECTED: def("Declined", "neutral"),
+    CANCELLED: def("Cancelled", "neutral"),
   },
   payment: {
     PENDING: def("Payment pending", "warning"),

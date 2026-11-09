@@ -11,7 +11,7 @@ export default function OwnerHistoryPage() {
   const mine = trucks.filter((t) => t.ownerId === currentUser?.id);
   const history = bookings.filter(
     (b) =>
-      ["COMPLETED", "REJECTED"].includes(b.status) &&
+      ["COMPLETED", "REJECTED", "CANCELLED"].includes(b.status) &&
       mine.some((t) => t.id === b.truckId),
   );
 

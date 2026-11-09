@@ -472,7 +472,7 @@ export function demoSetBookingStatus(
       item.id === id ? { ...item, status } : item,
     ),
     trucks:
-      status === "REJECTED" && booking
+      (status === "REJECTED" || status === "CANCELLED") && booking
         ? session.trucks.map((truck) =>
             truck.id === booking.truckId
               ? { ...truck, status: "AVAILABLE" }

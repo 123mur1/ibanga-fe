@@ -62,7 +62,7 @@ export function hydrateBooking(booking: Booking): Booking {
 
   // Requests and owner-confirmed bookings have not been paid yet. Seed a
   // historical payment only for trips that have started or reached an outcome.
-  if (["PENDING", "ACCEPTED", "REJECTED"].includes(booking.status)) {
+  if (["PENDING", "ACCEPTED", "REJECTED", "CANCELLED"].includes(booking.status)) {
     return { ...booking, payment: null };
   }
 

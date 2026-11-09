@@ -9,6 +9,7 @@ const bookingStyles: Record<BookingStatus, { wrap: string; dot: string }> = {
   COMPLETED: { wrap: "bg-navy text-white ring-1 ring-navy/20", dot: "bg-white" },
   DISPUTED: { wrap: "bg-brand-dark text-white ring-1 ring-brand-dark/30", dot: "bg-white" },
   REJECTED: { wrap: "bg-line text-muted ring-1 ring-navy/5", dot: "bg-muted" },
+  CANCELLED: { wrap: "bg-line text-muted ring-1 ring-navy/5", dot: "bg-muted" },
 };
 
 export function BookingBadge({ status }: { status: BookingStatus }) {

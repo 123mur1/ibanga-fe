@@ -62,7 +62,7 @@ export function ShipmentActions({ shipment }: { shipment: Shipment }) {
           <LinkButton href="/dashboard/importer/support/new" variant="ghost">Contact support</LinkButton>
           {cancelStage ? <LinkButton href={`/dashboard/importer/bookings/${bookingId}/cancel`} variant="ghost">Cancel booking</LinkButton> : null}
         </div>
-        {!cancelStage && !["COMPLETED", "REJECTED"].includes(booking.status) ? (
+        {!cancelStage && !["COMPLETED", "REJECTED", "CANCELLED"].includes(booking.status) ? (
           <p className="text-xs text-muted">This booking can no longer be cancelled because it is delivered or disputed. Use &quot;Report a problem&quot; instead.</p>
         ) : null}
         <p className="text-xs text-muted">

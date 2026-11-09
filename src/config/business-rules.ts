@@ -110,11 +110,25 @@ export function calculateCancellation(stage: CancellationStage, paidAmountRwf: R
 
 /** Which cancellation stage applies to a booking, or null when it can no longer be cancelled. */
 export function cancellationStageFor(booking: Booking, shipment?: Shipment): CancellationStage | null {
-  if (["COMPLETED", "REJECTED", "DELIVERED", "DISPUTED"].includes(booking.status)) return null;
+  if (["COMPLETED", "REJECTED", "CANCELLED", "DELIVERED", "DISPUTED"].includes(booking.status)) return null;
   const paid = Boolean(booking.payment && ["FUNDED", "HELD", "AUTHORIZED"].includes(booking.payment.status));
   if (!paid) return "BEFORE_PAYMENT";
   const pickedUp = booking.status === "IN_PROGRESS" || (shipment ? shipment.status !== "SCHEDULED" : false);
   return pickedUp ? "AFTER_PICKUP" : "AFTER_PAYMENT";
+}
+
+/**
+ * Minutes an importer has, from the moment of booking, to pay. After that the server cancels the
+ * booking and frees the truck. Keep in step with BOOKING_PAYMENT_WINDOW_MINUTES on the backend.
+ */
+export const PAYMENT_WINDOW_MINUTES = 5;
+
+/** When an unpaid booking is cancelled automatically (ms since epoch), or null if it no longer can be. */
+export function paymentDeadline(booking: Booking): number | null {
+  if (booking.status !== "PENDING" && booking.status !== "ACCEPTED") return null;
+  if (booking.payment && ["FUNDED", "HELD", "AUTHORIZED", "RELEASED"].includes(booking.payment.status)) return null;
+  const created = Date.parse(booking.createdAt);
+  return Number.isFinite(created) ? created + PAYMENT_WINDOW_MINUTES * 60_000 : null;
 }
 
 /* ---------------------------------------------------------------- settlement eligibility */
@@ -134,7 +148,7 @@ export function evaluateSettlement(input: {
   const { booking, shipment } = input;
   const reasons: string[] = [];
   const paid = Boolean(booking.payment && ["FUNDED", "HELD", "RELEASED"].includes(booking.payment.status));
-  if (booking.payment?.status === "REFUNDED" || booking.status === "REJECTED") {
+  if (booking.payment?.status === "REFUNDED" || booking.status === "REJECTED" || booking.status === "CANCELLED") {
     return { status: "NOT_ELIGIBLE", reasons: ["The booking was cancelled or the payment was refunded."] };
   }
   if (!paid) return { status: "NOT_ELIGIBLE", reasons: ["The importer's payment has not been confirmed."] };

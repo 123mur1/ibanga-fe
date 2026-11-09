@@ -61,7 +61,7 @@ export function computeOverview(input: {
     requests: input.requests.filter((request) => inRange(request.createdAt, range)).length,
     activeShipments: shipments.filter((shipment) => ACTIVE_SHIPMENT.includes(shipment.status)).length,
     completed: bookings.filter((booking) => booking.status === "COMPLETED" || booking.status === "DELIVERED").length,
-    cancelled: bookings.filter((booking) => booking.status === "REJECTED").length,
+    cancelled: bookings.filter((booking) => booking.status === "REJECTED" || booking.status === "CANCELLED").length,
     spendingRwf: bookings.reduce((sum, booking) => (booking.payment && PAID.includes(booking.payment.status) ? sum + booking.payment.amountRwf : sum), 0),
     outstandingRwf: outstanding.reduce((sum, booking) => sum + (booking.agreedPriceRwf ?? 0), 0),
     outstandingCount: outstanding.length,

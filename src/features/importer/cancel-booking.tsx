@@ -12,6 +12,7 @@ import { useAction } from "@/hooks/use-action";
 import { useActor } from "@/hooks/use-actor";
 import { formatDate, formatRwf } from "@/lib/format";
 import { applyFieldErrors, useZodForm } from "@/lib/forms";
+import { useIbanga } from "@/lib/store";
 import { services } from "@/services";
 import type { Booking } from "@/lib/types";
 import type { CancellationRequest, Shipment } from "@/types/ops";
@@ -24,7 +25,8 @@ const BLOCKED: Record<string, string> = {
   DELIVERED: "The cargo has been delivered. Confirm receipt, or report a problem if something is wrong.",
   DISPUTED: "A dispute is open. It must be resolved before the booking can change.",
   COMPLETED: "This booking is complete.",
-  REJECTED: "This booking is already cancelled.",
+  REJECTED: "The truck owner declined this booking, so there is nothing to cancel.",
+  CANCELLED: "This booking is already cancelled.",
 };
 
 function PolicyTable({ current }: { current?: string }) {
@@ -54,6 +56,7 @@ export function CancelBookingPanel({ booking, shipment, existing }: { booking: B
   const router = useRouter();
   const actor = useActor();
   const { run, busy } = useAction();
+  const { setBookingStatus } = useIbanga();
   const stage = cancellationStageFor(booking, shipment);
   const paid = booking.payment && PAID.includes(booking.payment.status) ? booking.payment.amountRwf : 0;
   const outcome = stage ? calculateCancellation(stage, paid) : null;
@@ -62,6 +65,19 @@ export function CancelBookingPanel({ booking, shipment, existing }: { booking: B
 
   const submit = handleSubmit(async (values) => {
     if (!actor || !stage || !outcome) return;
+    if (stage === "BEFORE_PAYMENT") {
+      // Nothing was paid, so there is nothing to review: the booking is cancelled at once.
+      const cancelled = await run(
+        async () => {
+          const error = await setBookingStatus(booking.id, "CANCELLED");
+          if (error) throw new Error(error);
+          return true;
+        },
+        { success: "Booking cancelled. The truck is available again." },
+      );
+      if (cancelled) router.push(`/dashboard/importer/bookings/${booking.id}`);
+      return;
+    }
     const created = await run(
       () => services.cancellations.request(actor, { bookingId: booking.id, stage, paidAmountRwf: outcome.paidAmountRwf, reason: values.reason, details: values.details }),
       {
@@ -118,11 +134,11 @@ export function CancelBookingPanel({ booking, shipment, existing }: { booking: B
                 ]}
                 footnote={outcome.requiresReview ? "This request requires administrator review. Nothing is refunded until it is approved, and the final amount may change." : "No payment was taken, so there is nothing to refund."}
               />
-              {outcome.requiresReview ? <Notice tone="warning" title="Requires administrator review">Your request is sent for review. Until approved, the booking stays active.</Notice> : null}
+              {outcome.requiresReview ? <Notice tone="warning" title="Requires administrator review">Your request is sent for review. Until approved, the booking stays active.</Notice> : <Notice tone="info" title="Cancelled straight away">You have not paid, so the booking is cancelled as soon as you confirm and the truck is released.</Notice>}
             </div>
           </Section>
 
-          <Section title="Request cancellation">
+          <Section title={outcome.requiresReview ? "Request cancellation" : "Cancel booking"}>
             <form onSubmit={(event) => void submit(event)} noValidate className="space-y-4">
               <FormField label="Reason" required error={formState.errors.reason?.message}>
                 <select className={controlClass} aria-invalid={Boolean(formState.errors.reason)} {...register("reason")}>
@@ -134,16 +150,16 @@ export function CancelBookingPanel({ booking, shipment, existing }: { booking: B
                 <textarea className={`${controlClass} min-h-24`} aria-invalid={Boolean(formState.errors.details)} {...register("details")} />
               </FormField>
               <ConfirmButton
-                label="Request cancellation"
-                title="Request to cancel this booking?"
+                label={outcome.requiresReview ? "Request cancellation" : "Cancel booking"}
+                title={outcome.requiresReview ? "Request to cancel this booking?" : "Cancel this booking?"}
                 message="Please check the outcome before you continue."
                 summary={[
                   `Booking: ${route}`,
                   `Cancellation fee: ${formatRwf(outcome.feeRwf)}`,
                   `Refundable amount: ${formatRwf(outcome.refundRwf)}`,
-                  outcome.requiresReview ? "An administrator reviews the request first." : "No payment was taken.",
+                  outcome.requiresReview ? "An administrator reviews the request first." : "No payment was taken. The booking is cancelled immediately.",
                 ]}
-                confirmLabel="Yes, request cancellation"
+                confirmLabel={outcome.requiresReview ? "Yes, request cancellation" : "Yes, cancel booking"}
                 tone="danger"
                 disabled={busy || !actor || !formState.isValid}
                 onConfirm={() => submit()}

@@ -19,6 +19,7 @@ const STATUS_FLOW: { status: BookingStatus; label: string; tone: string }[] = [
   { status: "COMPLETED", label: "Completed", tone: "bg-brand-dark text-white" },
   { status: "DISPUTED", label: "Disputed", tone: "bg-navy text-white" },
   { status: "REJECTED", label: "Rejected", tone: "bg-line text-muted" },
+  { status: "CANCELLED", label: "Cancelled", tone: "bg-line text-muted" },
 ];
 
 const STATUS_COLORS: Record<BookingStatus, string> = {
@@ -29,6 +30,7 @@ const STATUS_COLORS: Record<BookingStatus, string> = {
   COMPLETED: "#0a3d50",
   DISPUTED: "#122832",
   REJECTED: "#d5e0e7",
+  CANCELLED: "#e8eef2",
 };
 
 type AdminReportUser = {

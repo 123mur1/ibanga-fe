@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import { Notice } from "@/components/common/notices";
 import { useToast } from "@/components/toast";
+import { ConfirmButton } from "@/components/common/confirm-button";
+import { paymentDeadline, PAYMENT_WINDOW_MINUTES } from "@/config/business-rules";
 import { useAdminAllowed } from "@/hooks/use-admin-allowed";
 import { Avatar } from "@/components/photos";
 import { TripActions } from "@/components/trip-actions";
@@ -18,7 +20,7 @@ import { useIbanga } from "@/lib/store";
 import { formatRwf, maskAccount, validatePaymentAccount } from "@/lib/payments";
 import { PAYMENT_METHODS, type Booking, type BookingStatus, type PaymentMethod, type Review, type Role } from "@/lib/types";
 
-const statuses: BookingStatus[] = ["PENDING", "ACCEPTED", "IN_PROGRESS", "DELIVERED", "COMPLETED", "DISPUTED", "REJECTED"];
+const statuses: BookingStatus[] = ["PENDING", "ACCEPTED", "IN_PROGRESS", "DELIVERED", "COMPLETED", "DISPUTED", "REJECTED", "CANCELLED"];
 
 export function BookingDetail({
   role,
@@ -251,7 +253,8 @@ const BOOKING_STEPS = [
 ];
 
 function BookingProgress({ booking }: { booking: Booking }) {
-  const declined = booking.status === "REJECTED";
+  const cancelled = booking.status === "CANCELLED";
+  const declined = booking.status === "REJECTED" || cancelled;
   const disputed = booking.status === "DISPUTED";
   const paid = Boolean(booking.payment && ["AUTHORIZED", "FUNDED", "HELD", "RELEASED"].includes(booking.payment.status));
   const current = booking.status === "PENDING" ? 1
@@ -259,7 +262,9 @@ function BookingProgress({ booking }: { booking: Booking }) {
       : booking.status === "IN_PROGRESS" ? 3
         : booking.status === "DELIVERED" || disputed ? 4
           : 6;
-  const nextText = declined
+  const nextText = cancelled
+    ? "This booking was cancelled before payment. No payment is due and the truck was released."
+    : declined
     ? "The owner declined this request. No payment is due."
     : disputed
       ? "A delivery issue is under review. The owner settlement remains on hold until it is resolved."
@@ -283,7 +288,7 @@ function BookingProgress({ booking }: { booking: Booking }) {
           <p className="mt-1 max-w-3xl text-sm text-muted">{nextText}</p>
         </div>
         <span className={`rounded-full px-3 py-1 text-xs font-semibold ${declined ? "bg-bad-soft text-bad" : disputed ? "bg-warn-soft text-warn" : "bg-brand-soft text-brand-dark"}`}>
-          {declined ? "Request declined" : disputed ? "Issue under review" : booking.status === "COMPLETED" ? "Booking complete" : `Current step: ${BOOKING_STEPS[current].title}`}
+          {cancelled ? "Booking cancelled" : declined ? "Request declined" : disputed ? "Issue under review" : booking.status === "COMPLETED" ? "Booking complete" : `Current step: ${BOOKING_STEPS[current].title}`}
         </span>
       </div>
       <div className="mt-5 h-2 overflow-hidden rounded-full bg-background" role="progressbar" aria-label="Booking completion" aria-valuemin={0} aria-valuemax={6} aria-valuenow={declined ? 1 : current}>
@@ -313,6 +318,23 @@ function BookingProgress({ booking }: { booking: Booking }) {
       </ol>
     </section>
   );
+}
+
+/** Milliseconds left to pay before the unpaid booking is cancelled, ticking each second; null once it cannot expire. */
+function usePaymentCountdown(booking: Booking) {
+  const deadline = paymentDeadline(booking);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (deadline === null) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [deadline]);
+  return deadline === null ? null : Math.max(0, deadline - now);
+}
+
+function formatCountdown(ms: number) {
+  const seconds = Math.ceil(ms / 1000);
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
 function CardShell({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
@@ -368,6 +390,8 @@ function OwnerActions({ booking }: { booking: Booking }) {
           ? "The importer reported a problem. An admin will resolve it."
           : booking.status === "REJECTED"
             ? "You declined this request. The truck is available again."
+            : booking.status === "CANCELLED"
+              ? "This booking was cancelled before payment. The truck is available again."
             : booking.status === "COMPLETED"
               ? "This trip is complete."
               : "Move the trip forward as it progresses.";
@@ -412,11 +436,23 @@ function ImporterActions({ booking }: { booking: Booking }) {
     toast(error || success, error ? "bad" : "good");
   }
 
-  const canPay = booking.status === "ACCEPTED" && (!booking.payment || booking.payment.status === "PENDING" || booking.payment.status === "REFUNDED");
+  const { refreshMarketplace } = useIbanga();
+  const remainingMs = usePaymentCountdown(booking);
+  const expired = remainingMs === 0;
+  // The server cancels expired bookings on a 30-second sweep; reload until it shows as cancelled.
+  useEffect(() => {
+    if (!expired) return;
+    const timer = setInterval(() => void refreshMarketplace(), 15_000);
+    return () => clearInterval(timer);
+  }, [expired, refreshMarketplace]);
+  const canCancel = remainingMs !== null && !expired;
+  const canPay = !expired && booking.status === "ACCEPTED" && (!booking.payment || booking.payment.status === "PENDING" || booking.payment.status === "REFUNDED");
   const canConfirm = booking.status === "DELIVERED" || (booking.status === "DISPUTED" && booking.dispute?.status === "RESOLVED");
 
   const subtitle =
-    booking.status === "PENDING"
+    expired
+      ? "The payment time is up. This booking is being cancelled and the truck released."
+      : booking.status === "PENDING"
       ? "Waiting for the owner to accept your request."
       : canPay
         ? "The owner accepted. Pay before the trip begins."
@@ -424,6 +460,8 @@ function ImporterActions({ booking }: { booking: Booking }) {
           ? "Check the cargo, then confirm receipt or report a problem."
           : booking.status === "REJECTED"
             ? "The owner declined this request. The truck is available again."
+            : booking.status === "CANCELLED"
+              ? "This booking was cancelled before payment. Nothing was charged."
             : booking.status === "COMPLETED" && booking.payment?.status === "REFUNDED"
               ? "An administrator decided this dispute in your favour. Your payment was refunded to your iBanga wallet."
               : booking.status === "COMPLETED"
@@ -432,6 +470,14 @@ function ImporterActions({ booking }: { booking: Booking }) {
 
   return (
     <CardShell title="Your next step" subtitle={subtitle}>
+      {canCancel && remainingMs !== null ? (
+        <Notice tone="warning" title={`Pay within ${formatCountdown(remainingMs)}`}>
+          {booking.status === "PENDING"
+            ? `Unpaid bookings are cancelled ${PAYMENT_WINDOW_MINUTES} minutes after booking. The owner must accept and you must pay before then, or the truck is released.`
+            : `Unpaid bookings are cancelled ${PAYMENT_WINDOW_MINUTES} minutes after booking and the truck is released.`}
+        </Notice>
+      ) : null}
+
       {canPay ? (
         <div className="flex flex-wrap items-center gap-3">
           <PrimaryButton type="button" disabled={!booking.agreedPriceRwf} onClick={() => setPayOpen(true)}>
@@ -511,6 +557,19 @@ function ImporterActions({ booking }: { booking: Booking }) {
             </div>
           ) : null}
         </>
+      ) : null}
+
+      {canCancel ? (
+        <ConfirmButton
+          label="Cancel booking"
+          title="Cancel this booking?"
+          message="You have not paid, so there is no fee."
+          summary={[`Booking: ${booking.pickupLocation} to ${booking.destination}`, "The booking is cancelled immediately.", "The truck becomes available to other importers."]}
+          confirmLabel="Yes, cancel booking"
+          tone="danger"
+          disabled={busy}
+          onConfirm={() => run(() => setBookingStatus(booking.id, "CANCELLED"), "Booking cancelled. The truck is available again.")}
+        />
       ) : null}
 
       {!canPay && !canConfirm ? <p className="text-sm text-muted">{subtitle}</p> : null}
