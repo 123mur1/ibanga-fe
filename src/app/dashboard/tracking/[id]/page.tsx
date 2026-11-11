@@ -11,7 +11,6 @@ import { TripActions } from "@/components/trip-actions";
 import { WorkspaceLoading } from "@/components/loading";
 import { BookingBadge } from "@/components/status-badge";
 import { PageHeader, StatCard, formatDate } from "@/components/ui";
-import { env } from "@/config/env";
 import { api } from "@/lib/api";
 import { useIbanga } from "@/lib/store";
 import { positionAt } from "@/lib/geo";
@@ -95,7 +94,7 @@ export default function TrackingDetailPage() {
 
   // Use the GPS position the truck owner shares, when there is a recent one.
   useEffect(() => {
-    if (!moving || !allowed || env.dataSource !== "api") return;
+    if (!moving || !allowed) return;
     let active = true;
     const load = () =>
       api<ApiLocation | null>(`/bookings/${encodeURIComponent(id)}/location`)

@@ -1,7 +1,7 @@
 /**
  * Pure aggregation for the administrator analytics page. Inputs are the marketplace store and the
  * operations dataset; nothing here reads a service, so the same functions can run on API results.
- * All figures are derived from demonstration data.
+ * All figures are derived from the loaded marketplace and operations records.
  */
 import { effectiveDocumentStatus, expiryState, truckVerification } from "@/config/business-rules";
 import type { Booking, Dispute, RefundRequest, Truck, User } from "@/lib/types";

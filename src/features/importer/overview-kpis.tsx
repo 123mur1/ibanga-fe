@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { QueryBoundary } from "@/components/common/async-state";
-import { DemoTag } from "@/components/common/notices";
 import { StatGrid } from "@/components/common/layout-blocks";
 import { statusOptions } from "@/components/common/status-badge";
 import { StatCard } from "@/components/ui";
@@ -40,7 +39,7 @@ export function ImporterKpis() {
     <section className="mt-6" aria-labelledby="kpi-heading">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 id="kpi-heading" className="font-display text-xl tracking-tight text-navy">Shipping summary <DemoTag /></h2>
+          <h2 id="kpi-heading" className="font-display text-xl tracking-tight text-navy">Shipping summary</h2>
           <p className="mt-1 text-sm text-muted">Dates filter every figure; status filters bookings, shipments and payments.</p>
         </div>
         <div className="flex flex-wrap items-end gap-2">

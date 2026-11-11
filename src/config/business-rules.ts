@@ -1,5 +1,5 @@
 /**
- * Demonstration business rules, centralised so they can be replaced by backend results later.
+ * Business rules the UI applies, kept in one place. The backend enforces the ones that move money or bookings.
  *
  * IMPORTANT: these functions only decide what the UI SHOWS. The backend must enforce the same
  * rules authoritatively (payment confirmation, settlement eligibility, refund amounts, document
@@ -117,18 +117,15 @@ export function cancellationStageFor(booking: Booking, shipment?: Shipment): Can
   return pickedUp ? "AFTER_PICKUP" : "AFTER_PAYMENT";
 }
 
-/**
- * Minutes an importer has, from the moment of booking, to pay. After that the server cancels the
- * booking and frees the truck. Keep in step with BOOKING_PAYMENT_WINDOW_MINUTES on the backend.
- */
-export const PAYMENT_WINDOW_MINUTES = 5;
+/** Minutes an importer has after owner acceptance to pay the deposit. */
+export const PAYMENT_WINDOW_MINUTES = 60;
 
-/** When an unpaid booking is cancelled automatically (ms since epoch), or null if it no longer can be. */
+/** When an accepted, unpaid booking expires (ms since epoch); pending requests never expire. */
 export function paymentDeadline(booking: Booking): number | null {
-  if (booking.status !== "PENDING" && booking.status !== "ACCEPTED") return null;
+  if (booking.status !== "ACCEPTED" || !booking.acceptedAt) return null;
   if (booking.payment && ["FUNDED", "HELD", "AUTHORIZED", "RELEASED"].includes(booking.payment.status)) return null;
-  const created = Date.parse(booking.createdAt);
-  return Number.isFinite(created) ? created + PAYMENT_WINDOW_MINUTES * 60_000 : null;
+  const accepted = Date.parse(booking.acceptedAt);
+  return Number.isFinite(accepted) ? accepted + PAYMENT_WINDOW_MINUTES * 60_000 : null;
 }
 
 /* ---------------------------------------------------------------- settlement eligibility */

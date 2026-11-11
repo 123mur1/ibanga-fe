@@ -1,5 +1,6 @@
 "use client";
 
+import { formatRate } from "@/lib/distance";
 import { useState } from "react";
 import { ConfirmButton } from "@/components/common/confirm-button";
 import { controlClass, FormField } from "@/components/common/form-fields";
@@ -15,7 +16,6 @@ import { useAction } from "@/hooks/use-action";
 import { useActor } from "@/hooks/use-actor";
 import { useOps } from "@/hooks/use-ops";
 import { formatDate, formatPercent, formatTons, titleCase } from "@/lib/format";
-import { formatRwf } from "@/lib/payments";
 import { useIbanga } from "@/lib/store";
 import { ACTIVE_BOOKING_STATUSES } from "@/lib/types";
 import { services } from "@/services";
@@ -90,9 +90,11 @@ export function AdminTruckDetail({ id }: { id: string }) {
             { label: "Plate number", value: truck.plateNumber },
             { label: "Type", value: truck.truckType },
             { label: "Capacity", value: formatTons(truck.capacity) },
-            { label: "Price", value: truck.priceRwf ? formatRwf(truck.priceRwf) : "Quoted per request" },
+            { label: "Category", value: truck.category || "—" },
+            { label: "Price per km", value: formatRate(truck.pricePerKmRwf) },
             { label: "Current location", value: truck.currentLocation },
-            { label: "Preferred route", value: truck.preferredRoute },
+            { label: "Delivers to", value: truck.destinations?.length ? truck.destinations.join(", ") : "—" },
+            { label: "Carries", value: truck.acceptedCargo?.length ? truck.acceptedCargo.join(", ") : "—" },
             { label: "Owner", value: owner ? <PersonName name={owner.company ?? owner.name} photo={owner.photo} detail={owner.company ? owner.name : owner.email} /> : "—" },
             { label: "Description", value: truck.description || "—", wide: true },
           ]}

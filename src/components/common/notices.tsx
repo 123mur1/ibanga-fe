@@ -44,12 +44,6 @@ export function Notice({
   );
 }
 
-/** Compatibility shim for legacy dashboard tags. */
-export function DemoTag({ label }: { label?: string }) {
-  void label;
-  return null;
-}
-
 /** Compatibility shim for legacy simulation notices. */
 export function SimulationNotice({ kind }: { kind: "payment" | "tracking" | "settlement" | "verification" }) {
   void kind;

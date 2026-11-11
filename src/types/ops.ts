@@ -3,7 +3,7 @@
  *
  * These sit next to the marketplace types in `@/lib/types` (User, Truck, Booking, Payment,
  * RefundRequest). Records link to each other by stable string IDs only, so the same shapes can
- * later be returned by a real API. Everything here is DEMONSTRATION data until a backend exists.
+ * later be returned by a real API. Records are stored through the operations API.
  */
 import type { Role } from "@/lib/types";
 
@@ -171,7 +171,7 @@ export type TruckProfile = {
   verification: VerificationStatus;
   tripsCompleted: number;
   onTimeRate: number;
-  /** Share of the last 30 days the truck was on a booking, 0-100 (demonstration figure). */
+  /** Share of the last 30 days the truck was on a booking, 0-100 (estimated). */
   utilizationPct: number;
 };
 
@@ -181,7 +181,7 @@ export type Driver = {
   id: Id;
   ref: string;
   ownerId: Id;
-  /** Linked sign-in account. Legacy demonstration drivers may not have one. */
+  /** Linked sign-in account. Older driver records may not have one. */
   userId?: Id;
   name: string;
   phone: string;
@@ -247,7 +247,7 @@ export type ShipmentMilestone = {
   place: string;
   note: string;
   recordedBy: Id;
-  /** True when entered through the demonstration controls rather than a tracking source. */
+  /** True when entered by hand rather than by a tracking source. */
   simulated: boolean;
 };
 
@@ -258,7 +258,7 @@ export type DeliveryEvidence = {
   submittedAt: IsoDate;
   submittedBy: Id;
   recipientName: string;
-  /** Demonstration signature (data URL) captured on a canvas. */
+  /** Signature (data URL) captured on a canvas. */
   signatureDataUrl?: string;
   confirmationCode: string;
   photos: string[];
@@ -619,7 +619,7 @@ export type PlatformSettings = {
   maintenanceBanner: string;
 };
 
-/** The whole demonstration dataset held by the mock database. */
+/** The operations dataset cached in the browser. */
 export type OpsData = {
   cargoRequests: CargoRequest[];
   quotations: Quotation[];

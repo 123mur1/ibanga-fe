@@ -6,7 +6,7 @@ import { IbangaProvider } from "@/lib/store";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "iBanga — Freight marketplace",
+  title: "iBanga — Connect, Book, Transport",
   description:
     "A freight marketplace connecting importers, truck owners, drivers and administrators.",
 };

@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { QueryBoundary } from "@/components/common/async-state";
 import { StatGrid } from "@/components/common/layout-blocks";
-import { DemoTag } from "@/components/common/notices";
 import { StatusBadge } from "@/components/common/status-badge";
 import { DataTable, StatCard, ViewLink } from "@/components/ui";
 import { useActor } from "@/hooks/use-actor";
@@ -85,7 +84,6 @@ export function ReportsView() {
               {range.from || range.to || kind ? (
                 <button type="button" className="rounded-lg px-3 py-2 text-sm font-semibold text-brand hover:bg-brand-soft" onClick={() => { setRange({ from: "", to: "" }); setKind(""); }}>Clear filters</button>
               ) : null}
-              <span className="ml-auto"><DemoTag /></span>
             </div>
 
             <StatGrid columns={4}>

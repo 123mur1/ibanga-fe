@@ -75,7 +75,6 @@ const MUTATING_METHODS: Partial<Record<keyof Services, readonly string[]>> = {
     "resolveReconciliation",
     "updateAdmin",
     "updateSettings",
-    "resetDemoData",
   ],
 };
 

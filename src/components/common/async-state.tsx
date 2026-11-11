@@ -8,7 +8,7 @@ export function LoadingBlock({ label = "Loading…", rows = 3 }: { label?: strin
     <div role="status" aria-live="polite" className="space-y-3 rounded-2xl border border-line bg-card p-5 shadow-soft">
       <span className="sr-only">{label}</span>
       {Array.from({ length: rows }, (_, index) => (
-        <div key={index} className="h-5 animate-pulse rounded-md bg-line" style={{ width: `${92 - index * 14}%` }} />
+        <div key={index} className="loading-skeleton h-5 rounded-md" style={{ width: `${92 - index * 14}%` }} />
       ))}
     </div>
   );

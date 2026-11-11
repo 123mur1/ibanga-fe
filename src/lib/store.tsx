@@ -6,7 +6,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import {
@@ -19,33 +18,9 @@ import {
 } from "./api";
 import { loadOperationsSnapshot } from "@/services/api/operations-records";
 import { mockDb } from "@/services/mock-db";
-import {
-  commissionFor,
-  demoAddTruck,
-  demoAddReview,
-  demoAddUser,
-  demoAuthenticate,
-  demoCreateBooking,
-  demoDeposit,
-  demoEnabled,
-  demoPayBooking,
-  demoProcessRefund,
-  demoRequestRefund,
-  demoRegister,
-  demoReportProblem,
-  demoResolveDispute,
-  demoSetAvailability,
-  demoSetBookingStatus,
-  demoUpdateTruck,
-  demoWithdraw,
-  loadDemoSession,
-  saveDemoSession,
-  walletAccountsFor,
-  walletBalanceFor,
-  type DemoSession,
-} from "./demo";
 import type {
   Booking,
+  BookingDocumentKind,
   BookingPayment,
   BookingStatus,
   CheckoutDetails,
@@ -65,11 +40,14 @@ export type NewTruckInput = {
   plateNumber: string;
   truckType: string;
   capacity: number;
-  priceRwf: number;
   currentLocation?: string;
   preferredRoute?: string;
   description?: string;
   photos?: string[];
+  category?: string;
+  pricePerKmRwf?: number;
+  destinations?: string[];
+  acceptedCargo?: string[];
 };
 
 type ApiRelatedUser = {
@@ -240,20 +218,40 @@ type Store = {
     branchCode?: string;
     accountNumber?: string;
   }) => Promise<string | null>;
+  /** Pays the 50% deposit after the owner accepts (within the deposit window). */
   payBooking: (
     bookingId: string,
     checkout?: CheckoutDetails,
   ) => Promise<string | null>;
-  /**
-   * Demonstration only: adds a booking record (used when a quotation is accepted) and marks its truck
-   * unavailable. A real backend creates the booking inside the "accept quotation" transaction.
-   */
-  addBooking: (booking: Booking) => Promise<string | null>;
-  /** Demonstration only: merge changes into a booking (payment state, status). Backend-authoritative later. */
-  patchBooking: (id: string, patch: Partial<Booking>) => Promise<string | null>;
+  /** The importer confirms the cargo arrived and pays the remaining 50%; the booking completes. */
+  confirmReceipt: (
+    bookingId: string,
+    checkout?: CheckoutDetails,
+  ) => Promise<string | null>;
+  /** Cargo or tax document, after the deposit and before the trip starts. */
+  uploadBookingDocument: (
+    bookingId: string,
+    input: { kind: BookingDocumentKind; name: string; dataUrl: string },
+  ) => Promise<string | null>;
+  removeBookingDocument: (
+    bookingId: string,
+    documentId: string,
+  ) => Promise<string | null>;
+  /** Driver or owner: message everyone on the trip (emailed); with delayDays it moves the delivery. */
+  sendTripUpdate: (
+    bookingId: string,
+    input: { message: string; delayDays?: number },
+  ) => Promise<{ error: string | null; affected: number }>;
+  /** Importer whose booking a delay overlaps: shift the dates or cancel with a full refund. */
+  decideDelay: (
+    bookingId: string,
+    impactId: string,
+    decision: "SHIFT" | "REFUND",
+  ) => Promise<string | null>;
+  /** Anyone can review: signed-in users post as themselves, visitors give a name. */
   addReview: (
     truckId: string,
-    input: { rating: number; comment: string },
+    input: { rating: number; comment: string; authorName?: string },
   ) => Promise<string | null>;
   requestRefund: (
     bookingId: string,
@@ -299,6 +297,9 @@ function mapTruck(truck: ApiTruck): Truck {
     currentLocation: truck.currentLocation ?? "",
     preferredRoute: truck.preferredRoute ?? "",
     description: truck.description ?? "",
+    destinations: truck.destinations ?? [],
+    acceptedCargo: truck.acceptedCargo ?? [],
+    bookedRanges: truck.bookedRanges ?? [],
     // Lists point photos at the API (`/trucks/:id/photos/0`) instead of embedding them.
     photos: (truck.photos ?? []).map((photo) =>
       photo.startsWith("/trucks/") ? apiUrl(photo) : photo,
@@ -391,41 +392,6 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
   const [walletAccounts, setWalletAccounts] = useState<WalletAccount[]>([]);
   const [adminCommission, setAdminCommission] =
     useState<AdminCommission | null>(null);
-  const demoSession = useRef<DemoSession | null>(null);
-
-  const publishDemo = useCallback(
-    (session: DemoSession, userId: string | null) => {
-      demoSession.current = session;
-      saveDemoSession(session, userId);
-      const user = userId
-        ? (session.users.find((item) => item.id === userId) ?? null)
-        : null;
-      setCurrentUser(user);
-      setUsers(session.users);
-      setBookings(session.bookings);
-      setDisputes(session.disputes);
-      setRefunds(session.refunds ?? []);
-      setReviews(session.reviews ?? []);
-      setTrucks(session.trucks);
-      setWalletBalance(user ? walletBalanceFor(session, user.id) : 0);
-      setTransactions(
-        user
-          ? session.transactions.filter(
-              (transaction) => transaction.userId === user.id,
-            )
-          : [],
-      );
-      setWalletAccounts(
-        user?.role === "ADMIN" ? walletAccountsFor(session) : [],
-      );
-      setAdminCommission(
-        user?.role === "ADMIN" ? commissionFor(session.bookings) : null,
-      );
-      setConnectionError(null);
-      setTrucksLoading(false);
-    },
-    [],
-  );
 
   const loadPublicTrucks = useCallback(async () => {
     setTrucksLoading(true);
@@ -595,11 +561,20 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     [loadPublicTrucks],
   );
 
+  /**
+   * Reloads after a change the server has already saved. A failed reload must not turn that
+   * success into an error (the importer would think a booking failed and book again), so it is
+   * only logged; the data catches up on the next load.
+   */
   const refreshAfterMutation = useCallback(async () => {
-    if (currentUser) {
-      await loadMarketplace(currentUser, { withOperations: false });
-    } else {
-      await loadPublicTrucks();
+    try {
+      if (currentUser) {
+        await loadMarketplace(currentUser, { withOperations: false });
+      } else {
+        await loadPublicTrucks();
+      }
+    } catch (error) {
+      console.warn("The change was saved, but reloading the data failed.", error);
     }
   }, [currentUser, loadMarketplace, loadPublicTrucks]);
 
@@ -611,14 +586,6 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     let active = true;
 
     async function initialize() {
-      if (demoEnabled) {
-        const loaded = loadDemoSession();
-        if (active) {
-          publishDemo(loaded.session, loaded.userId);
-          setReady(true);
-        }
-        return;
-      }
       try {
         window.localStorage.removeItem("ibanga-app-state-v4");
         if (readAuthToken()) {
@@ -653,16 +620,10 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     return () => {
       active = false;
     };
-  }, [loadMarketplace, loadPublicTrucks, publishDemo]);
+  }, [loadMarketplace, loadPublicTrucks]);
 
   const login = useCallback(
     async (email: string, password: string) => {
-      if (demoEnabled && demoSession.current) {
-        const result = demoAuthenticate(demoSession.current, email, password);
-        if (!result.user) return { user: null, error: result.error };
-        publishDemo(demoSession.current, result.user.id);
-        return { user: result.user, error: null };
-      }
       try {
         const result = await api<{ token: string; user: ApiUser }>(
           "/auth/login",
@@ -680,18 +641,10 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         return { user: null, error: errorMessage(error, "Could not sign in.") };
       }
     },
-    [loadMarketplace, publishDemo],
+    [loadMarketplace],
   );
 
   const requestPasswordReset = useCallback(async (email: string) => {
-    if (demoEnabled) {
-      const known = demoSession.current?.users.some(
-        (user) => user.email.toLowerCase() === email.trim().toLowerCase(),
-      );
-      return known
-        ? { message: "Demo mode: use the password shown on the sign-in page." }
-        : { message: "", error: "No demo account uses that email." };
-    }
     try {
       return await api<{ message: string }>("/auth/password-reset/request", {
         method: "POST",
@@ -706,8 +659,6 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const resetPassword = useCallback(async (token: string, password: string) => {
-    if (demoEnabled)
-      return "Password reset stays on the sign-in page while demo data is in use.";
     try {
       await api("/auth/password-reset/reset", {
         method: "POST",
@@ -721,12 +672,6 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
 
   const register = useCallback<Store["register"]>(
     async (input) => {
-      if (demoEnabled && demoSession.current) {
-        const result = demoRegister(demoSession.current, input);
-        if ("error" in result) return result.error;
-        publishDemo(result.session, result.user.id);
-        return null;
-      }
       try {
         const result = await api<{ token: string; user: ApiUser }>(
           "/auth/register",
@@ -764,14 +709,10 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         return errorMessage(error, "Could not create your account.");
       }
     },
-    [loadMarketplace, publishDemo],
+    [loadMarketplace],
   );
 
   const logout = useCallback(() => {
-    if (demoEnabled && demoSession.current) {
-      publishDemo(demoSession.current, null);
-      return;
-    }
     clearAuthToken();
     setCurrentUser(null);
     setUsers([]);
@@ -783,16 +724,10 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
     setWalletAccounts([]);
     setAdminCommission(null);
     void loadPublicTrucks();
-  }, [loadPublicTrucks, publishDemo]);
+  }, [loadPublicTrucks]);
 
   const addUser = useCallback<Store["addUser"]>(
     async (input) => {
-      if (demoEnabled && demoSession.current && currentUser) {
-        const result = demoAddUser(demoSession.current, input);
-        if ("error" in result) return result.error;
-        publishDemo(result.session, currentUser.id);
-        return null;
-      }
       try {
         await api("/users", {
           method: "POST",
@@ -804,19 +739,12 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         return errorMessage(error, "Could not create the account.");
       }
     },
-    [currentUser, publishDemo, refreshAfterMutation],
+    [refreshAfterMutation],
   );
 
   const updateProfile = useCallback<Store["updateProfile"]>(
     async (patch) => {
       if (!currentUser) return "Sign in to update your profile.";
-      if (demoEnabled && demoSession.current) {
-        const users = demoSession.current.users.map((user) =>
-          user.id === currentUser.id ? { ...user, ...patch } : user,
-        );
-        publishDemo({ ...demoSession.current, users }, currentUser.id);
-        return null;
-      }
       try {
         const user = mapUser(
           await api<ApiUser>("/auth/me", {
@@ -830,15 +758,10 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         return errorMessage(error, "Could not update your profile.");
       }
     },
-    [currentUser, loadMarketplace, publishDemo],
+    [currentUser, loadMarketplace],
   );
 
   const fetchTruck = useCallback<Store["fetchTruck"]>(async (id) => {
-    if (demoEnabled) {
-      const truck = demoSession.current?.trucks.find((item) => item.id === id);
-      if (!truck) throw new Error("Truck not found in the demo data.");
-      return truck;
-    }
     const truck = await api<ApiTruck>(`/trucks/${encodeURIComponent(id)}`);
     return mapTruck(truck);
   }, []);
@@ -846,13 +769,6 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
   const addTruck = useCallback<Store["addTruck"]>(
     async (input) => {
       if (!currentUser) return "Sign in to list a truck.";
-      if (demoEnabled && demoSession.current) {
-        publishDemo(
-          demoAddTruck(demoSession.current, currentUser, input),
-          currentUser.id,
-        );
-        return null;
-      }
       try {
         await api("/trucks", {
           method: "POST",
@@ -864,18 +780,11 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         return errorMessage(error, "Could not add the truck.");
       }
     },
-    [currentUser, publishDemo, refreshAfterMutation],
+    [currentUser, refreshAfterMutation],
   );
 
   const updateTruck = useCallback<Store["updateTruck"]>(
     async (id, patch) => {
-      if (demoEnabled && demoSession.current && currentUser) {
-        publishDemo(
-          demoUpdateTruck(demoSession.current, id, patch),
-          currentUser.id,
-        );
-        return null;
-      }
       try {
         await api(`/trucks/${encodeURIComponent(id)}`, {
           method: "PATCH",
@@ -887,23 +796,11 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         return errorMessage(error, "Could not update the truck.");
       }
     },
-    [currentUser, publishDemo, refreshAfterMutation],
+    [refreshAfterMutation],
   );
 
   const deleteTruck = useCallback<Store["deleteTruck"]>(
     async (id) => {
-      if (demoEnabled && demoSession.current && currentUser) {
-        publishDemo(
-          {
-            ...demoSession.current,
-            trucks: demoSession.current.trucks.filter(
-              (truck) => truck.id !== id,
-            ),
-          },
-          currentUser.id,
-        );
-        return null;
-      }
       try {
         await api(`/trucks/${encodeURIComponent(id)}`, { method: "DELETE" });
         await refreshAfterMutation();
@@ -912,18 +809,11 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         return errorMessage(error, "Could not remove the truck.");
       }
     },
-    [currentUser, publishDemo, refreshAfterMutation],
+    [refreshAfterMutation],
   );
 
   const setAvailability = useCallback<Store["setAvailability"]>(
     async (id, status) => {
-      if (demoEnabled && demoSession.current && currentUser) {
-        publishDemo(
-          demoSetAvailability(demoSession.current, id, status),
-          currentUser.id,
-        );
-        return null;
-      }
       try {
         await api(`/trucks/${encodeURIComponent(id)}/availability`, {
           method: "PATCH",
@@ -935,44 +825,12 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         return errorMessage(error, "Could not update truck availability.");
       }
     },
-    [currentUser, publishDemo, refreshAfterMutation],
+    [refreshAfterMutation],
   );
 
   const createBooking = useCallback<Store["createBooking"]>(
     async (truck, input) => {
       if (!currentUser) return "Sign in to book a truck.";
-      if (demoEnabled && demoSession.current) {
-        const result = demoCreateBooking(
-          demoSession.current,
-          currentUser,
-          truck,
-          input,
-        );
-        if ("error" in result) return result.error;
-        const createdBooking = result.session.bookings.find(
-          (item) => !demoSession.current?.bookings.some((previous) => previous.id === item.id),
-        );
-        if (!createdBooking) return "Could not create the booking.";
-        const ownerId = truck.ownerId;
-        mockDb.update((data) => {
-          const notificationId = `booking-${createdBooking.id}-${ownerId}-${Date.now()}`;
-          return {
-            ...data,
-            notifications: [{
-              id: notificationId,
-              userId: ownerId,
-              category: "BOOKING",
-              title: "New truck booking",
-              body: `A customer booked your truck for cargo from ${input.pickupLocation} to ${input.destination}.`,
-              href: `/dashboard/owner/bookings/${createdBooking.id}`,
-              read: false,
-              createdAt: new Date().toISOString(),
-            }, ...data.notifications],
-          };
-        });
-        publishDemo(result.session, currentUser.id);
-        return null;
-      }
       try {
         const cargoWeight = Number(input.cargoWeight);
         if (!Number.isFinite(cargoWeight) || cargoWeight <= 0) {
@@ -987,6 +845,12 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
             cargoWeight,
             pickupLocation: input.pickupLocation,
             destination: input.destination,
+            pickupCountry: input.pickupCountry ?? undefined,
+            pickupCity: input.pickupCity ?? undefined,
+            pickupArea: input.pickupArea ?? undefined,
+            destinationCountry: input.destinationCountry ?? undefined,
+            destinationCity: input.destinationCity ?? undefined,
+            destinationArea: input.destinationArea ?? undefined,
             pickupDate: input.pickupDate,
             expectedDeliveryDate: input.expectedDeliveryDate,
             additionalInstructions: input.additionalInstructions,
@@ -998,50 +862,11 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         return errorMessage(error, "Could not create the booking.");
       }
     },
-    [currentUser, publishDemo, refreshAfterMutation],
+    [currentUser, refreshAfterMutation],
   );
 
   const setBookingStatus = useCallback<Store["setBookingStatus"]>(
     async (id, status) => {
-      if (demoEnabled && demoSession.current && currentUser) {
-        const session = demoSession.current;
-        const booking = session.bookings.find((item) => item.id === id);
-        const result = demoSetBookingStatus(session, id, status);
-        if (booking && booking.status !== status) {
-          const owner = session.trucks.find((item) => item.id === booking.truckId)?.ownerId;
-          const notice = {
-            ACCEPTED: { userId: booking.importerId, title: "Owner accepted your booking", body: `The truck owner accepted booking ${id}. You can now arrange payment.` },
-            REJECTED: { userId: booking.importerId, title: "Booking declined", body: `The truck owner declined booking ${id}.` },
-            CANCELLED: { userId: owner, title: "Booking cancelled by the importer", body: `The importer cancelled booking ${id} before paying. Your truck is available again.` },
-            IN_PROGRESS: { userId: booking.importerId, title: "Trip started", body: `Booking ${id} has left pickup and is now in transit.` },
-            DELIVERED: { userId: booking.importerId, title: "Cargo delivered", body: `Booking ${id} is marked delivered. Confirm receipt or report a problem.` },
-            COMPLETED: { userId: owner, title: "Receipt confirmed", body: `The importer confirmed receipt. Booking ${id} is complete.` },
-            DISPUTED: { userId: owner, title: "Booking disputed", body: `The importer reported a problem with booking ${id}.` },
-            PENDING: { userId: undefined, title: "Booking updated", body: `Booking ${id} was updated.` },
-          }[status];
-          const recipient = notice.userId;
-          if (recipient && recipient !== currentUser.id) {
-          mockDb.update((data) => ({
-            ...data,
-            notifications: [
-              {
-                id: `booking-${id}-${recipient}-${Date.now()}`,
-                userId: recipient,
-                category: "BOOKING" as const,
-                title: notice.title,
-                body: notice.body,
-                href: `/dashboard/${recipient === booking.importerId ? "importer" : "owner"}/bookings/${id}`,
-                read: false,
-                createdAt: new Date().toISOString(),
-              },
-              ...data.notifications,
-            ],
-          }));
-          }
-        }
-        publishDemo(result, currentUser.id);
-        return null;
-      }
       try {
         const updated = await api<ApiBooking>(
           `/bookings/${encodeURIComponent(id)}`,
@@ -1070,23 +895,11 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         return errorMessage(error, "Could not update the booking.");
       }
     },
-    [currentUser, publishDemo],
+    [],
   );
 
   const reportProblem = useCallback<Store["reportProblem"]>(
     async (bookingId, reason) => {
-      if (demoEnabled && demoSession.current && currentUser) {
-        publishDemo(
-          demoReportProblem(
-            demoSession.current,
-            currentUser,
-            bookingId,
-            reason,
-          ),
-          currentUser.id,
-        );
-        return null;
-      }
       try {
         await api("/disputes", {
           method: "POST",
@@ -1098,18 +911,11 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         return errorMessage(error, "Could not report the booking problem.");
       }
     },
-    [currentUser, publishDemo, refreshAfterMutation],
+    [refreshAfterMutation],
   );
 
   const resolveDispute = useCallback<Store["resolveDispute"]>(
     async (disputeId, notes) => {
-      if (demoEnabled && demoSession.current && currentUser) {
-        publishDemo(
-          demoResolveDispute(demoSession.current, disputeId, notes),
-          currentUser.id,
-        );
-        return null;
-      }
       try {
         await api(`/disputes/${encodeURIComponent(disputeId)}/resolve`, {
           method: "PATCH",
@@ -1121,14 +927,11 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         return errorMessage(error, "Could not resolve the dispute.");
       }
     },
-    [currentUser, publishDemo, refreshAfterMutation],
+    [refreshAfterMutation],
   );
 
   const settleDispute = useCallback<Store["settleDispute"]>(
     async (bookingId, input) => {
-      if (demoEnabled) {
-        return "Settling a dispute moves real money, so it needs the API. Switch off demo mode.";
-      }
       try {
         await api(`/bookings/${encodeURIComponent(bookingId)}/settle-dispute`, {
           method: "POST",
@@ -1145,18 +948,6 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
 
   const setUserActive = useCallback<Store["setUserActive"]>(
     async (userId, active) => {
-      if (demoEnabled && demoSession.current && currentUser) {
-        publishDemo(
-          {
-            ...demoSession.current,
-            users: demoSession.current.users.map((user) =>
-              user.id === userId ? { ...user, active } : user,
-            ),
-          },
-          currentUser.id,
-        );
-        return null;
-      }
       try {
         await api(`/users/${encodeURIComponent(userId)}/status`, {
           method: "PATCH",
@@ -1168,29 +959,11 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         return errorMessage(error, "Could not update the account status.");
       }
     },
-    [currentUser, publishDemo, refreshAfterMutation],
+    [refreshAfterMutation],
   );
 
   const deleteUser = useCallback<Store["deleteUser"]>(
     async (userId) => {
-      if (demoEnabled && demoSession.current && currentUser) {
-        const email = demoSession.current.users
-          .find((user) => user.id === userId)
-          ?.email.toLowerCase();
-        const credentials = { ...demoSession.current.credentials };
-        if (email) delete credentials[email];
-        publishDemo(
-          {
-            ...demoSession.current,
-            users: demoSession.current.users.filter(
-              (user) => user.id !== userId,
-            ),
-            credentials,
-          },
-          currentUser.id,
-        );
-        return null;
-      }
       try {
         await api(`/users/${encodeURIComponent(userId)}`, { method: "DELETE" });
         await refreshAfterMutation();
@@ -1199,17 +972,11 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         return errorMessage(error, "Could not remove the account.");
       }
     },
-    [currentUser, publishDemo, refreshAfterMutation],
+    [refreshAfterMutation],
   );
 
   const depositFunds = useCallback<Store["depositFunds"]>(
     async (amount, phoneNumber) => {
-      if (demoEnabled && demoSession.current && currentUser) {
-        const result = demoDeposit(demoSession.current, currentUser, amount);
-        if ("error" in result) return result.error;
-        publishDemo(result.session, currentUser.id);
-        return null;
-      }
       try {
         await api("/wallet/deposits", {
           method: "POST",
@@ -1221,21 +988,11 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         return errorMessage(error, "Could not deposit funds.");
       }
     },
-    [currentUser, publishDemo, refreshAfterMutation],
+    [refreshAfterMutation],
   );
 
   const withdrawFunds = useCallback<Store["withdrawFunds"]>(
     async (input) => {
-      if (demoEnabled && demoSession.current && currentUser) {
-        const result = demoWithdraw(
-          demoSession.current,
-          currentUser,
-          input.amountRwf,
-        );
-        if ("error" in result) return result.error;
-        publishDemo(result.session, currentUser.id);
-        return null;
-      }
       try {
         await api("/wallet/withdrawals", {
           method: "POST",
@@ -1247,41 +1004,11 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         return errorMessage(error, "Could not withdraw funds.");
       }
     },
-    [currentUser, publishDemo, refreshAfterMutation],
+    [refreshAfterMutation],
   );
 
   const payBooking = useCallback<Store["payBooking"]>(
     async (bookingId, checkout) => {
-      if (demoEnabled && demoSession.current && currentUser) {
-        const booking = demoSession.current.bookings.find((item) => item.id === bookingId);
-        const ownerId = booking
-          ? demoSession.current.trucks.find((item) => item.id === booking.truckId)?.ownerId
-          : undefined;
-        const result = demoPayBooking(
-          demoSession.current,
-          currentUser,
-          bookingId,
-          checkout,
-        );
-        if ("error" in result) return result.error;
-        if (ownerId) {
-          mockDb.update((data) => ({
-            ...data,
-            notifications: [{
-              id: `payment-${bookingId}-${ownerId}-${Date.now()}`,
-              userId: ownerId,
-              category: "PAYMENT",
-              title: "Importer paid for your booking",
-              body: `Payment for booking ${bookingId} is recorded and held until delivery is confirmed.`,
-              href: `/dashboard/owner/payments/${bookingId}`,
-              read: false,
-              createdAt: new Date().toISOString(),
-            }, ...data.notifications],
-          }));
-        }
-        publishDemo(result.session, currentUser.id);
-        return null;
-      }
       try {
         await api(`/wallet/bookings/${encodeURIComponent(bookingId)}/pay`, {
           method: "POST",
@@ -1293,102 +1020,117 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         return errorMessage(error, "Could not pay for the booking.");
       }
     },
-    [currentUser, publishDemo, refreshAfterMutation],
+    [refreshAfterMutation],
   );
 
-  const addBooking = useCallback<Store["addBooking"]>(
-    async (booking) => {
-      if (!(demoEnabled && demoSession.current && currentUser))
-        return "Creating bookings from quotations is only available in demonstration mode.";
-      const session = demoSession.current;
-      if (session.bookings.some((item) => item.id === booking.id))
-        return "That booking already exists.";
-      publishDemo(
-        {
-          ...session,
-          bookings: [booking, ...session.bookings],
-          trucks: session.trucks.map((truck) =>
-            truck.id === booking.truckId
-              ? { ...truck, status: "UNAVAILABLE" }
-              : truck,
-          ),
-        },
-        currentUser.id,
-      );
-      return null;
-    },
-    [currentUser, publishDemo],
-  );
 
-  const patchBooking = useCallback<Store["patchBooking"]>(
-    async (id, patch) => {
-      if (!(demoEnabled && demoSession.current && currentUser))
-        return "Editing bookings this way is only available in demonstration mode.";
-      const session = demoSession.current;
-      const booking = session.bookings.find((item) => item.id === id);
-      if (!booking) return "Booking not found.";
-      publishDemo(
-        {
-          ...session,
-          bookings: session.bookings.map((item) =>
-            item.id === id ? { ...item, ...patch } : item,
-          ),
-          trucks:
-            patch.status === "REJECTED" || patch.status === "CANCELLED" || patch.status === "COMPLETED"
-              ? session.trucks.map((truck) =>
-                  truck.id === booking.truckId
-                    ? { ...truck, status: "AVAILABLE" }
-                    : truck,
-                )
-              : session.trucks,
-        },
-        currentUser.id,
-      );
-      return null;
-    },
-    [currentUser, publishDemo],
-  );
 
-  const addReview = useCallback<Store["addReview"]>(
-    async (truckId, input) => {
-      if (demoEnabled && demoSession.current && currentUser) {
-        const result = demoAddReview(
-          demoSession.current,
-          currentUser,
-          truckId,
-          input,
-        );
-        if ("error" in result) return result.error;
-        publishDemo(result.session, currentUser.id);
-        return null;
-      }
+  const confirmReceipt = useCallback<Store["confirmReceipt"]>(
+    async (bookingId, checkout) => {
       try {
-        await api(`/trucks/${encodeURIComponent(truckId)}/reviews`, {
+        await api(`/bookings/${encodeURIComponent(bookingId)}/confirm-receipt`, {
+          method: "POST",
+          body: JSON.stringify(checkout ?? {}),
+        });
+        await refreshAfterMutation();
+        return null;
+      } catch (error) {
+        return errorMessage(error, "Could not confirm receipt.");
+      }
+    },
+    [refreshAfterMutation],
+  );
+
+  const uploadBookingDocument = useCallback<Store["uploadBookingDocument"]>(
+    async (bookingId, input) => {
+      try {
+        await api(`/bookings/${encodeURIComponent(bookingId)}/documents`, {
           method: "POST",
           body: JSON.stringify(input),
         });
         await refreshAfterMutation();
         return null;
       } catch (error) {
+        return errorMessage(error, "Could not upload the document.");
+      }
+    },
+    [refreshAfterMutation],
+  );
+
+  const removeBookingDocument = useCallback<Store["removeBookingDocument"]>(
+    async (bookingId, documentId) => {
+      try {
+        await api(
+          `/bookings/${encodeURIComponent(bookingId)}/documents/${encodeURIComponent(documentId)}`,
+          { method: "DELETE" },
+        );
+        await refreshAfterMutation();
+        return null;
+      } catch (error) {
+        return errorMessage(error, "Could not remove the document.");
+      }
+    },
+    [refreshAfterMutation],
+  );
+
+  const sendTripUpdate = useCallback<Store["sendTripUpdate"]>(
+    async (bookingId, input) => {
+      try {
+        const result = await api<{ impacts: unknown[] }>(
+          `/bookings/${encodeURIComponent(bookingId)}/trip-updates`,
+          { method: "POST", body: JSON.stringify(input) },
+        );
+        await refreshAfterMutation();
+        return { error: null, affected: result.impacts.length };
+      } catch (error) {
+        return { error: errorMessage(error, "Could not send the trip update."), affected: 0 };
+      }
+    },
+    [refreshAfterMutation],
+  );
+
+  const decideDelay = useCallback<Store["decideDelay"]>(
+    async (bookingId, impactId, decision) => {
+      try {
+        await api(
+          `/bookings/${encodeURIComponent(bookingId)}/delay-impacts/${encodeURIComponent(impactId)}`,
+          { method: "POST", body: JSON.stringify({ decision }) },
+        );
+        await refreshAfterMutation();
+        return null;
+      } catch (error) {
+        return errorMessage(error, "Could not save your choice.");
+      }
+    },
+    [refreshAfterMutation],
+  );
+
+  const addReview = useCallback<Store["addReview"]>(    async (truckId, input) => {
+      try {
+        // Visitors post through the public endpoint with the name they give.
+        await api(
+          `/trucks/${encodeURIComponent(truckId)}/reviews${currentUser ? "" : "/guest"}`,
+          {
+            method: "POST",
+            body: JSON.stringify(
+              currentUser
+                ? { rating: input.rating, comment: input.comment }
+                : input,
+            ),
+          },
+        );
+        if (currentUser) await refreshAfterMutation();
+        else await loadPublicTrucks();
+        return null;
+      } catch (error) {
         return errorMessage(error, "Could not post your review.");
       }
     },
-    [currentUser, publishDemo, refreshAfterMutation],
+    [currentUser, refreshAfterMutation, loadPublicTrucks],
   );
 
   const requestRefund = useCallback<Store["requestRefund"]>(
     async (bookingId, input) => {
-      if (demoEnabled && demoSession.current && currentUser) {
-        const result = demoRequestRefund(
-          demoSession.current,
-          currentUser,
-          bookingId,
-          input,
-        );
-        if ("error" in result) return result.error;
-        publishDemo(result.session, currentUser.id);
-        return null;
-      }
       try {
         await api("/refunds", {
           method: "POST",
@@ -1400,22 +1142,11 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         return errorMessage(error, "Could not send the refund request.");
       }
     },
-    [currentUser, publishDemo, refreshAfterMutation],
+    [refreshAfterMutation],
   );
 
   const processRefund = useCallback<Store["processRefund"]>(
     async (refundId, decision, note, amountRwf) => {
-      if (demoEnabled && demoSession.current && currentUser) {
-        const result = demoProcessRefund(
-          demoSession.current,
-          refundId,
-          decision,
-          note,
-        );
-        if ("error" in result) return result.error;
-        publishDemo(result.session, currentUser.id);
-        return null;
-      }
       try {
         await api(`/refunds/${encodeURIComponent(refundId)}`, {
           method: "PATCH",
@@ -1427,12 +1158,11 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
         return errorMessage(error, "Could not process the refund request.");
       }
     },
-    [currentUser, publishDemo, refreshAfterMutation],
+    [refreshAfterMutation],
   );
 
   const respondToRefund = useCallback<Store["respondToRefund"]>(
     async (refundId, response) => {
-      if (demoEnabled) return "Responding to a refund request needs the API.";
       try {
         await api(`/refunds/${encodeURIComponent(refundId)}/respond`, {
           method: "PATCH",
@@ -1486,8 +1216,11 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
       depositFunds,
       withdrawFunds,
       payBooking,
-      addBooking,
-      patchBooking,
+      confirmReceipt,
+      uploadBookingDocument,
+      removeBookingDocument,
+      sendTripUpdate,
+      decideDelay,
       addReview,
       requestRefund,
       processRefund,
@@ -1531,8 +1264,11 @@ export function IbangaProvider({ children }: { children: React.ReactNode }) {
       depositFunds,
       withdrawFunds,
       payBooking,
-      addBooking,
-      patchBooking,
+      confirmReceipt,
+      uploadBookingDocument,
+      removeBookingDocument,
+      sendTripUpdate,
+      decideDelay,
       addReview,
       requestRefund,
       processRefund,

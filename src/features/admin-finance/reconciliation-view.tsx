@@ -85,7 +85,7 @@ export function ReconciliationView() {
                 }))}
                 filterLabel="All statuses"
                 extraFilterLabel="All kinds"
-                exportName="reconciliation-demo"
+                exportName="reconciliation"
                 emptyMessage="No records match these filters."
               />
 

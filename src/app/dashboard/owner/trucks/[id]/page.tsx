@@ -1,5 +1,6 @@
 "use client";
 
+import { formatRate } from "@/lib/distance";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -104,7 +105,7 @@ export default function OwnerTruckDetailPage() {
 
             <div className="mt-6 grid gap-4 sm:grid-cols-3">
               <StatCard label="Bookings" value={history.length} hint="All time on this truck" />
-              <StatCard label="Price per booking" value={truck.priceRwf == null ? "Not set" : formatRwf(truck.priceRwf)} hint="Fixed listing price" accent="accent" />
+              <StatCard label="Price per km" value={formatRate(truck.pricePerKmRwf)} hint="Trip price = distance × this rate" accent="accent" />
               <StatCard label="Earned" value={formatRwf(earned)} hint="Your share, after commission" accent="good" />
             </div>
 
@@ -128,8 +129,10 @@ export default function OwnerTruckDetailPage() {
                     <Item label="Truck type" value={truck.truckType} />
                     <Item label="Capacity" value={`${truck.capacity} tons`} />
                     <Item label="Current location" value={truck.currentLocation || "—"} />
-                    <Item label="Preferred route" value={truck.preferredRoute || "—"} />
-                    <Item label="Price per booking" value={truck.priceRwf == null ? "Price not set" : formatRwf(truck.priceRwf)} />
+                    <Item label="Category" value={truck.category || "—"} />
+                    <Item label="Price per km" value={formatRate(truck.pricePerKmRwf)} />
+                    <Item label="Delivers to" value={truck.destinations?.length ? truck.destinations.join(", ") : "—"} />
+                    <Item label="Carries" value={truck.acceptedCargo?.length ? truck.acceptedCargo.join(", ") : "—"} />
                   </dl>
                   <div className="border-t border-line px-5 py-4">
                     <p className="text-sm font-medium text-muted">Description</p>

@@ -6,14 +6,12 @@ import { DetailList } from "@/components/common/layout-blocks";
 import { Notice } from "@/components/common/notices";
 import { GhostButton, Modal, PrimaryButton } from "@/components/ui";
 import { CANCELLATION_POLICY, feeBreakdown } from "@/config/business-rules";
-import { env } from "@/config/env";
 import { useAction } from "@/hooks/use-action";
 import { useActor } from "@/hooks/use-actor";
 import { formatDate } from "@/lib/format";
 import { useIbanga } from "@/lib/store";
 import { ServiceError, services } from "@/services";
 import type { CargoRequest, Quotation } from "@/types/ops";
-import { bookingFromQuotation } from "./booking-from-quotation";
 
 /**
  * Review step before a quotation becomes a booking. The booking is created unpaid; payment is a
@@ -34,7 +32,7 @@ export function AcceptQuotationDialog({
   onBooked: (bookingId: string) => void;
 }) {
   const actor = useActor();
-  const { addBooking, setBookingStatus, refreshMarketplace } = useIbanga();
+  const { refreshMarketplace } = useIbanga();
   const { run, busy } = useAction();
   const [understood, setUnderstood] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -45,7 +43,7 @@ export function AcceptQuotationDialog({
     setProblem(null);
     const bookingId = await run(
       async () => {
-        // Re-check on the server side of the demo first, so a stale screen never creates a booking.
+        // Re-check the latest state first, so a stale screen never creates a booking.
         const [fresh, quotes] = await Promise.all([
           services.cargoRequests.get(actor, request.id),
           services.quotations.listForRequest(actor, request.id),
@@ -62,22 +60,10 @@ export function AcceptQuotationDialog({
             "This quotation is no longer available.",
           );
 
-        if (env.dataSource === "api") {
-          const accepted = await services.quotations.accept(actor, current.id);
-          await refreshMarketplace();
-          return accepted.booking?.id;
-        }
-
-        const booking = bookingFromQuotation(fresh, current);
-        const failure = await addBooking(booking);
-        if (failure) throw new ServiceError("VALIDATION", failure);
-        try {
-          await services.quotations.accept(actor, current.id, booking.id);
-        } catch (error) {
-          await setBookingStatus(booking.id, "REJECTED");
-          throw error;
-        }
-        return booking.id;
+        // The server creates the booking inside the same transaction that accepts the quotation.
+        const accepted = await services.quotations.accept(actor, current.id);
+        await refreshMarketplace();
+        return accepted.booking?.id;
       },
       {
         success:

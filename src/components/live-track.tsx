@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { positionAt } from "@/lib/geo";
+import { WorkspaceLoading } from "@/components/loading";
 import type { MapPosition } from "./truck-map";
 import type { Booking, CargoPing, TripNotice } from "@/lib/types";
 import { formatDateTime } from "./ui";
@@ -9,7 +10,13 @@ import { formatDateTime } from "./ui";
 // Leaflet touches `window`, so the map only renders in the browser.
 const TruckMap = dynamic(() => import("./truck-map").then((module) => module.TruckMap), {
   ssr: false,
-  loading: () => <div className="h-[26rem] w-full animate-pulse rounded-xl border border-line bg-background" />,
+  loading: () => (
+    <WorkspaceLoading
+      label="Preparing live tracking"
+      detail="Loading the shipment route and latest updates."
+      compact
+    />
+  ),
 });
 
 const kindLabel: Record<CargoPing["kind"] | TripNotice["kind"], string> = {

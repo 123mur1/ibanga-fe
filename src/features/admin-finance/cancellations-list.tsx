@@ -64,7 +64,7 @@ export function CancellationsOverview() {
                 }))}
                 filterLabel="All statuses"
                 extraFilterLabel="All stages"
-                exportName="cancellations-demo"
+                exportName="cancellations"
                 emptyMessage="No cancellations match these filters."
               />
             </>

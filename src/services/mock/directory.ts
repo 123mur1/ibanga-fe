@@ -2,7 +2,7 @@
  * Marketplace data the mock services need to read (trucks, users, bookings).
  *
  * In production the server owns this data and checks it inside each request. In the
- * demonstration, `OpsBridge` copies the current marketplace store here whenever it changes, so
+ * app, `OpsBridge` copies the current marketplace store here whenever it changes, so
  * mock services can validate things like "does this truck belong to the actor?".
  */
 import type { Booking, Truck, User } from "@/lib/types";

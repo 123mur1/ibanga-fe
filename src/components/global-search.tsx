@@ -127,12 +127,12 @@ export function GlobalSearch({ role, groups }: { role: Role; groups: NavGroup[] 
         : role === "TRUCK_OWNER"
           ? trucks.filter((truck) => truck.ownerId === currentUser?.id)
           : role === "IMPORTER"
-            ? trucks.filter((truck) => truck.status === "AVAILABLE" && isVerified(truck))
+            ? trucks.filter((truck) => isVerified(truck))
             : [];
     pick(
       role === "IMPORTER" ? "Available trucks" : "Trucks",
       visibleTrucks.map((truck) => {
-        const detail = [truck.plateNumber, `${truck.capacity} t`, truck.currentLocation, truck.priceRwf != null ? `RWF ${truck.priceRwf.toLocaleString("en-RW")}` : null]
+        const detail = [truck.plateNumber, `${truck.capacity} t`, truck.currentLocation, truck.pricePerKmRwf != null ? `RWF ${truck.pricePerKmRwf.toLocaleString("en-RW")}/km` : null]
           .filter(Boolean)
           .join(" · ");
         return {

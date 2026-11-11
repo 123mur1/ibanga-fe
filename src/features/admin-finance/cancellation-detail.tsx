@@ -14,6 +14,7 @@ import { useAction } from "@/hooks/use-action";
 import { useActor } from "@/hooks/use-actor";
 import { useServiceQuery } from "@/hooks/use-service-query";
 import { formatDateTime, formatRwf } from "@/lib/format";
+import { api } from "@/lib/api";
 import { useIbanga } from "@/lib/store";
 import { services, type Actor } from "@/services";
 import type { CancellationRequest } from "@/types/ops";
@@ -43,7 +44,7 @@ export function CancellationDetail({ id }: { id: string }) {
 }
 
 function CancellationBody({ request, actor }: { request: CancellationRequest; actor: Actor }) {
-  const { bookings, patchBooking } = useIbanga();
+  const { bookings, refreshMarketplace } = useIbanga();
   const nameOf = useUserName();
   const canAct = useAdminPermission("refunds");
   const { run, busy } = useAction();
@@ -52,11 +53,11 @@ function CancellationBody({ request, actor }: { request: CancellationRequest; ac
 
   const booking = bookings.find((item) => item.id === request.bookingId);
   const payment = booking?.payment;
+  // A paid booking gets a refund; one cancelled before payment only closes the request.
+  const refundsPayment = Boolean(payment) && request.stage !== "BEFORE_PAYMENT" && payment?.status !== "REFUNDED";
   const policy = CANCELLATION_POLICY.find((row) => row.stage === request.stage);
   const noteCheck = noteSchema("Add a note for the requester (at least 5 characters).").safeParse(note);
   const noteError = touched && !noteCheck.success ? noteCheck.error.issues[0]?.message : undefined;
-  // A paid booking must also be refunded in the marketplace data; one cancelled before payment only changes status.
-  const refundsPayment = Boolean(payment) && request.stage !== "BEFORE_PAYMENT" && payment?.status !== "REFUNDED";
 
   const review = (approve: boolean) =>
     run(
@@ -72,17 +73,12 @@ function CancellationBody({ request, actor }: { request: CancellationRequest; ac
   const complete = () =>
     run(
       async () => {
-        await services.cancellations.complete(actor, request.id);
-        if (refundsPayment && payment) {
-          const problem = await patchBooking(request.bookingId, {
-            status: "REJECTED",
-            payment: { ...payment, status: "REFUNDED", refundedAt: new Date().toISOString() },
-          });
-          if (problem) throw new Error(`The cancellation was completed but the booking could not be updated: ${problem}`);
-        }
+        // The server settles the payment by the policy, cancels the booking and closes this request.
+        await api(`/bookings/${encodeURIComponent(request.bookingId)}/complete-cancellation`, { method: "POST" });
+        await refreshMarketplace();
         return true;
       },
-      { success: refundsPayment ? "Cancellation completed. The payment is marked refunded." : "Cancellation completed." },
+      { success: "Cancellation completed." },
     );
 
   return (
@@ -192,15 +188,15 @@ function CancellationBody({ request, actor }: { request: CancellationRequest; ac
               <ConfirmButton
                 label="Complete cancellation"
                 title={refundsPayment ? "Complete and record refund?" : "Complete this cancellation?"}
-                message={refundsPayment ? "This cancels the booking and marks its payment as refunded." : "This closes the request. No payment was taken, so nothing is refunded."}
+                message={refundsPayment ? "This cancels the booking and settles the payment." : "This cancels the booking. No payment was taken, so nothing is refunded."}
                 summary={
                   refundsPayment
                     ? [
-                        `Refund amount: ${formatRwf(request.refundRwf)} (fee ${formatRwf(request.feeRwf)} kept)`,
-                        "Booking status becomes Cancelled and the payment becomes Refunded.",
-                        "",
+                        `Refund to the importer's wallet: ${formatRwf(request.refundRwf)}`,
+                        `Cancellation fee paid to the owner: ${formatRwf(request.feeRwf)}`,
+                        "The server applies the policy: 10% fee, or 50% once the trip has started.",
                       ]
-                    : ["Booking status is not changed by this step.", "No payment was taken, so no refund is recorded."]
+                    : ["The booking is cancelled and the truck's dates are freed.", "No payment was taken, so no refund is recorded."]
                 }
                 disabled={busy}
                 onConfirm={complete}

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * Demonstration signature capture. It draws on a canvas and returns a data URL; it is a
+ * Simple signature capture. It draws on a canvas and returns a data URL; it is a
  * placeholder for a proper e-signature or driver-app capture and has no legal standing.
  */
 export function SignaturePad({ value, onChange, error }: { value?: string; onChange: (dataUrl: string | undefined) => void; error?: string }) {

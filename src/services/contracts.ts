@@ -123,7 +123,7 @@ export interface QuotationService {
    * POST /quotations/:id/accept. Idempotent per request: a second accept throws CONFLICT.
    * Marks competing quotes as not selected, books the request and schedules the shipment.
    * The real API creates the booking and shipment in the same transaction. Mocks accept the
-   * provisional booking id created by the demo UI.
+   * provisional booking id.
    */
   accept(
     actor: Actor,
@@ -234,7 +234,7 @@ export interface ShipmentService {
   get(actor: Actor, id: Id): Promise<Shipment>;
   /** GET /bookings/:id/shipment */
   getByBooking(actor: Actor, bookingId: Id): Promise<Shipment | undefined>;
-  /** POST /shipments/:id/milestones. Demonstration only: a real source would be driver app or GPS. */
+  /** POST /shipments/:id/milestones. Entered by hand; a GPS source could post these instead. */
   recordMilestone(
     actor: Actor,
     id: Id,
@@ -580,9 +580,7 @@ export interface AdminService {
     actor: Actor,
     patch: Partial<PlatformSettings>,
   ): Promise<PlatformSettings>;
-  /** Demonstration only: restore the seed data. */
-  resetDemoData(): Promise<void>;
-  /** Demonstration only: read the whole dataset (used by reports). */
+  /** The whole cached dataset (used by reports). */
   snapshot(): OpsData;
 }
 

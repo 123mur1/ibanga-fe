@@ -5,7 +5,7 @@ import type { OpsData } from "@/types/ops";
 import { mockDb } from "@/services/mock-db";
 
 /**
- * The whole demonstration dataset, re-rendering on every change. Use it for synchronous
+ * The whole operations dataset, re-rendering on every change. Use it for synchronous
  * read-only lookups (counts, joins, selects). For anything that mimics an API call, prefer
  * `useServiceQuery` so loading and error states are handled.
  *

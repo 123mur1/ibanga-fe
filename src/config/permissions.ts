@@ -1,5 +1,5 @@
 /**
- * Frontend role and permission model, used ONLY to decide what the demonstration UI shows.
+ * Frontend role and permission model, used ONLY to decide what the UI shows.
  *
  * SECURITY NOTE: hiding a menu item or button is not access control. The backend must enforce
  * every role, ownership and permission rule on every request. A user must never be able to read

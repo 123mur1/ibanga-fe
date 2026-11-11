@@ -4,16 +4,11 @@ import { useState, useSyncExternalStore } from "react";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
 import Link from "next/link";
-import { ConfirmButton } from "@/components/common/confirm-button";
 import { StatusBadge } from "@/components/common/status-badge";
 import { PageHeader, StatCard } from "@/components/ui";
-import { useToast } from "@/components/toast";
-import { services } from "@/services";
-import { errorMessage } from "@/services/types";
 import { useIbanga } from "@/lib/store";
 
 const SETTINGS_STORAGE_KEY = "ibanga-settings";
-const MARKETPLACE_DEMO_KEY = "ibanga-demo-session-v1";
 const DEFAULT_PREFERENCES = "email=true&trips=true";
 
 function subscribeToPreferences(onChange: () => void) {
@@ -31,7 +26,6 @@ function getStoredPreferences() {
 
 export default function SettingsPage() {
   const { currentUser } = useIbanga();
-  const toast = useToast();
   const [saved, setSaved] = useState(false);
   const preferenceValue = useSyncExternalStore(subscribeToPreferences, getStoredPreferences, () => DEFAULT_PREFERENCES);
   const preferences = new URLSearchParams(preferenceValue);
@@ -91,36 +85,6 @@ export default function SettingsPage() {
             Choose which kinds of update reach you, and on which channel, in{" "}
             <Link href="/dashboard/notifications?tab=preferences" className="font-semibold text-brand hover:text-brand-dark">notification preferences</Link>.
           </p>
-        </section>
-        <section className="mt-6 max-w-3xl space-y-4 rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-7">
-          <h2 className="font-display text-xl text-navy">Reset data</h2>
-          <ConfirmButton
-            variant="ghost"
-            tone="danger"
-            label="Reset data"
-            title="Reset all saved data?"
-            message="This cannot be undone."
-            summary={[
-              "Bookings, payments, shipments, documents, disputes, tickets and notifications return to their starting state.",
-              "Anything you created in this browser is deleted.",
-              "The page reloads afterwards.",
-            ]}
-            confirmLabel="Reset and reload"
-            onConfirm={async () => {
-              try {
-                await services.admin.resetDemoData();
-              } catch (error) {
-                toast(errorMessage(error), "bad");
-                return;
-              }
-              try {
-                localStorage.removeItem(MARKETPLACE_DEMO_KEY);
-              } catch {
-                /* storage unavailable */
-              }
-              window.location.reload();
-            }}
-          />
         </section>
       </DashboardShell>
     </RequireAuth>

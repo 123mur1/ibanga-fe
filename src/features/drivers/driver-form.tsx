@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { FilePicker } from "@/components/common/form-fields";
 import { Notice } from "@/components/common/notices";
@@ -11,7 +11,6 @@ import {
   Modal,
   PrimaryButton,
 } from "@/components/ui";
-import { env } from "@/config/env";
 import { uploadOrResubmit } from "@/features/owner-fleet/document-upload";
 import { useAction } from "@/hooks/use-action";
 import { useOps } from "@/hooks/use-ops";
@@ -30,9 +29,9 @@ import { statusOf } from "@/config/status";
 /** Register a driver (no `driver`) or edit one. The licence file is uploaded as a DRIVER_LICENCE document. */
 export function DriverForm({ driver }: { driver?: Driver }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const actor = useActor();
-  const { trucks, users, addUser, deleteUser, refreshMarketplace } =
-    useIbanga();
+  const { trucks, users, refreshMarketplace } = useIbanga();
   const ops = useOps();
   const { run, busy } = useAction();
   const [licenceFiles, setLicenceFiles] = useState<PickedFile[]>([]);
@@ -56,7 +55,7 @@ export function DriverForm({ driver }: { driver?: Driver }) {
       licenceCategory: driver?.licenceCategory ?? "",
       licenceExpiry: driver?.licenceExpiry ?? "",
       status: driver?.status ?? "AVAILABLE",
-      assignedTruckId: driver?.assignedTruckId ?? "",
+      assignedTruckId: driver?.assignedTruckId ?? searchParams.get("truckId") ?? "",
       ownerId:
         driver?.ownerId ?? (actor?.role === "TRUCK_OWNER" ? actor.id : ""),
     },
@@ -81,7 +80,7 @@ export function DriverForm({ driver }: { driver?: Driver }) {
         let record: Driver;
         if (driver) {
           record = await services.drivers.update(actor, driver.id, payload);
-        } else if (env.dataSource === "api") {
+        } else {
           if (!password || password.length < 6) {
             setError("password", {
               type: "validate",
@@ -96,41 +95,6 @@ export function DriverForm({ driver }: { driver?: Driver }) {
             password,
           });
           await refreshMarketplace();
-        } else {
-          if (!password || password.length < 6) {
-            setError("password", {
-              type: "validate",
-              message: "Set an initial password of at least 6 characters.",
-            });
-            throw new Error(
-              "Set an initial password of at least 6 characters.",
-            );
-          }
-          const userId = `driver-${crypto.randomUUID()}`;
-          const accountError = await addUser({
-            id: userId,
-            name: values.name,
-            email: values.email,
-            phone: values.phone,
-            location:
-              users.find(
-                (user) =>
-                  user.id === (actor.role === "ADMIN" ? ownerId : actor.id),
-              )?.location ?? "",
-            company: "",
-            password: password ?? "",
-            role: "DRIVER",
-          });
-          if (accountError) throw new Error(accountError);
-          try {
-            record = await services.drivers.create(actor, {
-              ...payload,
-              userId,
-            });
-          } catch (error) {
-            await deleteUser(userId);
-            throw error;
-          }
         }
         const file = licenceFiles[0];
         if (file) {
@@ -154,7 +118,7 @@ export function DriverForm({ driver }: { driver?: Driver }) {
       {
         success: driver
           ? "Driver details saved."
-          : "Driver account created. Submit documents for verification before assigning work.",
+          : "Driver account created. The driver was notified in their dashboard. Email delivery depends on platform configuration; submit documents for verification before assigning work.",
         onError: (_error, fields) => applyFieldErrors(setError, fields),
       },
     );

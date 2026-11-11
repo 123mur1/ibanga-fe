@@ -18,7 +18,7 @@ Match the existing look: cards `rounded-2xl border border-line bg-card shadow-so
 - **Do not edit foundation files**: `src/types/*`, `src/services/*`, `src/mocks/*`, `src/config/*`, `src/hooks/*`, `src/components/common/*`, `src/components/ui.tsx`, `src/components/dashboard-shell.tsx`, `src/lib/*`, `docs/*`, `package.json`, `scripts/*`. If something is missing, build a small local helper inside your own feature folder and mention the gap in your report. Do not invent service methods that do not exist; use what is in `contracts.ts`.
 - Other builders' unfinished files can make `tsc` show transient errors outside your folders. Ignore those; fix every error in your own files.
 - **No git commands.** Do not commit, stash, checkout or reset.
-- A dev server is already running at `http://localhost:3100`. Do not start another. Check that your routes compile with `curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3100/<route>` (expect 200). Pages are client-rendered behind a demo login, so also review your code carefully for runtime problems (null checks, empty states, hook order).
+- Run the backend and `npm run dev`, then check that your routes compile with `curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3000/<route>` (expect 200). Pages are client-rendered behind a login, so also review your code by reading it.
 - No new npm dependencies.
 
 ## Quality bar
@@ -26,7 +26,7 @@ Match the existing look: cards `rounded-2xl border border-line bg-card shadow-so
 - Every page: loading state (`QueryBoundary`/`LoadingBlock`), empty state, error state with retry, success feedback (toasts through `useAction`), disabled states while busy, accessible labels, keyboard/focus-visible controls, responsive from phone to desktop.
 - Forms: one Zod schema per form in `src/features/<domain>/schemas.ts`, `useZodForm`, `FormField` + `controlClass`, inline field errors, service `fieldErrors` mapped back with `applyFieldErrors`. Never accept an invalid form as submitted. Prevent double submission (`useAction` does this).
 - Destructive or financially sensitive actions use `ConfirmButton` with a clear summary of what will happen.
-- Quotation ≠ booking ≠ payment. Submitted evidence ≠ verified delivery. A disputed shipment shows its dispute and settlement hold. Expired/unverified documents show eligibility warnings. Label simulated money, GPS, verification, settlement (`SimulationNotice`, `DemoTag`).
+- Quotation ≠ booking ≠ payment. Submitted evidence ≠ verified delivery. A disputed shipment shows its dispute and settlement hold. Expired/unverified documents show eligibility warnings. Label simulated money, GPS, verification, settlement (`SimulationNotice`).
 - Business rules come from `src/config/business-rules.ts`; do not re-implement them in components. Status labels and colours come from `StatusBadge`; do not hard-code colours.
 - No dead buttons or links; use only routes from the route contract in `docs/ARCHITECTURE.md`. Planned-but-unbuilt capability uses `PlannedFeature` and says it is not available.
 - Keep pages thin (compose feature components); keep components under roughly 300 lines by splitting. Write code that reads like the surrounding code; comment only where the reason is not obvious (for example a safety rule or a backend requirement).

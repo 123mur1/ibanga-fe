@@ -43,8 +43,8 @@ export function LandingPage() {
     return () => window.clearInterval(timer);
   }, []);
 
-  // Importers and visitors only ever see verified trucks; the API applies the same rule.
-  const availableTruckCount = trucks.filter((truck) => truck.status === "AVAILABLE" && isVerified(truck)).length;
+  // Importers and visitors only ever see verified vehicles; the API applies the same rule.
+  const listedTruckCount = trucks.filter((truck) => isVerified(truck)).length;
   const activeLoadCount = bookings.filter((booking) =>
     ACTIVE_BOOKING_STATUSES.includes(booking.status),
   ).length;
@@ -58,7 +58,7 @@ export function LandingPage() {
         <section
           id="home"
           aria-label="iBanga freight marketplace"
-          className="relative isolate flex min-h-[600px] items-center overflow-hidden bg-navy sm:min-h-[660px]"
+          className="relative isolate flex min-h-150 items-center overflow-hidden bg-navy sm:min-h-165"
         >
           {heroSlides.map((item, index) => (
             <div
@@ -83,7 +83,7 @@ export function LandingPage() {
               </p>
               <div className="mt-9 flex flex-wrap gap-3">
                 <Link href="#available-trucks" className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-brand-dark shadow-lg transition hover:-translate-y-0.5 hover:bg-sky-50">
-                  Browse available trucks
+                  Find a vehicle
                 </Link>
                 <Link href="/register?role=TRUCK_OWNER" className="rounded-full border border-white/40 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/20">
                   List your truck
@@ -113,8 +113,8 @@ export function LandingPage() {
               <article className="rounded-xl border border-white/15 border-l-4 border-l-sky-300 bg-[#082b3b]/90 p-4 text-white shadow-lg sm:p-5 lg:flex lg:items-center lg:justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-200">Trucks</p>
-                  <p className="mt-2 font-display text-3xl font-semibold tabular-nums sm:text-4xl">{availableTruckCount}</p>
-                  <p className="mt-1 text-sm text-white/75">Available now</p>
+                  <p className="mt-2 font-display text-3xl font-semibold tabular-nums sm:text-4xl">{listedTruckCount}</p>
+                  <p className="mt-1 text-sm text-white/75">Verified vehicles listed</p>
                 </div>
               </article>
               <article className="rounded-xl border border-white/15 border-l-4 border-l-sky-300 bg-[#082b3b]/90 p-4 text-white shadow-lg sm:p-5 lg:flex lg:items-center lg:justify-between">
@@ -135,9 +135,9 @@ export function LandingPage() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-8">
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">Ready to move</p>
-              <h2 className="mt-2 font-display text-3xl tracking-tight text-navy sm:text-4xl">Available trucks</h2>
+              <h2 className="mt-2 font-display text-3xl tracking-tight text-navy sm:text-4xl">Find a vehicle</h2>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-muted sm:text-base">
-                Explore transport options, review their routes and listed rates, and choose the right fit for your cargo.
+                Filter by where the vehicle is, where it delivers, what it carries and the dates you need. Prices are per kilometre, so you pay for the distance you travel.
               </p>
             </div>
 

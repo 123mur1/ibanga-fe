@@ -15,19 +15,15 @@ Set up and run the backend before signing in with database accounts. The
 frontend uses `http://localhost:3001` by default; set `NEXT_PUBLIC_API_URL` in
 `.env.local` to use a different backend. Production defaults to
 `https://ibanga-be.vercel.app`; set `NEXT_PUBLIC_API_URL` in Vercel to override
-it. The API must be available for database sign-in.
+it. The app always runs against the API; sign in with accounts from the
+database (see the backend README for the seeded accounts).
 
-To explicitly use browser-only demo data, set `NEXT_PUBLIC_DATA_SOURCE=demo`.
-Demo accounts (shown on the login page only in demo mode):
+Trip prices are the road distance times the vehicle's rate per kilometre. Set
+`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` (with the Routes API enabled on the key) to
+show Google Maps distances while booking; without it the booking page shows an
+estimate, and the server prices the trip either way.
 
-| Role                                  | Email                                                        | Password    |
-| ------------------------------------- | ------------------------------------------------------------ | ----------- |
-| Administrator (all permissions)       | `admin@ibanga.com`                                           | `admin123`  |
-| Importer                              | `jeanine@importco.rw`                                        | `ibanga123` |
-| Truck owner                           | `eric@ndayitrans.rw`                                         | `ibanga123` |
-| Operations / finance / support admins | `ops@ibanga.com`, `finance@ibanga.com`, `support@ibanga.com` | `admin123`  |
-
-The three limited administrators see only the sidebar items their role allows. This is for demonstration; real permissions must be enforced by the backend.
+Limited administrators see only the sidebar items their role allows; the backend enforces the permissions.
 
 ## Checks
 
@@ -52,32 +48,25 @@ Real-browser journey checks (quote to settlement, cancellations, disputes, eligi
 
 ```
 src/app          routes (thin pages)            src/config      navigation, statuses, business rules, permissions
-src/components   shared UI + components/common  src/mocks       demonstration datasets
-src/features     domain components              src/services    contracts + mock implementations (the API seam)
+src/components   shared UI + components/common  src/services    contracts, API clients and the rules layer
+src/features     domain components
 src/hooks        data and action hooks          src/types       domain types
 ```
 
 - **Two data sources.** The marketplace store (`src/lib/store.tsx`: users, trucks, bookings with payments, refunds, reviews) and the operations services (`src/services`: cargo requests, quotations, shipments, settlements, documents, disputes, incidents, tickets, notifications, admin data). Records link by stable IDs.
-- **Service layer.** Pages talk to `services.*` through hooks. `services/contracts.ts` lists every method with the endpoint it should become. Mocks live in `services/mock/*` and persist to `localStorage`.
+- **Service layer.** Pages talk to `services.*` through hooks. `services/contracts.ts` lists every method. The rules in `services/mock/*` run in the browser against an in-memory cache of API records (`services/mock-db.ts`), and `createPersistedServices` saves every change to the API.
 - **Business rules** (fees, cancellation policy, settlement eligibility, document expiry, truck/driver eligibility) live in `src/config/business-rules.ts`, never in presentational components.
 - **Statuses** are defined once in `src/config/status.ts` and rendered by `StatusBadge`.
 - **Forms** use React Hook Form + Zod; destructive and financial actions use confirmation dialogs.
 
 Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for conventions, the route contract and the backend integration checklist.
 
-## Demonstration data and reset
-
-Demo seed data is stored in the browser and is used only when demo mode is
-explicitly enabled. It does not create, update, or delete database records.
-Changes made in demo mode are saved in the browser; **Settings → Reset
-demonstration data** restores those browser-only records.
-
 ## Backend data coverage
 
-Database-backed marketplace features include authentication, users, trucks,
-bookings, payments, refunds and reviews. Cargo requests and quotations also
-use the backend. Other operations modules still use browser demo services and
-are not yet database-backed.
+Marketplace features (authentication, users, trucks, bookings, payments,
+refunds and reviews) and cargo requests and quotations use dedicated API
+endpoints. The other operations modules are saved to the backend as
+operations records.
 
 ## Known limitations
 
@@ -86,4 +75,3 @@ are not yet database-backed.
 - Uploaded files are read into the browser as data URLs (size-limited); a real build needs an upload service.
 - Email, SMS and push notifications are placeholders; only in-app notifications work.
 - The map uses OpenStreetMap tiles and the public OSRM service when online and falls back to a straight line.
-- Only the backend-backed features listed above persist to the database; the remaining operations modules use demo data.

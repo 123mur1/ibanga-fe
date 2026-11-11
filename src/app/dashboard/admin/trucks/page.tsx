@@ -16,6 +16,52 @@ import { ACTIVE_BOOKING_STATUSES } from "@/lib/types";
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 
+function TruckRoute({
+  currentLocation,
+  preferredRoute,
+  destinations,
+}: {
+  currentLocation: string;
+  preferredRoute: string;
+  destinations?: string[];
+}) {
+  const routeDestinations = destinations?.length
+    ? destinations
+    : (preferredRoute.split(/\s*[—–-]\s*/).slice(1).join(" ").split(","));
+  const stops = routeDestinations.map((stop) => stop.trim()).filter(Boolean);
+  const routeLabel = [currentLocation, ...stops].join(" → ");
+
+  if (!stops.length) {
+    return <span className="text-sm text-muted">Route not listed</span>;
+  }
+
+  return (
+    <span
+      title={routeLabel}
+      aria-label={`Route: ${routeLabel}`}
+      className="flex min-w-0 flex-col items-start gap-1"
+    >
+      <span className="flex max-w-full min-w-0 items-center gap-1.5 whitespace-nowrap text-xs font-semibold text-navy">
+        <span className="max-w-20 truncate">{currentLocation}</span>
+        <svg
+          viewBox="0 0 16 16"
+          fill="none"
+          className="h-3.5 w-3.5 shrink-0 text-brand"
+          aria-hidden="true"
+        >
+          <path d="M2.5 8h10m-4-4 4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span className="max-w-28 truncate">{stops[0]}</span>
+      </span>
+      {stops.length > 1 ? (
+        <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-semibold text-brand-dark">
+          +{stops.length - 1} more {stops.length === 2 ? "destination" : "destinations"}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 function AdminTrucksContent() {
   const searchParams = useSearchParams();
   const { trucks, bookings, users, setAvailability, deleteTruck } = useIbanga();
@@ -79,7 +125,7 @@ function AdminTrucksContent() {
         <div className="mt-5">
           <DataTable
             initialFilter={searchParams.get("status") ?? ""}
-            columns={[{ label: "Vehicle" }, { label: "Associated driver" }, { label: "Owner" }, { label: "Capacity" }, { label: "Location" }, { label: "Route" }, { label: "Status" }, { label: "Verification" }, { label: "Actions", className: "text-right" }]}
+            columns={[{ label: "Vehicle" }, { label: "Associated driver" }, { label: "Owner" }, { label: "Capacity" }, { label: "Location" }, { label: "Route", className: "min-w-48" }, { label: "Status" }, { label: "Verification" }, { label: "Actions", className: "text-right" }]}
             filterLabel="All availability"
             rows={trucks.map((truck) => {
               const assignment = driverAssignments.find((item) => item.truckId === truck.id && item.status === "ACTIVE") ?? driverAssignments.find((item) => item.truckId === truck.id && item.status === "UPCOMING");
@@ -95,7 +141,12 @@ function AdminTrucksContent() {
                   truck.owner ? <PersonName key={`${truck.id}-owner`} name={truck.owner.name} photo={users.find((user) => user.id === truck.ownerId)?.photo ?? truck.owner.photo} detail={truck.owner.phone ?? undefined} /> : "—",
                   `${truck.capacity} tons`,
                   truck.currentLocation,
-                  truck.preferredRoute,
+                  <TruckRoute
+                    key={`${truck.id}-route`}
+                    currentLocation={truck.currentLocation}
+                    preferredRoute={truck.preferredRoute}
+                    destinations={truck.destinations}
+                  />,
                   <span key={`${truck.id}-status`}><TruckBadge status={truck.status} /></span>,
                   <span key={`${truck.id}-verification`} className="flex flex-col items-start gap-1">
                     <StatusBadge family="verification" status={truckVerification(truck.id, documents)} />

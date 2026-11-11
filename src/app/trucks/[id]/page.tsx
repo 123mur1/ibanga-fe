@@ -4,9 +4,13 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { PublicNavbar } from "@/components/public-navbar";
-import { TruckBadge, TruckVerifiedBadge } from "@/components/status-badge";
+import { WorkspaceLoading } from "@/components/loading";
+import { TruckVerifiedBadge } from "@/components/status-badge";
 import { Avatar, TruckGallery } from "@/components/photos";
 import { inputClass, PrimaryButton, formatDate } from "@/components/ui";
+import { AvailabilityDialog, type DateRange } from "@/components/availability-calendar";
+import { useBookedRanges } from "@/hooks/use-booked-ranges";
+import { formatDay, nextFreeDay, todayKey } from "@/lib/availability";
 import { withNext } from "@/lib/redirect";
 import { UNVERIFIED_TRUCK_MESSAGE, useTruckVerification } from "@/hooks/use-truck-verification";
 import { useIbanga } from "@/lib/store";
@@ -25,7 +29,7 @@ function Stars({ value, size = "md" }: { value: number; size?: "md" | "lg" }) {
 function Spec({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
   return (
     <div className="flex items-start gap-3 rounded-2xl border border-line bg-white p-4">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand [&_svg]:h-[18px] [&_svg]:w-[18px]">{icon}</span>
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand [&_svg]:h-4.5 [&_svg]:w-4.5">{icon}</span>
       <div className="min-w-0">
         <p className="text-xs font-medium uppercase tracking-wide text-muted">{label}</p>
         <p className="mt-0.5 truncate font-semibold text-navy">{value}</p>
@@ -39,13 +43,14 @@ const iconProps = { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", 
 function TruckDetailsContent() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { currentUser, fetchTruck, reviews, addReview, ready, bookings } = useIbanga();
+  const { currentUser, fetchTruck, reviews, addReview, ready } = useIbanga();
+  const bookedFor = useBookedRanges();
   const [truck, setTruck] = useState<Truck | null>(null);
   const [loading, setLoading] = useState(true);
-  const [quantity, setQuantity] = useState("1");
-  const [quantityError, setQuantityError] = useState<string | null>(null);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
+  const [guestName, setGuestName] = useState("");
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [postingReview, setPostingReview] = useState(false);
 
@@ -71,7 +76,12 @@ function TruckDetailsContent() {
   const verification = useTruckVerification(truck);
 
   if (loading) {
-    return <div className="mx-auto max-w-7xl px-4 py-16 text-center text-muted sm:px-6 lg:px-8">Loading truck…</div>;
+    return (
+      <WorkspaceLoading
+        label="Finding your truck"
+        detail="Loading vehicle details and availability."
+      />
+    );
   }
 
   // Unverified trucks are hidden from importers and visitors (the API returns 404 for them too);
@@ -95,7 +105,6 @@ function TruckDetailsContent() {
   }
 
   const owner = truck.owner;
-  const reviewPath = `/trucks/${truck.id}#reviews`;
   const truckReviews = reviews
     .filter((review) => review.truckId === truck.id)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -103,46 +112,40 @@ function TruckDetailsContent() {
     ? truckReviews.reduce((sum, review) => sum + review.rating, 0) / truckReviews.length
     : 0;
   const alreadyReviewed = Boolean(currentUser && truckReviews.some((review) => review.authorId === currentUser.id));
-  // Reviews come from importers this truck has delivered for; the API enforces the same rule.
-  const hasShipped = Boolean(
-    currentUser &&
-      bookings.some((booking) => booking.truckId === truck.id && booking.importerId === currentUser.id && (booking.status === "DELIVERED" || booking.status === "COMPLETED")),
-  );
-  const tons = Number(quantity);
-  const loadShare = Number.isFinite(tons) && tons > 0 ? Math.min(100, Math.round((tons / truck.capacity) * 100)) : 0;
+  const ownVehicle = currentUser?.id === truck.ownerId;
   const verified = verification === "APPROVED";
+  const destinations = truck.destinations ?? [];
+  const cargo = truck.acceptedCargo ?? [];
+  const booked = bookedFor(truck);
+  const upcoming = booked.filter((range) => range.end >= todayKey());
+  const freeDay = nextFreeDay(booked);
   const canBook =
     verified &&
-    truck.status === "AVAILABLE" &&
-    truck.priceRwf != null &&
+    truck.pricePerKmRwf != null &&
+    destinations.length > 0 &&
     (!currentUser || currentUser.role === "IMPORTER");
 
-  function stepQuantity(direction: 1 | -1) {
+  function continueWithDates(range: DateRange) {
     if (!truck) return;
-    const next = (Number(quantity) || 0) + direction * 0.5;
-    setQuantity(String(Math.min(truck.capacity, Math.max(0.5, next))));
-    setQuantityError(null);
-  }
-
-  function sendBooking() {
-    if (!truck) return;
-    if (!Number.isFinite(tons) || tons <= 0) return setQuantityError("Enter how many tons you are shipping.");
-    if (tons > truck.capacity) return setQuantityError(`This truck carries up to ${truck.capacity} tons.`);
-    const path = `/bookings/new?truck=${truck.id}&quantity=${tons}`;
+    const path = `/bookings/new?truck=${truck.id}&from=${range.start}&to=${range.end}`;
+    setCalendarOpen(false);
+    // Visitors log in first and come straight back to the booking with their dates.
     router.push(currentUser ? path : withNext("/login", path));
   }
 
   async function submitReview(event: FormEvent) {
     event.preventDefault();
     if (!truck) return;
+    if (!currentUser && guestName.trim().length < 2) return setReviewError("Enter your name.");
     if (!rating) return setReviewError("Choose a star rating.");
     setPostingReview(true);
     setReviewError(null);
-    const error = await addReview(truck.id, { rating, comment });
+    const error = await addReview(truck.id, { rating, comment, authorName: currentUser ? undefined : guestName.trim() });
     setPostingReview(false);
     if (error) return setReviewError(error);
     setRating(0);
     setComment("");
+    setGuestName("");
   }
 
   return (
@@ -164,8 +167,9 @@ function TruckDetailsContent() {
             <span className="rounded-md bg-navy px-2.5 py-1 font-mono text-xs font-semibold tracking-wider text-white">{truck.plateNumber}</span>
             <span className="inline-flex items-center gap-1.5">
               <svg width="16" height="16" {...iconProps}><path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11Z" /><circle cx="12" cy="10" r="2.4" /></svg>
-              {truck.currentLocation}
+              Now in {truck.currentLocation || "an unlisted place"}
             </span>
+            {truck.category ? <span>{truck.category}</span> : null}
             {truckReviews.length ? (
               <a href="#reviews" className="inline-flex items-center gap-2 font-semibold text-navy hover:text-brand">
                 <Stars value={average} />
@@ -178,7 +182,6 @@ function TruckDetailsContent() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <TruckVerifiedBadge verification={verification} />
-          <TruckBadge status={truck.status} />
         </div>
       </header>
 
@@ -187,105 +190,44 @@ function TruckDetailsContent() {
         <aside aria-label="Book this truck" className="order-first lg:sticky lg:top-24 lg:order-last">
           <div className="overflow-hidden rounded-3xl border border-line bg-card shadow-card">
             <div className="bg-brand px-6 py-5 text-white">
-              <p className="text-sm font-medium text-white/80">Price per booking</p>
+              <p className="text-sm font-medium text-white/80">Price per kilometre</p>
               <p className="mt-1 font-display text-3xl font-semibold tabular-nums">
-                {truck.priceRwf == null ? "Not priced" : `RWF ${truck.priceRwf.toLocaleString("en-RW")}`}
+                {truck.pricePerKmRwf == null ? "Not priced" : `RWF ${truck.pricePerKmRwf.toLocaleString("en-RW")}`}
               </p>
-              <p className="mt-1 text-xs text-white/75">Fixed listing price. No negotiation, no hidden fees.</p>
+              <p className="mt-1 text-xs text-white/75">Your trip price is the road distance from {truck.currentLocation || "the vehicle"} to your destination, times this rate.</p>
             </div>
 
             <div className="space-y-5 p-6">
-              {canBook ? (
-                <>
-                  <div>
-                    <div className="flex items-baseline justify-between gap-3">
-                      <label htmlFor="quantity" className="text-sm font-semibold text-navy">Quantity</label>
-                      <span className="text-xs text-muted">Up to {truck.capacity} tons</span>
-                    </div>
-                    <div className="mt-2 flex items-center gap-2">
-                      <button
-                        type="button"
-                        aria-label="Decrease quantity"
-                        onClick={() => stepQuantity(-1)}
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-line bg-white text-xl font-semibold text-navy transition hover:border-brand hover:text-brand"
-                      >
-                        −
-                      </button>
-                      <div className="relative flex-1">
-                        <input
-                          id="quantity"
-                          className={`${inputClass} pr-14 text-center text-lg font-semibold`}
-                          type="number"
-                          min="0.5"
-                          max={truck.capacity}
-                          step="0.5"
-                          inputMode="decimal"
-                          value={quantity}
-                          onChange={(event) => {
-                            setQuantity(event.target.value);
-                            setQuantityError(null);
-                          }}
-                        />
-                        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted">tons</span>
-                      </div>
-                      <button
-                        type="button"
-                        aria-label="Increase quantity"
-                        onClick={() => stepQuantity(1)}
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-line bg-white text-xl font-semibold text-navy transition hover:border-brand hover:text-brand"
-                      >
-                        +
-                      </button>
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {[0.25, 0.5, 0.75, 1].map((share) => (
-                        <button
-                          key={share}
-                          type="button"
-                          onClick={() => {
-                            setQuantity(String(Math.max(0.5, Math.round(truck.capacity * share * 2) / 2)));
-                            setQuantityError(null);
-                          }}
-                          className="rounded-full border border-line bg-white px-3 py-1 text-xs font-semibold text-navy transition hover:border-brand hover:text-brand"
-                        >
-                          {share === 1 ? "Full load" : `${share * 100}%`}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="mt-4">
-                      <div className="flex justify-between text-xs text-muted">
-                        <span>Truck load</span>
-                        <span className="font-semibold text-navy">{loadShare}%</span>
-                      </div>
-                      <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-line">
-                        <div className="h-full rounded-full bg-brand transition-all" style={{ width: `${loadShare}%` }} />
-                      </div>
-                    </div>
-                    {quantityError ? <p role="alert" className="mt-2 text-sm font-medium text-bad">{quantityError}</p> : null}
-                  </div>
+              <div className="flex items-center justify-between gap-3 rounded-xl bg-background px-4 py-3 text-sm">
+                <span className="text-muted">Next free day</span>
+                <span className="font-semibold text-navy">{freeDay === todayKey() ? "Today" : formatDay(freeDay)}</span>
+              </div>
 
-                  <div className="space-y-2.5">
-                    <PrimaryButton type="button" className="w-full py-3" onClick={sendBooking}>
-                      Send booking
-                      <svg width="16" height="16" {...iconProps} strokeWidth={2}><path d="M5 12h14M13 6l6 6-6 6" /></svg>
-                    </PrimaryButton>
-                    {!currentUser ? (
-                      <p className="text-center text-xs leading-5 text-muted">
-                        You will be asked to log in first, then you come straight back to your booking.
-                      </p>
-                    ) : null}
-                  </div>
-                </>
+              {canBook ? (
+                <div className="space-y-2.5">
+                  <PrimaryButton type="button" className="w-full py-3" onClick={() => setCalendarOpen(true)}>
+                    <svg width="16" height="16" {...iconProps} strokeWidth={2}><rect x="3" y="4.5" width="18" height="16" rx="2" /><path d="M3 9.5h18M8 2.5v4M16 2.5v4" /></svg>
+                    See availability
+                  </PrimaryButton>
+                  <p className="text-center text-xs leading-5 text-muted">
+                    Choose your dates, then your destination and cargo.{!currentUser ? " You log in before sending the request." : ""}
+                  </p>
+                </div>
               ) : (
-                <p className="rounded-xl bg-background px-4 py-3 text-sm leading-6 text-muted">
-                  {!verified
-                    ? UNVERIFIED_TRUCK_MESSAGE
-                    : truck.status !== "AVAILABLE"
-                    ? "This truck is already held by a booking and cannot be booked right now."
-                    : truck.priceRwf == null
-                      ? "This truck needs an RWF price before importers can book it."
-                      : "Only importers can submit a booking. Log in with an importer account."}
-                </p>
+                <div className="space-y-3">
+                  <p className="rounded-xl bg-background px-4 py-3 text-sm leading-6 text-muted">
+                    {!verified
+                      ? UNVERIFIED_TRUCK_MESSAGE
+                      : truck.pricePerKmRwf == null
+                        ? "The owner has not set a price per kilometre yet, so this vehicle cannot be booked."
+                        : !destinations.length
+                          ? "The owner has not listed any destinations yet, so this vehicle cannot be booked."
+                          : "Only importers can book. Log in with an importer account."}
+                  </p>
+                  <button type="button" onClick={() => setCalendarOpen(true)} className="w-full rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-semibold text-navy transition hover:border-brand hover:text-brand">
+                    See booked dates
+                  </button>
+                </div>
               )}
 
               <ul className="space-y-3 border-t border-line pt-5 text-sm text-navy">
@@ -304,6 +246,17 @@ function TruckDetailsContent() {
           </div>
         </aside>
 
+        {calendarOpen ? (
+          <AvailabilityDialog
+            title={canBook ? "Choose your dates" : "Booked dates"}
+            vehicleLabel={`${truck.truckType} · ${truck.plateNumber} · booked days are in red`}
+            booked={booked}
+            continueLabel={canBook ? "Continue" : "Close"}
+            onClose={() => setCalendarOpen(false)}
+            onContinue={canBook ? continueWithDates : () => setCalendarOpen(false)}
+          />
+        ) : null}
+
         <div className="min-w-0 space-y-8">
           <section className="rounded-3xl border border-line bg-card p-4 sm:p-5">
             <TruckGallery photos={truck.photos} alt={truck.plateNumber} className="aspect-4/3 sm:aspect-video" />
@@ -315,8 +268,39 @@ function TruckDetailsContent() {
               <Spec label="Capacity" value={`${truck.capacity} tons`} icon={<svg {...iconProps}><path d="M12 3v18M5 8l7-5 7 5M5 21h14" /></svg>} />
               <Spec label="Truck type" value={truck.truckType} icon={<svg {...iconProps}><path d="M3 6h11v10H3zM14 10h4l3 3v3h-7z" /><circle cx="7.5" cy="17.5" r="1.8" /><circle cx="17.5" cy="17.5" r="1.8" /></svg>} />
               <Spec label="Current location" value={truck.currentLocation || "—"} icon={<svg {...iconProps}><path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11Z" /><circle cx="12" cy="10" r="2.4" /></svg>} />
-              <Spec label="Preferred route" value={truck.preferredRoute || "—"} icon={<svg {...iconProps}><circle cx="6" cy="19" r="2.5" /><circle cx="18" cy="5" r="2.5" /><path d="M8.5 19H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.5" /></svg>} />
+              <Spec label="Category" value={truck.category || "—"} icon={<svg {...iconProps}><path d="M4 7h16M4 12h16M4 17h10" /></svg>} />
             </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-line bg-white p-4">
+                <h3 className="text-xs font-medium uppercase tracking-wide text-muted">Delivers to</h3>
+                {destinations.length ? (
+                  <ul className="mt-2 flex flex-wrap gap-1.5">
+                    {destinations.map((place) => <li key={place} className="rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand-dark">{place}</li>)}
+                  </ul>
+                ) : <p className="mt-1 text-sm text-muted">No destinations listed yet.</p>}
+              </div>
+              <div className="rounded-2xl border border-line bg-white p-4">
+                <h3 className="text-xs font-medium uppercase tracking-wide text-muted">Carries</h3>
+                {cargo.length ? (
+                  <ul className="mt-2 flex flex-wrap gap-1.5">
+                    {cargo.map((item) => <li key={item} className="rounded-full bg-background px-2.5 py-1 text-xs font-semibold text-navy ring-1 ring-line">{item}</li>)}
+                  </ul>
+                ) : <p className="mt-1 text-sm text-muted">Any cargo within its capacity.</p>}
+              </div>
+            </div>
+            {upcoming.length ? (
+              <div className="mt-3 rounded-2xl border border-line bg-white p-4">
+                <h3 className="text-xs font-medium uppercase tracking-wide text-muted">Already booked</h3>
+                <ul className="mt-2 flex flex-wrap gap-1.5">
+                  {upcoming.slice(0, 6).map((range) => (
+                    <li key={`${range.start}-${range.end}`} className="rounded-full bg-bad-soft px-2.5 py-1 text-xs font-semibold text-bad">
+                      {range.start === range.end ? formatDay(range.start, { day: "numeric", month: "short" }) : `${formatDay(range.start, { day: "numeric", month: "short" })} – ${formatDay(range.end, { day: "numeric", month: "short" })}`}
+                    </li>
+                  ))}
+                  {upcoming.length > 6 ? <li className="px-1 py-1 text-xs text-muted">+{upcoming.length - 6} more</li> : null}
+                </ul>
+              </div>
+            ) : null}
             {truck.description ? (
               <div className="mt-4 rounded-2xl border border-line bg-white p-5">
                 <h3 className="text-sm font-semibold text-navy">About this truck</h3>
@@ -343,7 +327,7 @@ function TruckDetailsContent() {
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <h2 id="reviews-heading" className="font-display text-xl text-navy">Reviews</h2>
-                <p className="mt-1 text-sm text-muted">What importers say about shipping with this truck.</p>
+                <p className="mt-1 text-sm text-muted">What people say about this vehicle. Anyone can read and write reviews, no account needed.</p>
               </div>
             </div>
 
@@ -385,7 +369,10 @@ function TruckDetailsContent() {
                         <div className="flex items-center gap-3">
                           <Avatar src={review.authorPhoto} name={review.authorName} size="sm" />
                           <div>
-                            <p className="text-sm font-semibold text-navy">{review.authorName}</p>
+                            <p className="text-sm font-semibold text-navy">
+                              {review.authorName}
+                              {review.guest ? <span className="ml-2 rounded-full bg-background px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted ring-1 ring-line">Guest</span> : null}
+                            </p>
                             <p className="text-xs text-muted">{formatDate(review.createdAt)}</p>
                           </div>
                         </div>
@@ -399,22 +386,19 @@ function TruckDetailsContent() {
 
               <form onSubmit={submitReview} className="h-fit space-y-4 rounded-2xl border border-line bg-white p-5">
                 <h3 className="font-display text-lg text-navy">Write a review</h3>
-                {!currentUser ? (
-                  <>
-                    <p className="text-sm leading-6 text-muted">Log in to tell other importers how this truck performed.</p>
-                    <div className="flex flex-wrap gap-3">
-                      <Link href={withNext("/login", reviewPath)} className="inline-flex rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark">Log in</Link>
-                      <Link href={withNext("/register", reviewPath, { role: "IMPORTER" })} className="inline-flex rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-semibold text-navy hover:border-brand/40">Create account</Link>
-                    </div>
-                  </>
-                ) : currentUser.role !== "IMPORTER" ? (
-                  <p className="text-sm text-muted">Only importers can review a truck.</p>
+                {ownVehicle ? (
+                  <p className="text-sm text-muted">You cannot review your own vehicle.</p>
                 ) : alreadyReviewed ? (
-                  <p className="text-sm text-muted">Thanks, you have already reviewed this truck.</p>
-                ) : !hasShipped ? (
-                  <p className="text-sm leading-6 text-muted">You can rate this truck once it has delivered your cargo. Book it, and after delivery come back here to share your experience.</p>
+                  <p className="text-sm text-muted">Thanks, you have already reviewed this vehicle.</p>
                 ) : (
                   <>
+                    {!currentUser ? (
+                      <label className="block">
+                        <span className="mb-1.5 block text-sm font-medium text-navy">Your name</span>
+                        <input value={guestName} onChange={(event) => setGuestName(event.target.value)} className={inputClass} autoComplete="name" placeholder="e.g. Jeanine U." maxLength={60} />
+                        <span className="mt-1 block text-xs text-muted">No account needed. Your review is shown with this name.</span>
+                      </label>
+                    ) : null}
                     <fieldset>
                       <legend className="mb-1.5 text-sm font-medium text-navy">Your rating</legend>
                       <div className="flex gap-1" role="radiogroup" aria-label="Rating out of 5 stars">

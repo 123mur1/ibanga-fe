@@ -9,7 +9,7 @@ import type { DocumentSubjectKind, Id, Permission } from "@/types/ops";
 
 const ADMIN = "/dashboard/admin";
 
-/** Whether the signed-in administrator holds a permission in the demonstration account. */
+/** Whether the signed-in administrator holds a permission in their admin profile. */
 export function useAdminPermission(permission: Permission): boolean {
   const { currentUser } = useIbanga();
   const { adminProfiles } = useOps();

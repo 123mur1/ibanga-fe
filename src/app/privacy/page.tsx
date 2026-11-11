@@ -41,7 +41,7 @@ export default function PrivacyPage() {
   return (
     <PublicPage eyebrow="Legal" title="Privacy policy" intro="How iBanga handles personal and business information." width="max-w-3xl">
       <Notice tone="warning" title="Draft for review">
-        This policy is a draft for the demonstration build. It must be reviewed against Rwandan data-protection law and the final product before launch.
+        This policy is a draft. It must be reviewed against Rwandan data-protection law and the final product before launch.
       </Notice>
       <div className="mt-6 space-y-4">
         {sections.map((section) => (

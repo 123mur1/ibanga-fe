@@ -16,7 +16,7 @@ export type QueryState<T> = {
 };
 
 /**
- * Runs a service call and re-runs it whenever the demonstration data or marketplace data
+ * Runs a service call and re-runs it whenever the operations data or marketplace data
  * changes, so screens refresh themselves after any action. `fetcher` may be an inline function;
  * pass values that should trigger a refetch (route params, filters) in `deps`.
  *

@@ -1,6 +1,6 @@
 # iBanga frontend architecture
 
-iBanga is a cargo transport management platform with four roles: **importers**, **truck owners**, **drivers** and **administrators**. This repository is the **frontend only**. There is no backend, database, real authentication, payment gateway or GPS integration. Everything the user sees comes from demonstration data behind a service layer that a real API can later replace.
+iBanga is a cargo transport management platform with four roles: **importers**, **truck owners**, **drivers** and **administrators**. This is the frontend; it always talks to the NestJS backend in `../../backend` (`NEXT_PUBLIC_API_URL`). There is no demonstration mode. Payments, GPS and some verification steps are still simulated by the backend.
 
 > Everything on screen that involves money, tracking, verification or settlement is a **simulation**. Do not present it as real.
 
@@ -20,8 +20,7 @@ src/
   config/                 navigation.ts · status.ts · business-rules.ts · permissions.ts · env.ts
   features/               Domain-specific components and workflows (one folder per domain)
   hooks/                  use-ops, use-actor, use-service-query, use-action, use-unread
-  lib/                    Marketplace store (users, trucks, bookings, payments, refunds, reviews), formatting, forms, geo, demo data
-  mocks/                  Demonstration datasets (one file per domain) and the seed builder
+  lib/                    Marketplace store (users, trucks, bookings, payments, refunds, reviews), availability, distance and pricing, formatting, forms, geo
   services/               contracts.ts (interfaces) · mock/* (implementations) · mock-db.ts · index.ts
   types/ops.ts            Domain types for the operations modules
 docs/ARCHITECTURE.md      This file
@@ -53,21 +52,19 @@ Render with `QueryBoundary` (loading, error with retry, empty). For synchronous 
 
 Every service method takes the `actor` and enforces ownership in the mock (an importer cannot read another importer's shipment; an owner cannot touch another owner's records; admin-only actions check role and admin permission). **The backend must enforce the same rules.** Errors are `ServiceError` with a `code` and optional `fieldErrors`; `useAction` shows them as toasts, and `applyFieldErrors` puts them on form fields.
 
-### Mock persistence and reset
+### Operations cache
 
-`mock-db.ts` holds one `OpsData` object, persisted to `localStorage` (`ibanga-ops-demo`) and exposed through `useSyncExternalStore`. The marketplace store persists separately (`ibanga-demo-session-v1`). **Reset demonstration data** (Settings page and admin System settings) clears both and reloads. Never store real secrets, identity numbers or payment credentials.
+`mock-db.ts` holds one `OpsData` object in memory (not saved in the browser), filled from the backend's `/operations/:domain` API and exposed through `useSyncExternalStore`. The rules in `services/mock/*` run against this cache, and `api/persisted-services.ts` writes every change back to the API. Never store real secrets, identity numbers or payment credentials.
 
-### Moving to a real backend
-
-Each method in `services/contracts.ts` has a comment with the endpoint it should become (`GET /cargo-requests`, `POST /quotations/:id/accept`, ...). To integrate: implement the interfaces with HTTP clients, return them from `services/index.ts` when `NEXT_PUBLIC_OPS_DATA_SOURCE=api`, keep `ServiceError` for failures, and replace the marketplace store's demo branches. Requirements the backend must meet:
+### What the backend enforces
 
 - Authenticate every request; derive the actor from the session, never from the client.
 - Enforce role, ownership and admin-permission rules on every endpoint (the frontend guards are presentation only).
-- Make payment, delivery verification and settlement status **server-authoritative**. A payment is not confirmed because a button was clicked; delivery is not verified because a status changed.
-- Make accept-quotation, settlement approval, payouts and refunds **idempotent and transactional**.
-- Enforce document-expiry restrictions (a truck or driver with an expired required document cannot take work).
-- Provide signed upload URLs; the demo reads files into data URLs.
-- Support pagination, filtering and sorting server-side (`ListQuery` already models this).
+- Payment, delivery verification and settlement status are **server-authoritative**. Booking prices are computed on the server: road distance (Google Maps Routes API, or an estimate) times the vehicle's rate per km.
+- A vehicle is listed whatever its bookings; it is only taken on booked days, and overlapping bookings are refused.
+- Accept-quotation, settlement approval, payouts, refunds and cancellations are transactional.
+- Document expiry: a truck or driver with an expired required document cannot take work.
+- Still to do: signed upload URLs (files are stored inline as data URLs), and server-side pagination for every list.
 
 ## Business rules (`src/config/business-rules.ts`)
 
@@ -79,7 +76,7 @@ All labels and colours come from `STATUS_DEFS` through `<StatusBadge family stat
 
 ## Shared components (`src/components/common`)
 
-`StatusBadge` · `Notice`, `SimulationNotice`, `DemoTag` · `Section`, `DetailList`, `Timeline`, `BackLink`, `StatGrid` · `FinancialSummary` · `FormField`, `controlClass`, `CheckRow`, `FilePicker` · `SignaturePad` · `QueryBoundary`, `LoadingBlock`, `ErrorBlock` · `ConfirmButton` (confirmation dialog for destructive/financial actions) · `Tabs` · `RoleShell` (route guard + role sidebar) · `PlannedFeature`. From `ui.tsx`: `PageHeader`, `StatCard`, `DataTable` (search, filter, export, pagination), `ViewLink`, `Modal`, `ConfirmDialog`, `EmptyState`, `PrimaryButton`, `GhostButton`, `inputClass`.
+`StatusBadge` · `Notice`, `SimulationNotice` · `Section`, `DetailList`, `Timeline`, `BackLink`, `StatGrid` · `FinancialSummary` · `FormField`, `controlClass`, `CheckRow`, `FilePicker` · `SignaturePad` · `QueryBoundary`, `LoadingBlock`, `ErrorBlock` · `ConfirmButton` (confirmation dialog for destructive/financial actions) · `Tabs` · `RoleShell` (route guard + role sidebar) · `PlannedFeature`. From `ui.tsx`: `PageHeader`, `StatCard`, `DataTable` (search, filter, export, pagination), `ViewLink`, `Modal`, `ConfirmDialog`, `EmptyState`, `PrimaryButton`, `GhostButton`, `inputClass`.
 
 ## Page recipe
 
@@ -142,4 +139,4 @@ npm run check:routes   # every sidebar link resolves
 npm run dev            # http://localhost:3000
 ```
 
-Demo accounts: Admin `admin@ibanga.com` / `admin123`; Importer `jeanine@importco.rw` / `ibanga123`; Truck owner `eric@ndayitrans.rw` / `ibanga123`. Permission-limited admins (password `admin123`): `ops@ibanga.com`, `finance@ibanga.com`, `support@ibanga.com`.
+Accounts: register importers and owners through the app. `npm run prisma:seed` in the backend creates one truck owner with twelve verified vehicles (see the backend README).

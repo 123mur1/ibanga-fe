@@ -53,7 +53,7 @@ export type TimelineEntry = {
   detail?: string;
   at?: string;
   tone?: "brand" | "success" | "warning" | "danger" | "neutral";
-  /** Marks entries entered through demonstration controls. */
+  /** Marks entries entered by hand rather than by a tracking source. */
   simulated?: boolean;
 };
 

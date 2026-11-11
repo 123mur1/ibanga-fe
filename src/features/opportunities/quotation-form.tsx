@@ -5,16 +5,9 @@ import { controlClass, FormField } from "@/components/common/form-fields";
 import { Notice } from "@/components/common/notices";
 import { Section } from "@/components/common/layout-blocks";
 import { PrimaryButton } from "@/components/ui";
-import {
-  driverEligibility,
-  feeBreakdown,
-  truckEligibility,
-} from "@/config/business-rules";
-import { env } from "@/config/env";
+import { feeBreakdown } from "@/config/business-rules";
 import { useActor } from "@/hooks/use-actor";
 import { useAction } from "@/hooks/use-action";
-import { useOps } from "@/hooks/use-ops";
-import { useServiceQuery } from "@/hooks/use-service-query";
 import { applyFieldErrors, useZodForm } from "@/lib/forms";
 import { formatRwf, formatTons } from "@/lib/format";
 import { useIbanga } from "@/lib/store";
@@ -31,13 +24,8 @@ export function QuotationForm({
 }) {
   const actor = useActor();
   const { trucks } = useIbanga();
-  const ops = useOps();
   const { run, busy } = useAction();
   const [sentRef, setSentRef] = useState<string | null>(null);
-  const drivers = useServiceQuery(
-    () => services.drivers.list(actor!, { pageSize: 200 }),
-    [actor?.id],
-  );
 
   const myTrucks = trucks.filter((truck) => truck.ownerId === actor?.id);
   const {
@@ -59,23 +47,13 @@ export function QuotationForm({
   });
 
   const truckId = watch("truckId");
-  const driverId = watch("driverId");
   const amount = watch("amountRwf");
   const truck = myTrucks.find((item) => item.id === truckId);
-  const driver =
-    env.dataSource === "api"
-      ? undefined
-      : drivers.data?.items.find((item) => item.id === driverId);
 
   const truckCheck = truck
-    ? env.dataSource === "api"
-      ? truck.verification === "APPROVED"
-        ? { eligible: true, reasons: [] }
-        : { eligible: false, reasons: ["The truck is not verified."] }
-      : truckEligibility(
-          ops.truckProfiles.find((profile) => profile.truckId === truck.id),
-          ops.documents,
-        )
+    ? truck.verification === "APPROVED"
+      ? { eligible: true, reasons: [] }
+      : { eligible: false, reasons: ["The truck is not verified."] }
     : undefined;
   const tooSmall = truck ? truck.capacity < request.weightTons : false;
   const alreadyQuoted = truck
@@ -86,13 +64,9 @@ export function QuotationForm({
       )
     : false;
   const held = truck ? truck.status !== "AVAILABLE" : false;
-  const driverCheck = driver
-    ? driverEligibility(driver, ops.documents)
-    : undefined;
-  const blocked =
-    Boolean(
-      truck && (!truckCheck?.eligible || tooSmall || alreadyQuoted || held),
-    ) || Boolean(driverCheck && !driverCheck.eligible);
+  const blocked = Boolean(
+    truck && (!truckCheck?.eligible || tooSmall || alreadyQuoted || held),
+  );
   const fee =
     Number.isFinite(amount) && amount > 0 ? feeBreakdown(amount) : undefined;
 
@@ -103,8 +77,6 @@ export function QuotationForm({
         services.quotations.submit(actor, {
           cargoRequestId: request.id,
           truckId: values.truckId,
-          driverId:
-            env.dataSource === "api" ? undefined : values.driverId || undefined,
           amountRwf: values.amountRwf,
           estimatedPickupDate: values.estimatedPickupDate,
           estimatedDeliveryDate: values.estimatedDeliveryDate,
@@ -178,17 +150,9 @@ export function QuotationForm({
                 Fix this on the truck page before quoting.
               </Notice>
             ) : truckCheck ? (
-              <Notice
-                tone="success"
-                title={
-                  env.dataSource === "api"
-                    ? "Truck is available"
-                    : "Truck is eligible"
-                }
-              >
-                {env.dataSource === "api"
-                  ? "The backend checks truck availability and cargo capacity when you send the quotation."
-                  : "Verified, in service, and its required documents are valid."}
+              <Notice tone="success" title="Truck is available">
+                The server checks truck availability and cargo capacity when you
+                send the quotation.
               </Notice>
             ) : null}
             {alreadyQuoted ? (
@@ -204,33 +168,6 @@ export function QuotationForm({
               </Notice>
             ) : null}
           </div>
-        ) : null}
-
-        <FormField
-          label="Driver (optional)"
-          error={errors.driverId?.message}
-          hint="You can assign or change the driver after the quotation is accepted."
-        >
-          <select className={controlClass} {...register("driverId")}>
-            <option value="">Decide later</option>
-            {(env.dataSource === "api" ? [] : (drivers.data?.items ?? [])).map(
-              (item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name} · licence {item.licenceCategory}
-                </option>
-              ),
-            )}
-          </select>
-        </FormField>
-        {driverCheck && !driverCheck.eligible ? (
-          <Notice tone="danger" title="This driver cannot be assigned">
-            <ul className="list-disc pl-5">
-              {driverCheck.reasons.map((reason) => (
-                <li key={reason}>{reason}</li>
-              ))}
-            </ul>
-            Choose another driver, or leave the driver for later.
-          </Notice>
         ) : null}
 
         <FormField

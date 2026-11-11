@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useEffect, useState } from "react";
 import { AuthShell } from "@/components/auth-shell";
 import { Field, inputClass, PrimaryButton } from "@/components/ui";
-import { demoAccounts, demoEnabled } from "@/lib/demo";
 import { postAuthPath, withNext } from "@/lib/redirect";
 import { useIbanga } from "@/lib/store";
 
@@ -42,12 +41,6 @@ function LoginForm() {
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     void signIn(email, password);
-  }
-
-  function signInAsDemo(account: { email: string; password: string }) {
-    setEmail(account.email);
-    setPassword(account.password);
-    void signIn(account.email, account.password);
   }
 
   return (
@@ -233,34 +226,6 @@ function LoginForm() {
               )}
             </PrimaryButton>
           </form>
-
-          {demoEnabled ? (
-            <section className="mt-4 flex min-h-0 flex-col rounded-xl border border-line bg-background/70 p-3">
-              <div className="flex shrink-0 items-center justify-between gap-3">
-                <p className="text-sm font-semibold text-navy">Demo accounts</p>
-                <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-semibold text-brand-dark">Local data</span>
-              </div>
-              <p className="mt-1 shrink-0 text-xs text-muted">Pick a role to sign in instantly. No server is required.</p>
-              <ul className="mt-2 min-h-14 space-y-2 overflow-y-auto pr-1">
-                {demoAccounts.map((account) => (
-                  <li key={account.email} className="flex items-center justify-between gap-3 rounded-lg border border-line bg-white px-3 py-2.5">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-navy">{account.role}</p>
-                      <p className="truncate text-xs text-muted">{account.email}</p>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => signInAsDemo(account)}
-                      className="shrink-0 rounded-lg bg-brand-soft px-3 py-1.5 text-xs font-semibold text-brand-dark transition hover:bg-brand hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50"
-                    >
-                      Use this
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
 
           <p className="mt-4 shrink-0 text-center text-sm text-muted">
             New to iBanga?{" "}

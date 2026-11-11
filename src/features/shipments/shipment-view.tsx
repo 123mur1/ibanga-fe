@@ -61,7 +61,7 @@ function base(role: Role) {
 
 /**
  * Read-only shipment content shared by importer, owner, driver and administrator pages: status, facts,
- * delay and hold warnings, milestone timeline, demonstration map and delivery evidence.
+ * delay and hold warnings, milestone timeline, route map and delivery evidence.
  * Pages add their own role-specific controls beside it (milestone buttons, evidence form,
  * verification). Submitted evidence is clearly distinguished from verified delivery.
  */

@@ -88,7 +88,7 @@ export function CheckRow({
 }
 
 /**
- * File chooser with previews. Files are read into the page as data URLs for the demonstration;
+ * File chooser with previews. Files are read into the page as data URLs and stored with the record;
  * a real build would upload to a storage service and keep only the returned file reference.
  */
 export function FilePicker({

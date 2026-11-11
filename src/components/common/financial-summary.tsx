@@ -1,5 +1,4 @@
 import { formatRwf } from "@/lib/format";
-import { DemoTag } from "./notices";
 
 export type FinancialLine = {
   label: string;
@@ -11,25 +10,22 @@ export type FinancialLine = {
 
 /**
  * Reusable breakdown of an amount (booking payment, settlement, refund). Amounts always display in
- * RWF. Mark `demo` for anything that is simulated so it is never mistaken for a real transaction.
+ * RWF.
  */
 export function FinancialSummary({
   title,
   lines,
   footnote,
-  demo = true,
 }: {
   title?: string;
   lines: FinancialLine[];
   footnote?: string;
-  demo?: boolean;
 }) {
   return (
     <div className="overflow-hidden rounded-xl border border-line bg-white">
-      {title || demo ? (
+      {title ? (
         <div className="flex items-center justify-between gap-3 border-b border-line bg-background/60 px-4 py-3">
           <p className="text-sm font-semibold text-navy">{title}</p>
-          {demo ? <DemoTag /> : null}
         </div>
       ) : null}
       <dl className="divide-y divide-line">

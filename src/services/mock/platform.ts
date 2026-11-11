@@ -108,9 +108,9 @@ export const adminService: AdminService = {
     if (!record) notFound("Reconciliation record");
     if (record.status === "MATCHED") conflict("This record is already matched.");
     if (note.trim().length < 5) invalid("Explain how this record was reviewed.", { note: "Enter a note." });
-    const updated = { ...record, status: "MATCHED" as const, note: `[Demonstration review by ${actor.name}] ${note.trim()}` };
+    const updated = { ...record, status: "MATCHED" as const, note: `[Reviewed by ${actor.name}] ${note.trim()}` };
     commit((data) => ({ ...data, reconciliation: replaceById(data.reconciliation, id, () => updated) }), {
-      audit: [audit(actor, "Reviewed reconciliation record (demonstration)", "Reconciliation", record.ref, note.trim())],
+      audit: [audit(actor, "Reviewed reconciliation record", "Reconciliation", record.ref, note.trim())],
     });
     return updated;
   },
@@ -152,11 +152,6 @@ export const adminService: AdminService = {
       audit: [audit(actor, "Updated system settings", "Settings", "platform", JSON.stringify(patch))],
     });
     return updated;
-  },
-
-  async resetDemoData() {
-    await delay(300);
-    mockDb.reset();
   },
 
   snapshot() {

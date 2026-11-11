@@ -277,9 +277,9 @@ export default function AdminHome() {
         "Status",
         "Truck type",
         "Capacity tons",
-        "Price RWF",
+        "Price per km RWF",
         "Current location",
-        "Preferred route",
+        "Delivers to",
       ];
       rows = trucks.map((truck) => [
         truck.id,
@@ -289,9 +289,9 @@ export default function AdminHome() {
         truck.status,
         truck.truckType,
         truck.capacity,
-        truck.priceRwf ?? "",
+        truck.pricePerKmRwf ?? "",
         truck.currentLocation,
-        truck.preferredRoute,
+        (truck.destinations ?? []).join(", "),
       ]);
     } else if (reportKind === "users") {
       headers = [

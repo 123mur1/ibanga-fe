@@ -66,7 +66,7 @@ export function RefundsOverview() {
             })}
             filterLabel="All statuses"
             extraFilterLabel="All origins"
-            exportName="refunds-demo"
+            exportName="refunds"
             emptyMessage="No refunds match these filters."
           />
         </>

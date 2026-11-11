@@ -1,5 +1,6 @@
 "use client";
 
+import { formatRate } from "@/lib/distance";
 import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RequireAuth } from "@/components/require-auth";
@@ -7,7 +8,6 @@ import { TruckBadge } from "@/components/status-badge";
 import { StatusBadge } from "@/components/common/status-badge";
 import { TruckThumb } from "@/components/photos";
 import { DataTable, PageHeader, StatCard, ViewLink } from "@/components/ui";
-import { formatRwf } from "@/lib/payments";
 import { useIbanga } from "@/lib/store";
 import { truckVerification } from "@/config/business-rules";
 import { useOps } from "@/hooks/use-ops";
@@ -70,7 +70,7 @@ export default function OwnerTrucksPage() {
                 { label: "Capacity" },
                 { label: "Location" },
                 { label: "Route" },
-                { label: "Price" },
+                { label: "Price per km" },
                 { label: "Availability" },
                 { label: "Documents" },
                 { label: "Details", className: "text-right" },
@@ -93,7 +93,7 @@ export default function OwnerTrucksPage() {
                     `${truck.capacity} tons`,
                     truck.currentLocation,
                     truck.preferredRoute,
-                    truck.priceRwf == null ? "" : formatRwf(truck.priceRwf),
+                    truck.pricePerKmRwf == null ? "" : formatRate(truck.pricePerKmRwf),
                     truck.status,
                     verification,
                     "",
@@ -110,7 +110,7 @@ export default function OwnerTrucksPage() {
                   `${truck.capacity} tons`,
                   truck.currentLocation,
                   truck.preferredRoute,
-                  truck.priceRwf == null ? "Price not set" : formatRwf(truck.priceRwf),
+                  formatRate(truck.pricePerKmRwf),
                   <span key={`${truck.id}-status`}><TruckBadge status={truck.status} /></span>,
                   <Link key={`${truck.id}-documents`} href={`/dashboard/owner/trucks/${truck.id}#truck-documents`} aria-label={`Documents for ${truck.plateNumber}`}>
                     <StatusBadge family="verification" status={verification} />

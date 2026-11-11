@@ -1,6 +1,5 @@
 "use client";
 
-import { DemoTag } from "@/components/common/notices";
 import { effectiveDocumentStatus, expiryState } from "@/config/business-rules";
 import { StatCard } from "@/components/ui";
 import { useOps } from "@/hooks/use-ops";
@@ -8,7 +7,7 @@ import { useIbanga } from "@/lib/store";
 
 const BASE = "/dashboard/admin";
 
-/** Operations KPI row for the administrator overview. Counts come from the demonstration dataset. */
+/** Operations KPI row for the administrator overview. Counts come from the loaded operations records. */
 export function OperationsKpis() {
   const ops = useOps();
   const { refunds, disputes } = useIbanga();
@@ -43,7 +42,6 @@ export function OperationsKpis() {
     <section aria-labelledby="ops-kpis-heading" className="mt-6">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 id="ops-kpis-heading" className="text-lg font-semibold text-navy">Operations at a glance</h2>
-        <DemoTag />
       </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (

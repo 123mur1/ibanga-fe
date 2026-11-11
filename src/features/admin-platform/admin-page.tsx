@@ -10,7 +10,7 @@ import type { Permission } from "@/types/ops";
 
 /**
  * Admin page wrapper: route guard, sidebar and a permission check. The check only controls what the
- * demonstration UI shows; the services repeat it and the backend must enforce it.
+ * UI shows; the services repeat it and the backend must enforce it.
  */
 export function AdminPage({ permission, children }: { permission: Permission; children: React.ReactNode }) {
   const actor = useActor();

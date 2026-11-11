@@ -39,7 +39,7 @@ export function AnalyticsView() {
       <PageHeader
         eyebrow="Insight"
         title="Reports & analytics"
-        subtitle="Platform figures are calculated from the records in this browser. Use the filters to narrow the period."
+        subtitle="Platform figures are calculated from the marketplace records. Use the filters to narrow the period."
         actions={
           <button
             type="button"

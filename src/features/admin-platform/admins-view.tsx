@@ -18,11 +18,6 @@ import type { AdminProfile, AdminRoleName, Permission } from "@/types/ops";
 import { useUserNames } from "./admin-page";
 
 const ROLES = Object.keys(ADMIN_ROLE_PRESETS) as AdminRoleName[];
-const DEMO_ACCOUNTS = [
-  { email: "ops@ibanga.com", role: "Operations manager" },
-  { email: "finance@ibanga.com", role: "Finance officer" },
-  { email: "support@ibanga.com", role: "Customer support" },
-];
 
 export function AdminsView() {
   const actor = useActor();
@@ -43,16 +38,6 @@ export function AdminsView() {
             </div>
           )}
         </QueryBoundary>
-        <Section title="Administrator accounts" description="Sign in with these to see the permission-aware sidebar. Password for all: admin123.">
-          <ul className="grid gap-3 sm:grid-cols-3">
-            {DEMO_ACCOUNTS.map((account) => (
-              <li key={account.email} className="rounded-xl border border-line px-4 py-3 text-sm">
-                <p className="font-semibold text-navy">{account.email}</p>
-                <p className="text-muted">{account.role}</p>
-              </li>
-            ))}
-          </ul>
-        </Section>
       </div>
     </>
   );

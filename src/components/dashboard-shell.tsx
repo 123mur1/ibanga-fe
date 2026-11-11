@@ -453,7 +453,7 @@ export function DashboardShell({
       <div className="flex h-full">
         <aside className={`relative hidden h-full min-h-0 shrink-0 flex-col overflow-y-auto overflow-x-hidden border-r border-brand-dark bg-brand transition-[width] duration-200 lg:flex ${collapsed ? "w-19" : "w-60"}`}>
           <div className={`flex items-center ${collapsed ? "justify-center px-2" : "justify-between px-5"} pb-5 pt-6`}>
-            {collapsed ? <Link href="/" aria-label="iBanga home"><LogoMark className="h-9 w-9 rounded-[9px] ring-1 ring-white/50" /></Link> : <BrandLink href="/" light />}
+            {collapsed ? <Link href="/" aria-label="iBanga home"><LogoMark className="h-14 w-14 rounded-[9px] ring-1 ring-white/50" /></Link> : <BrandLink href="/" light />}
             {!collapsed ? (
               <button
                 type="button"

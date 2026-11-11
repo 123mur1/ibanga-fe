@@ -1,17 +1,14 @@
 /** Shared helpers for the mock service implementations. */
-import { env } from "@/config/env";
 import type { AuditLogEntry, NotificationCategory, OpsData, OpsNotification, Permission } from "@/types/ops";
 import { mockDb } from "../mock-db";
 import { ServiceError, type Actor, type ListQuery, type Paged } from "../types";
 import { recomputeSettlements } from "./sync";
 
 /**
- * Simulated network latency so loading states are visible in demonstration mode. With the API
- * the real request already takes time, so adding more would only slow every screen down.
+ * Kept so service code can stay asynchronous; the real API request already takes the time.
  */
-export function delay(ms: number = env.mockLatencyMs): Promise<void> {
-  if (env.dataSource === "api") return Promise.resolve();
-  return new Promise((resolve) => setTimeout(resolve, ms));
+export function delay(_ms?: number): Promise<void> {
+  return Promise.resolve();
 }
 
 let counter = 0;

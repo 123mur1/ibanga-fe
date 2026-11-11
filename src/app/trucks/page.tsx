@@ -22,7 +22,7 @@ export default function TrucksPage() {
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">Ready to move</p>
           <h1 className="mt-2 font-display text-3xl tracking-tight text-navy sm:text-4xl">Find a truck</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-muted sm:text-base">
-            Search verified trucks by location, type, capacity and price, then open one to send a booking request.
+            Every verified vehicle, whatever its other bookings. Filter by location, destination, cargo and dates, then check its calendar and book the days you need.
           </p>
         </header>
         <Suspense fallback={null}>

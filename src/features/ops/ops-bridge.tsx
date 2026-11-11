@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import { env } from "@/config/env";
 import { useIbanga } from "@/lib/store";
 import { services } from "@/services";
 import { setDirectory } from "@/services/mock/directory";
@@ -22,12 +21,7 @@ export function OpsBridge() {
 
   useEffect(() => {
     if (!bookings.length) return;
-    if (
-      env.dataSource === "api" &&
-      currentUser?.role !== "TRUCK_OWNER"
-    ) {
-      return;
-    }
+    if (currentUser?.role !== "TRUCK_OWNER") return;
     void services.shipments.syncFromBookings(bookings).catch((error: unknown) => {
       console.error("Could not sync shipments.", error);
     });

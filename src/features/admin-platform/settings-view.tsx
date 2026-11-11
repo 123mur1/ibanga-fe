@@ -1,7 +1,6 @@
 "use client";
 
 import { QueryBoundary } from "@/components/common/async-state";
-import { ConfirmButton } from "@/components/common/confirm-button";
 import { controlClass, FormField } from "@/components/common/form-fields";
 import { Section } from "@/components/common/layout-blocks";
 import { Notice } from "@/components/common/notices";
@@ -25,7 +24,6 @@ export function SettingsView() {
           This setting is saved for display and audit history. Payment calculations currently use a {Math.round(PLATFORM_FEE_RATE * 100)}% platform fee.
         </Notice>
         <QueryBoundary query={query}>{(settings) => <SettingsForm settings={settings} />}</QueryBoundary>
-        <ResetPanel />
       </div>
     </>
   );
@@ -77,33 +75,3 @@ function SettingsForm({ settings }: { settings: PlatformSettings }) {
   );
 }
 
-function ResetPanel() {
-  const { run } = useAction();
-
-  async function reset() {
-    await services.admin.resetDemoData();
-    try {
-      window.localStorage.removeItem("ibanga-demo-session-v1");
-    } catch {
-      // Storage can be blocked; the reload still restarts from the seeded operations data.
-    }
-    window.location.reload();
-  }
-
-  return (
-    <Section title="Reset records" description="Restore every record to its starting state.">
-      <p className="mb-4 text-sm text-muted">
-        This clears all bookings, payments, shipments, cases and settings you changed in this browser, signs the session data out and reloads the page. It does not affect any real system because none is connected.
-      </p>
-      <ConfirmButton
-        tone="danger"
-        label="Reset records"
-        title="Reset all records?"
-        message="Everything created or changed in this browser will be lost."
-        summary={["Marketplace and operations data return to the seed.", "The page reloads and you may need to sign in again."]}
-        confirmLabel="Reset and reload"
-        onConfirm={() => run(reset, { success: "Records reset." })}
-      />
-    </Section>
-  );
-}

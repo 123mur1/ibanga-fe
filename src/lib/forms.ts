@@ -30,7 +30,7 @@ export function applyFieldErrors<T extends FieldValues>(setError: UseFormSetErro
 
 export type PickedFile = { name: string; url: string; mimeType: string; sizeBytes: number };
 
-/** Reads a File into a data URL. Demonstration only: a real upload service would return a signed URL. */
+/** Reads a File into a data URL. Files are stored inline; a file storage service would return a signed URL instead. */
 export function readFileAsDataUrl(file: File, maxMegabytes = 3): Promise<PickedFile> {
   return new Promise((resolve, reject) => {
     if (file.size > maxMegabytes * 1024 * 1024) {

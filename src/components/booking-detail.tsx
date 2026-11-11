@@ -15,6 +15,8 @@ import { TripActions } from "@/components/trip-actions";
 import { BookingBadge, DisputeBadge, PaymentBadge, TruckBadge } from "@/components/status-badge";
 import { Field, GhostButton, inputClass, Modal, PageHeader, PrimaryButton, formatDate, formatDateTime } from "@/components/ui";
 import { hasHeldPayment, SettlePaymentPanel } from "@/features/admin-cases/settle-payment";
+import { BookingDocumentsPanel } from "@/features/importer-dashboard/booking-documents-panel";
+import { balanceAmount } from "@/lib/booking-stage";
 import { canRequestRefund, refundBlockedReason } from "@/lib/refunds";
 import { useIbanga } from "@/lib/store";
 import { formatRwf, maskAccount, validatePaymentAccount } from "@/lib/payments";
@@ -137,6 +139,8 @@ export function BookingDetail({
                     <p className="px-5 py-5 text-sm text-muted">Truck details are not available.</p>
                   )}
                 </section>
+
+                {role !== "ADMIN" ? <BookingDocumentsPanel booking={booking} role={role} /> : null}
 
                 <section className="overflow-hidden rounded-2xl border border-line bg-card shadow-soft">
                   <div className="border-b border-line bg-background/60 px-5 py-4">
@@ -403,7 +407,7 @@ function OwnerActions({ booking }: { booking: Booking }) {
 }
 
 function ImporterActions({ booking }: { booking: Booking }) {
-  const { setBookingStatus, reportProblem, payBooking, currentUser, reviews, refunds } = useIbanga();
+  const { setBookingStatus, reportProblem, payBooking, confirmReceipt, decideDelay, currentUser, reviews, refunds } = useIbanga();
   const refundRequest = refunds.find((item) => item.bookingId === booking.id);
   const refundable = canRequestRefund(booking, refunds);
   const toast = useToast();
@@ -421,11 +425,20 @@ function ImporterActions({ booking }: { booking: Booking }) {
     if (accountError) return setPayError(accountError);
     setPayError(null);
     setBusy(true);
-    const error = await payBooking(booking.id, { method, payerName: payerName.trim(), accountMask: maskAccount(method, account) });
+    const checkout = { method, payerName: payerName.trim(), accountMask: maskAccount(method, account) };
+    const confirmingReceipt = booking.status === "DELIVERED";
+    const error = confirmingReceipt
+      ? await confirmReceipt(booking.id, checkout)
+      : await payBooking(booking.id, checkout);
     setBusy(false);
     if (error) return setPayError(error);
     setPayOpen(false);
-    toast("Payment is held. The owner can now start the trip.", "good");
+    toast(
+      confirmingReceipt
+        ? "Balance paid. Receipt confirmed and the trip is complete."
+        : "Payment is held. The owner can now start the trip.",
+      "good",
+    );
   }
 
   async function run(task: () => Promise<string | null | undefined | void>, success: string) {
@@ -445,9 +458,16 @@ function ImporterActions({ booking }: { booking: Booking }) {
     const timer = setInterval(() => void refreshMarketplace(), 15_000);
     return () => clearInterval(timer);
   }, [expired, refreshMarketplace]);
-  const canCancel = remainingMs !== null && !expired;
+  const canCancel =
+    !booking.payment &&
+    (booking.status === "PENDING" ||
+      (booking.status === "ACCEPTED" && (remainingMs === null || !expired)));
   const canPay = !expired && booking.status === "ACCEPTED" && (!booking.payment || booking.payment.status === "PENDING" || booking.payment.status === "REFUNDED");
   const canConfirm = booking.status === "DELIVERED" || (booking.status === "DISPUTED" && booking.dispute?.status === "RESOLVED");
+  const canDecideDelay = booking.status === "PENDING" || booking.status === "ACCEPTED";
+  const openDelayImpacts = canDecideDelay
+    ? (booking.delayImpacts ?? []).filter((impact) => impact.status === "PENDING" || impact.status === "SHIFTED")
+    : [];
 
   const subtitle =
     expired
@@ -470,11 +490,59 @@ function ImporterActions({ booking }: { booking: Booking }) {
 
   return (
     <CardShell title="Your next step" subtitle={subtitle}>
+      {openDelayImpacts.map((impact) => (
+        <div key={impact.id} className="space-y-3 rounded-xl border border-warn/30 bg-warn-soft/60 p-4">
+          <div>
+            <p className="font-semibold text-navy">
+              {impact.status === "SHIFTED" ? "Your booking dates were shifted automatically" : "An earlier trip is delayed"}
+            </p>
+            <p className="mt-1 text-sm leading-6 text-muted">
+              {impact.status === "SHIFTED"
+                ? `Your dates have moved by ${impact.shiftDays} day${impact.shiftDays === 1 ? "" : "s"}. If the new dates do not work, you can request a full refund any time before your trip starts.`
+                : `The truck's previous trip is delayed. Shift your booking by ${impact.shiftDays} day${impact.shiftDays === 1 ? "" : "s"}, or cancel it for a full refund.`}
+            </p>
+          </div>
+          {impact.status === "PENDING" ? (
+            <div className="flex flex-wrap gap-2">
+              <ConfirmButton
+                label="Shift booking dates"
+                title="Shift your booking?"
+                message={`Move your booking ${impact.shiftDays} day${impact.shiftDays === 1 ? "" : "s"} later. Later bookings may also move to prevent a truck-calendar conflict.`}
+                confirmLabel="Shift dates"
+                disabled={busy}
+                onConfirm={() => run(() => decideDelay(booking.id, impact.id, "SHIFT"), "Booking dates shifted.")}
+              />
+              <ConfirmButton
+                label="Request full refund"
+                title="Cancel this booking and refund it?"
+                message="The booking will be cancelled and all money paid for it will be returned to your iBanga wallet."
+                confirmLabel="Cancel and refund"
+                tone="danger"
+                disabled={busy}
+                onConfirm={() => run(() => decideDelay(booking.id, impact.id, "REFUND"), "Booking cancelled and fully refunded.")}
+              />
+            </div>
+          ) : (
+            <ConfirmButton
+              label="Request full refund"
+              title="Cancel this booking and refund it?"
+              message="The shifted dates will be cancelled and all money paid for this booking will be returned to your iBanga wallet. You can make this choice any time before the trip starts."
+              confirmLabel="Cancel and refund"
+              tone="danger"
+              disabled={busy}
+              onConfirm={() => run(() => decideDelay(booking.id, impact.id, "REFUND"), "Booking cancelled and fully refunded.")}
+            />
+          )}
+        </div>
+      ))}
       {canCancel && remainingMs !== null ? (
         <Notice tone="warning" title={`Pay within ${formatCountdown(remainingMs)}`}>
-          {booking.status === "PENDING"
-            ? `Unpaid bookings are cancelled ${PAYMENT_WINDOW_MINUTES} minutes after booking. The owner must accept and you must pay before then, or the truck is released.`
-            : `Unpaid bookings are cancelled ${PAYMENT_WINDOW_MINUTES} minutes after booking and the truck is released.`}
+          {`Pay the 50% deposit within ${PAYMENT_WINDOW_MINUTES} minutes of the owner accepting, or the booking will be cancelled and the dates released.`}
+        </Notice>
+      ) : null}
+      {booking.status === "PENDING" ? (
+        <Notice tone="info" title="Waiting for the truck owner">
+          No payment countdown starts until the owner accepts. You can cancel this request while it is still pending.
         </Notice>
       ) : null}
 
@@ -489,14 +557,18 @@ function ImporterActions({ booking }: { booking: Booking }) {
 
       {payOpen ? (
         <Modal
-          title="Pay for this booking"
-          description={`${booking.pickupLocation} to ${booking.destination} · ${booking.agreedPriceRwf ? formatRwf(booking.agreedPriceRwf) : ""}`}
+          title={booking.status === "DELIVERED" ? "Pay the balance and confirm receipt" : "Pay for this booking"}
+          description={`${booking.pickupLocation} to ${booking.destination} · ${booking.status === "DELIVERED" ? formatRwf(balanceAmount(booking)) : booking.agreedPriceRwf ? formatRwf(booking.agreedPriceRwf) : ""}`}
           onClose={() => !busy && setPayOpen(false)}
           footer={
             <>
               <GhostButton type="button" disabled={busy} onClick={() => setPayOpen(false)}>Cancel</GhostButton>
               <PrimaryButton type="button" disabled={busy} onClick={() => void submitPayment()}>
-                {busy ? "Processing…" : `Pay ${booking.agreedPriceRwf ? formatRwf(booking.agreedPriceRwf) : ""}`}
+                {busy
+                  ? "Processing…"
+                  : booking.status === "DELIVERED"
+                    ? `Pay ${formatRwf(balanceAmount(booking))} & confirm receipt`
+                    : `Pay ${booking.agreedPriceRwf ? formatRwf(booking.agreedPriceRwf) : ""}`}
               </PrimaryButton>
             </>
           }
@@ -531,9 +603,15 @@ function ImporterActions({ booking }: { booking: Booking }) {
 
       {canConfirm ? (
         <>
-          <PrimaryButton type="button" disabled={busy} onClick={() => void run(() => setBookingStatus(booking.id, "COMPLETED"), "Receipt confirmed. Trip completed.")}>
-            Confirm receipt
-          </PrimaryButton>
+          {booking.status === "DELIVERED" ? (
+            <PrimaryButton type="button" disabled={busy || !booking.agreedPriceRwf} onClick={() => setPayOpen(true)}>
+              Pay remaining {formatRwf(balanceAmount(booking))} &amp; confirm receipt
+            </PrimaryButton>
+          ) : (
+            <PrimaryButton type="button" disabled={busy} onClick={() => void run(() => setBookingStatus(booking.id, "COMPLETED"), "Receipt confirmed. Trip completed.")}>
+              Confirm receipt
+            </PrimaryButton>
+          )}
           <p className="text-xs text-muted">Confirming releases your payment to the truck owner. If something is wrong, report a problem or request a refund instead: a refund is no longer possible once the owner is paid.</p>
           {booking.status === "DELIVERED" ? (
             <div className="space-y-3 border-t border-line pt-4">
@@ -561,11 +639,11 @@ function ImporterActions({ booking }: { booking: Booking }) {
 
       {canCancel ? (
         <ConfirmButton
-          label="Cancel booking"
-          title="Cancel this booking?"
+          label={booking.status === "PENDING" ? "Cancel request" : "Cancel booking"}
+          title={booking.status === "PENDING" ? "Cancel this booking request?" : "Cancel this booking?"}
           message="You have not paid, so there is no fee."
-          summary={[`Booking: ${booking.pickupLocation} to ${booking.destination}`, "The booking is cancelled immediately.", "The truck becomes available to other importers."]}
-          confirmLabel="Yes, cancel booking"
+          summary={[`Booking: ${booking.pickupLocation} to ${booking.destination}`, "The booking is cancelled immediately.", "The importer and truck owner will be notified.", "The truck becomes available for these dates."]}
+          confirmLabel={booking.status === "PENDING" ? "Yes, cancel request" : "Yes, cancel booking"}
           tone="danger"
           disabled={busy}
           onConfirm={() => run(() => setBookingStatus(booking.id, "CANCELLED"), "Booking cancelled. The truck is available again.")}

@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { requestActivity } from "@/lib/api";
+import { LoadingTruck } from "@/components/loading";
 
 /** Wait this long before showing anything, so quick requests do not flash the bar. */
 const SHOW_DELAY_MS = 200;
@@ -54,12 +55,15 @@ function LoadingIndicator() {
   const shown = busy && visible;
   return (
     <div aria-hidden={!shown} className={`pointer-events-none fixed inset-x-0 top-0 z-100 transition-opacity duration-200 ${shown ? "opacity-100" : "opacity-0"}`}>
-      <div className="h-1 overflow-hidden bg-brand/15">
+      <div className="relative h-1 overflow-visible bg-brand/15">
         <div className="loading-bar h-full rounded-full bg-brand" />
+        <div className="ibanga-global-truck absolute -top-3 left-0 z-10">
+          <LoadingTruck className="h-7 w-14 drop-shadow-sm" />
+        </div>
       </div>
       <div className="flex justify-center pt-2">
-        <span role="status" aria-live="polite" className="inline-flex items-center gap-2 rounded-full bg-navy px-3 py-1 text-xs font-semibold text-white shadow-soft">
-          <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white" aria-hidden="true" />
+        <span role="status" aria-live="polite" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-navy px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-navy/20">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-cyan-300" aria-hidden="true" />
           {shown ? (navigating ? "Opening page…" : "Loading…") : ""}
         </span>
       </div>

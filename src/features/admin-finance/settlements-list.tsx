@@ -100,7 +100,7 @@ export function SettlementsOverview() {
                   rows={settlementRows(data.items, nameOf)}
                   filterLabel="All statuses"
                   extraFilterLabel="All owners"
-                  exportName="settlements-demo"
+                  exportName="settlements"
                   emptyMessage="No settlements match these filters."
                 />
               ) : (
@@ -111,7 +111,7 @@ export function SettlementsOverview() {
                       rows={payoutRows(result.items, nameOf)}
                       filterLabel="All statuses"
                       extraFilterLabel="All owners"
-                      exportName="payouts-demo"
+                      exportName="payouts"
                       emptyMessage="No payouts match these filters."
                     />
                   )}
